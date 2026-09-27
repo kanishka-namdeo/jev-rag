@@ -72,6 +72,13 @@ class JevEngine:
             # Reduced llama.cpp context BEFORE the runtime import (the module reads
             # it at import time). Must be set before `from jev_style import ...`.
             os.environ.setdefault("JEV_SCORE_N_CTX", str(self.settings.jev_score_n_ctx))
+            # Allocation-trim + child heap cap are read at SPAWN time (respawns pick
+            # them up too), but exporting here keeps a single source of truth.
+            os.environ.setdefault("JEV_SCORE_N_SEQ_MAX", str(self.settings.jev_score_n_seq_max))
+            os.environ.setdefault("JEV_SCORE_N_OUTPUTS_MAX", str(self.settings.jev_score_n_outputs_max))
+            if self.settings.jev_score_rlimit_data_mb > 0:
+                os.environ.setdefault("JEV_SCORE_RLIMIT_DATA_MB",
+                                      str(self.settings.jev_score_rlimit_data_mb))
             from jev_style import JevStyle  # deferred import: heavy at module import time
 
             kwargs: dict[str, Any] = {

@@ -106,6 +106,62 @@ assert LLAMA_N_CTX >= CONTEXT_LIMIT + 3 * HARD_HEAD_MAX
     print("patched jev_style_decision_gguf.py (JEV_SCORE_N_CTX support)")
 PYEOF
 
+log "=== Phase 3c: patch runtime for trimmed sequence/output buffers (sandbox memory) ==="
+# Stock flags (--n-seq-max 17 --n-outputs-max 256) size for many_mode="batched"
+# fan-out; Jev-RAG's many_mode="exact" requests always run in jev-score sequential
+# mode using only sequences 0/1, so 2/32 cuts ~306MB RSS with bit-identical decoding
+# (verified by scripts/verify_jev_runtime_parity.py). The backend exports
+# JEV_SCORE_N_SEQ_MAX / JEV_SCORE_N_OUTPUTS_MAX via JEVRAG_JEV_SCORE_* settings.
+python3 - <<'PYEOF'
+from pathlib import Path
+
+rt = Path("models/jev-style/jev_style_decision_gguf.py")
+src = rt.read_text()
+if "JEV_SCORE_N_SEQ_MAX" in src:
+    print("runtime already has allocation-trim patch; skipping")
+else:
+    anchor = "assert LLAMA_N_CTX >= CONTEXT_LIMIT + 3 * HARD_HEAD_MAX\n"
+    env_block = anchor + '''
+# --- Jev-RAG patch: per-sequence state + outputs-buffer overrides (spawn-time) --------
+# llama.cpp reserves per-sequence recurrent state (~23.6 MB/seq on this hybrid
+# recurrent+attention model) and an outputs row buffer (n_vocab * 4 B per row). The
+# stock flags (n-seq-max 17 / n-outputs-max 256) size for many_mode="batched" fan-out;
+# Jev-RAG uses the default many_mode="exact", whose requests run in jev-score
+# "sequential" mode where only sequences 0 (shared prefix) and 1 (question) are ever
+# used and each question carries <= 4 option slots. Measured on this sandbox:
+# 17/256 -> 1,538 MB RSS vs 2/32 -> 1,232 MB RSS (306 MB saved) with identical
+# sequential-mode decoding. Env overrides are read at SPAWN time so respawns pick
+# them up; unset values keep upstream defaults.
+_JEV_N_SEQ_MAX = _os.environ.get("JEV_SCORE_N_SEQ_MAX", "").strip()
+_JEV_N_OUTPUTS_MAX = _os.environ.get("JEV_SCORE_N_OUTPUTS_MAX", "").strip()
+# --- end Jev-RAG patch --------------------------------------------------------------
+'''
+    if anchor not in src:
+        raise SystemExit("FATAL: context assert anchor not found — upstream changed; port the patch manually")
+    src = src.replace(anchor, env_block, 1)
+    old_cmd = '''        cmd = [str(self.binary), "--model", str(self.gguf), "--n-ctx", str(LLAMA_N_CTX), "--n-ubatch", str(n_ubatch),
+               "--ngl", str(n_gpu_layers), "--flash-attn", flash_attn, "--n-seq-max", "17", "--n-outputs-max", "256"]
+        if threads:
+            cmd += ["--threads", str(threads)]
+        self.proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                                     stderr=stderr if stderr is not None else subprocess.DEVNULL, text=True, bufsize=1)'''
+    new_cmd = '''        n_seq_max = int(_JEV_N_SEQ_MAX) if _JEV_N_SEQ_MAX.isdigit() else 17
+        n_outputs_max = int(_JEV_N_OUTPUTS_MAX) if _JEV_N_OUTPUTS_MAX.isdigit() else 256
+        n_outputs_max = max(n_outputs_max, 2, n_seq_max)  # libllama asserts n_out >= max(2, n_seq)
+        cmd = [str(self.binary), "--model", str(self.gguf), "--n-ctx", str(LLAMA_N_CTX), "--n-ubatch", str(n_ubatch),
+               "--ngl", str(n_gpu_layers), "--flash-attn", flash_attn, "--n-seq-max", str(n_seq_max),
+               "--n-outputs-max", str(n_outputs_max)]
+        if threads:
+            cmd += ["--threads", str(threads)]
+        self.proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                                     stderr=stderr if stderr is not None else subprocess.DEVNULL, text=True, bufsize=1)'''
+    if old_cmd not in src:
+        raise SystemExit("FATAL: spawn cmd block not found — upstream changed; port the patch manually")
+    src = src.replace(old_cmd, new_cmd, 1)
+    rt.write_text(src)
+    print("patched jev_style_decision_gguf.py (JEV_SCORE_N_SEQ_MAX / JEV_SCORE_N_OUTPUTS_MAX support)")
+PYEOF
+
 log "=== Phase 4: clone llama.cpp (shallow, master) ==="
 if [ ! -d "$LLAMA_DIR/.git" ]; then
   git clone --depth 1 https://github.com/ggml-org/llama.cpp.git "$LLAMA_DIR" || { log "FATAL: llama.cpp clone failed"; exit 3; }

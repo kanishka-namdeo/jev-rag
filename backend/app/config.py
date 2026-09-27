@@ -48,6 +48,17 @@ class Settings(BaseSettings):
     # llama.cpp context for the jev-score subprocess. Stock 32k allocates ~900MB KV
     # cache (sandbox OOM kills); our states stay under ~3k tokens -> 8192 is plenty.
     jev_score_n_ctx: int = 8192
+    # llama.cpp per-sequence recurrent state + outputs-row buffer sizing. The runtime's
+    # stock flags (17 seq / 256 outputs, ~1,538 MB RSS) size for many_mode="batched"
+    # fan-out; our many_mode="exact" requests always run sequentially using only
+    # sequences 0/1, so 2/32 cuts ~306 MB (measured) with identical decoding.
+    jev_score_n_seq_max: int = 2
+    jev_score_n_outputs_max: int = 32
+    # RLIMIT_DATA cap (MB) on the jev-score child, opt-in. EMPIRICALLY NOT USABLE:
+    # llama.cpp's repacked weights + compute-graph reservations count against the cap
+    # far beyond touched RSS (fails "context init failed" even at 1600 MB while actual
+    # RSS is ~1.23 GB), so the default is off (0). The flag trim above is the real fix.
+    jev_score_rlimit_data_mb: int = 0
 
     # --- Embeddings (local, ONNX via fastembed) ---
     embed_model: str = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
