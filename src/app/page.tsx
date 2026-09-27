@@ -15,9 +15,9 @@ import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/s
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const MODES = [
-  { value: "traditional", label: "Traditional" },
-  { value: "hybrid", label: "Hybrid · Jev" },
-  { value: "compare", label: "Compare" },
+  { value: "traditional", label: "Traditional", short: "Trad" },
+  { value: "hybrid", label: "Hybrid · Jev", short: "Jev" },
+  { value: "compare", label: "Compare", short: "Cmp" },
 ] as const;
 
 function LogoMark() {
@@ -96,15 +96,16 @@ export default function Home() {
 
         <div className="mx-auto">
           <Tabs value={mode} onValueChange={(v) => setMode(v as typeof mode)}>
-            <TabsList className="h-9">
+            <TabsList className="h-8 sm:h-9">
               {MODES.map((m) => (
                 <TabsTrigger
                   key={m.value}
                   value={m.value}
                   disabled={streaming}
-                  className="px-2.5 text-xs sm:px-3 sm:text-[13px]"
+                  className="gap-0 px-2 text-[11px] sm:px-3 sm:text-[13px]"
                 >
-                  {m.label}
+                  <span className="hidden sm:inline">{m.label}</span>
+                  <span className="sm:hidden">{m.short}</span>
                 </TabsTrigger>
               ))}
             </TabsList>

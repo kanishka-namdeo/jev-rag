@@ -78,3 +78,5 @@ scripts/research/
 
 # env files: keep the example
 !.env.example
+# local test screenshots (regenerable)
+scripts/test-assets/*.png

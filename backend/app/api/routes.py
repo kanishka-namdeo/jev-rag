@@ -19,7 +19,10 @@ from app.schemas import ChatRequest, ConversationOut, DocumentOut, MessageOut
 
 logger = logging.getLogger("jevrag.api")
 
-router = APIRouter(prefix="/api")
+# NOTE: no prefix here — main.py mounts this router under BOTH /api (direct
+# access, e.g. curl localhost:8000/api/health) and /backend-api (proxied by
+# the Next.js dev server via next.config.ts rewrites).
+router = APIRouter()
 
 # Basic CSRF-ish safety for filenames, and a hard cap per upload
 _MAX_FILE_BYTES = 25 * 1024 * 1024

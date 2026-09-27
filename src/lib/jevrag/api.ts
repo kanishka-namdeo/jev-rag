@@ -1,13 +1,9 @@
-/** API client: all requests go through the gateway via XTransformPort (never absolute URLs). */
-
-const BACKEND_PORT = 8000;
-
-function apiUrl(path: string): string {
-  return `${path}${path.includes("?") ? "&" : "?"}XTransformPort=${BACKEND_PORT}`;
-}
+/** API client: all backend requests go through the Next.js rewrite
+ * (/backend-api/* -> FastAPI :8000), so relative URLs work both directly
+ * (localhost:3000) and through the sandbox gateway. */
 
 async function fetchJSON<T>(path: string, init?: RequestInit): Promise<T> {
-  const resp = await fetch(apiUrl(path), init);
+  const resp = await fetch(`/backend-api${path}`, init);
   if (!resp.ok) {
     let detail = `${resp.status}`;
     try {
@@ -106,12 +102,12 @@ export interface SystemStatusData {
 }
 
 export const api = {
-  documents: () => fetchJSON<{ documents: DocumentInfoData[] }>("/api/documents"),
-  conversations: () => fetchJSON<{ conversations: ConversationInfoData[] }>("/api/conversations"),
+  documents: () => fetchJSON<{ documents: DocumentInfoData[] }>("/documents"),
+  conversations: () => fetchJSON<{ conversations: ConversationInfoData[] }>("/conversations"),
   conversationMessages: (id: string) =>
-    fetchJSON<{ messages: MessageData[] }>(`/api/conversations/${id}/messages`),
-  systemStatus: () => fetchJSON<SystemStatusData>("/api/system/status"),
-  health: () => fetchJSON<{ status: string }>("/api/system/health"),
+    fetchJSON<{ messages: MessageData[] }>(`/conversations/${id}/messages`),
+  systemStatus: () => fetchJSON<SystemStatusData>("/system/status"),
+  health: () => fetchJSON<{ status: string }>("/system/health"),
 };
 
 /** Ask the Next.js server to (re)spawn the Python backend if it is down. */
@@ -136,7 +132,7 @@ export async function streamChat(
   onEvent: (evt: Record<string, unknown>) => void,
   signal?: AbortSignal,
 ): Promise<void> {
-  const resp = await fetch(apiUrl("/api/chat"), {
+  const resp = await fetch("/backend-api/chat", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -177,7 +173,7 @@ export async function streamChat(
 export async function uploadDocuments(files: File[]): Promise<DocumentInfoData[]> {
   const form = new FormData();
   for (const f of files) form.append("files", f);
-  const resp = await fetch(apiUrl("/api/documents"), { method: "POST", body: form });
+  const resp = await fetch("/backend-api/documents", { method: "POST", body: form });
   if (!resp.ok) {
     let detail = `HTTP ${resp.status}`;
     try {
@@ -192,9 +188,9 @@ export async function uploadDocuments(files: File[]): Promise<DocumentInfoData[]
 }
 
 export async function deleteDocument(id: string): Promise<void> {
-  await fetchJSON(`/api/documents/${id}`, { method: "DELETE" });
+  await fetchJSON(`/documents/${id}`, { method: "DELETE" });
 }
 
 export async function deleteConversation(id: string): Promise<void> {
-  await fetchJSON(`/api/conversations/${id}`, { method: "DELETE" });
+  await fetchJSON(`/conversations/${id}`, { method: "DELETE" });
 }

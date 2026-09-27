@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.12"
+      - name: Install backend dependencies
+        working-directory: backend
+        run: |
+          uv venv .venv
+          uv pip install --python .venv/bin/python -r requirements.txt
+      - name: Run backend tests (hermetic — no models, no network)
+        working-directory: backend
+        env:
+          JEVRAG_DASHSCOPE_BASE_URL: http://127.0.0.1:9   # fail fast, health() degrades gracefully
+          JEVRAG_DASHSCOPE_API_KEY: ci-placeholder
+        run: .venv/bin/python -m pytest tests -v
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - name: Install frontend dependencies
+        run: bun install --frozen-lockfile
+      - name: Lint
+        run: bun run lint

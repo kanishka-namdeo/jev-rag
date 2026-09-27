@@ -72,7 +72,10 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
-    application.include_router(router)
+    # /api/* is for direct access; /backend-api/* is what the Next.js server
+    # rewrites to (works both through the gateway and on localhost:3000).
+    application.include_router(router, prefix="/api")
+    application.include_router(router, prefix="/backend-api")
     return application
 
 

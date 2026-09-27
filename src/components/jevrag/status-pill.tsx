@@ -43,7 +43,7 @@ export function StatusPill() {
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-2 rounded-full border bg-background/80 px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-muted/60"
+        className="flex items-center gap-1.5 rounded-full border bg-background/80 px-2 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-muted/60 sm:gap-2 sm:px-3"
         aria-label="System status"
       >
         <span className="flex items-center gap-1" title="Cloud LLM (Dashscope)">
@@ -54,7 +54,7 @@ export function StatusPill() {
           <Cpu className="h-3.5 w-3.5" />
           <Dot ok={jevOk} />
         </span>
-        <span className="flex items-center gap-1" title="Indexed documents">
+        <span className="hidden items-center gap-1 sm:flex" title="Indexed documents">
           <Database className="h-3.5 w-3.5" />
           <span className="font-mono tabular-nums">{docsReady}</span>
         </span>
