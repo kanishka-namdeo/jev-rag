@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# backend_service.sh — runs the FastAPI backend (uvicorn) for the Jev-RAG app.
+# Started by .zscripts/dev.sh via mini-services/backend (or manually: bash scripts/backend_service.sh)
+set -euo pipefail
+
+BACKEND_DIR="/home/z/my-project/backend"
+export PYTHONUNBUFFERED=1
+
+if [ ! -x "$BACKEND_DIR/.venv/bin/python" ]; then
+  echo "backend venv missing — run scripts/setup_backend.sh first" >&2
+  sleep 5
+  exit 1
+fi
+
+cd "$BACKEND_DIR"
+exec "$BACKEND_DIR/.venv/bin/python" -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --log-level info
