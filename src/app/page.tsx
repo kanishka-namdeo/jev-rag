@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Activity, Loader2, Menu, Moon, Sun } from "lucide-react";
+import { Activity, FlaskConical, Loader2, Menu, MessageSquare, Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
 
+import { BenchView } from "@/components/jevrag/bench/bench-view";
 import { ChatPanel } from "@/components/jevrag/chat-panel";
 import { Sidebar } from "@/components/jevrag/sidebar";
 import { StatusPill } from "@/components/jevrag/status-pill";
@@ -56,6 +57,7 @@ function ThemeToggle() {
 export default function Home() {
   const { init, mode, setMode, streaming, traceOpen, messages } = useJevRag();
   const [booting, setBooting] = useState(true);
+  const [view, setView] = useState<"chat" | "bench">("chat");
 
   useEffect(() => {
     let cancelled = false;
@@ -94,22 +96,46 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="mx-auto">
-          <Tabs value={mode} onValueChange={(v) => setMode(v as typeof mode)}>
-            <TabsList className="h-8 sm:h-9">
-              {MODES.map((m) => (
-                <TabsTrigger
-                  key={m.value}
-                  value={m.value}
-                  disabled={streaming}
-                  className="gap-0 px-2 text-[11px] sm:px-3 sm:text-[13px]"
-                >
-                  <span className="hidden sm:inline">{m.label}</span>
-                  <span className="sm:hidden">{m.short}</span>
-                </TabsTrigger>
-              ))}
-            </TabsList>
-          </Tabs>
+        <div className="mx-auto flex items-center gap-3">
+          {/* top-level view switch */}
+          <div className="flex items-center rounded-lg border bg-muted/40 p-0.5">
+            {([
+              { v: "chat", label: "Chat", icon: MessageSquare },
+              { v: "bench", label: "Benchmarks", icon: FlaskConical },
+            ] as const).map(({ v, label, icon: Icon }) => (
+              <button
+                key={v}
+                onClick={() => setView(v)}
+                className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors sm:px-3 sm:text-[12px] ${
+                  view === v
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+                aria-label={`Switch to ${label}`}
+              >
+                <Icon className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">{label}</span>
+              </button>
+            ))}
+          </div>
+
+          {view === "chat" && (
+            <Tabs value={mode} onValueChange={(v) => setMode(v as typeof mode)}>
+              <TabsList className="h-8 sm:h-9">
+                {MODES.map((m) => (
+                  <TabsTrigger
+                    key={m.value}
+                    value={m.value}
+                    disabled={streaming}
+                    className="gap-0 px-2 text-[11px] sm:px-3 sm:text-[13px]"
+                  >
+                    <span className="hidden sm:inline">{m.label}</span>
+                    <span className="sm:hidden">{m.short}</span>
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+            </Tabs>
+          )}
         </div>
 
         <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
@@ -141,21 +167,27 @@ export default function Home() {
       </header>
 
       {/* Body */}
-      <div className="flex min-h-0 flex-1">
-        <div className="hidden w-72 shrink-0 border-r lg:block">
-          <Sidebar />
-        </div>
-
+      {view === "bench" ? (
         <main className="flex min-w-0 flex-1 flex-col">
-          <ChatPanel />
+          <BenchView />
         </main>
-
-        {traceOpen && (
-          <div className="hidden w-96 shrink-0 xl:block">
-            <TracePanel />
+      ) : (
+        <div className="flex min-h-0 flex-1">
+          <div className="hidden w-72 shrink-0 border-r lg:block">
+            <Sidebar />
           </div>
-        )}
-      </div>
+
+          <main className="flex min-w-0 flex-1 flex-col">
+            <ChatPanel />
+          </main>
+
+          {traceOpen && (
+            <div className="hidden w-96 shrink-0 xl:block">
+              <TracePanel />
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Footer (sticky, pushed down naturally on overflow) */}
       <footer className="flex shrink-0 items-center justify-between gap-2 border-t bg-background px-4 py-1.5 text-[10px] text-muted-foreground">

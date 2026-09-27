@@ -123,6 +123,15 @@ instructions mention them. No child doc may weaken them.
 - **Jev-faithful System One.** Local decisions use typed calibrated primitives (noul/choice/score)
   via the `jev-style` package; they never generate prose. New decision points go in
   `backend/app/llm/jev_engine.py`.
+- **Benchmarks guard the pipelines.** Any change to retrieval, prompts, Jev decision patterns,
+  model routing, or generation settings MUST re-run the benchmark smoke (`POST /api/bench/runs`
+  with one scenario) and record the delta vs `docs/benchmark-results.md` in the PR/commit message.
+  Full runs re-export results via `backend/scripts/export_bench_results.py`. Methodology is
+  binding: `docs/benchmarking.md` (judge must stay model-family-independent from the generators).
+- **Sandbox memory discipline.** The jev-score subprocess needs ~1.5GB RSS and the sandbox has
+  4GB total: during any long local-model run, avoid launching browsers, recompiling the frontend,
+  or starting duplicate model processes. The engine auto-reloads on subprocess death
+  (`JevEngine._try_load`); never remove that recovery path.
 - **Tests and lint stay green.** Backend pytest and `bun run lint` must pass before every push.
 - **Commit and push at milestones.** Small, descriptive commits; push to `origin/main` after each
   meaningful milestone (feature, fix, docs).
@@ -139,10 +148,10 @@ instructions mention them. No child doc may weaken them.
 
 | Child | Scope |
 | --- | --- |
-| [backend/AGENTS.md](backend/AGENTS.md) | FastAPI service, RAG pipelines, Jev-style engine, ingestion, storage, tests |
-| [src/AGENTS.md](src/AGENTS.md) | Next.js frontend: chat UI, trace panel, documents, store and API client |
-| [scripts/AGENTS.md](scripts/AGENTS.md) | Setup, build and run scripts for models, backend and dev workflow |
-| [docs/AGENTS.md](docs/AGENTS.md) | Durable design docs: architecture, hybrid pipeline, API protocol |
+| [backend/AGENTS.md](backend/AGENTS.md) | FastAPI service, RAG pipelines, Jev-style engine, ingestion, storage, benchmark harness, tests |
+| [src/AGENTS.md](src/AGENTS.md) | Next.js frontend: chat UI, trace panel, documents, benchmarks dashboard, store and API client |
+| [scripts/AGENTS.md](scripts/AGENTS.md) | Setup, build and run scripts for models, backend, dev workflow, bench export |
+| [docs/AGENTS.md](docs/AGENTS.md) | Durable design docs: architecture, hybrid pipeline, API protocol, benchmarking methodology & results |
 
 Intentionally unindexed local or generated roots: `node_modules/`, `.next/`, `backend/.venv/`,
 `backend/data/`, `models/`, `vendor/`, `logs/`, `mini-services/`, `download/`, `upload/`,

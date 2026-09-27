@@ -3,22 +3,30 @@
 ## Purpose
 
 - Own the Next.js 16 App Router UI: chat with SSE streaming, mode selection (traditional /
-  hybrid / compare), document management sidebar, Jev decision trace panel, system status.
+  hybrid / compare), document management sidebar, Jev decision trace panel, system status,
+  and the Benchmarks lab (scenario selection, live run progress, results dashboard).
 
 ## Ownership
 
-- `app/page.tsx` — page shell: header, sidebar, chat, trace panel, responsive layout
+- `app/page.tsx` — page shell: header, view switch (Chat | Benchmarks), sidebar, chat, trace panel
 - `app/layout.tsx` — fonts, metadata, theme provider, toasters
 - `app/api/ensure-backend/route.ts` — self-healing backend launcher (spawns uvicorn detached)
 - `lib/jevrag/api.ts` — backend client; ALL backend calls go through `/backend-api/*` (Next rewrite)
 - `lib/jevrag/store.ts` — zustand store: messages, SSE event application, uploads, status
 - `lib/jevrag/types.ts` — shared types mirroring the backend SSE protocol
+- `lib/jevrag/bench-api.ts` — bench client + types (scenarios, runs, results, summary shapes)
+- `lib/jevrag/bench-store.ts` — bench state: selection, run lifecycle, 3s polling while running
 - `components/jevrag/chat-panel.tsx` — message list, compare rows, composer, empty state
 - `components/jevrag/chat-message.tsx` — markdown + citation chips + meta + verification badge
 - `components/jevrag/trace-panel.tsx` — Jev decisions with probability bars, retrieval, timings
 - `components/jevrag/sidebar.tsx` — conversations + documents + upload dropzone
 - `components/jevrag/status-pill.tsx` — cloud/jev/docs health indicator
 - `components/jevrag/ui-bits.tsx` — shared atoms (ModeBadge, ProbabilityBar, CitationChip…)
+- `components/jevrag/bench/bench-view.tsx` — benchmark lab layout: header, scenario grid, run controls, progress
+- `components/jevrag/bench/results-dashboard.tsx` — metric cards, per-scenario charts (recharts),
+  pairwise/gate/abstention panels; `liveSummary` client-side aggregation while a run is in flight
+- `components/jevrag/bench/results-table.tsx` — per-question table with filters and drill-down
+  (answer, reference, judge reason, retrieved files, timings, sufficiency/verification)
 
 ## Local Contracts
 
@@ -27,8 +35,10 @@
 - The SSE event schema is owned jointly with `backend/AGENTS.md`; update both sides together
 - Keep the backend mount symmetrical: FastAPI serves both `/api/*` and `/backend-api/*`
 - One user-visible route only: `/` (sandbox constraint)
-- No blue/indigo palette: hybrid = emerald, traditional = amber, neutrals = zinc
+- No blue/indigo palette: hybrid = emerald, traditional = sky/amber accents, neutrals = zinc
+  (bench charts: traditional #0ea5e9, hybrid #10b981)
 - All state flows through the zustand store; components stay presentational where possible
+- Benchmarks polling only while a run is active (3s interval; stopped on completion/failure)
 
 ## Work Guidance
 

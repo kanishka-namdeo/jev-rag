@@ -79,13 +79,31 @@ query ─▶ embed (local ONNX) ─▶ ChromaDB top-10
 Every decision is streamed to the trace panel with probability bars, and persisted with the
 message. Full protocol: [docs/api.md](docs/api.md).
 
+## Benchmarking the two systems
+
+The app ships a **Benchmark Lab** (Benchmarks tab): six document scenarios — tech-docs,
+earnings reports with near-identical distractor numbers, conditional policies, a
+needle-in-haystack support KB, a multilingual (EN/ZH/DE/FR) exhibition guide, and an
+out-of-scope corpus for abstention — 48 ground-truth questions answered by BOTH pipelines
+under a matched context budget, then scored by:
+
+- deterministic retrieval metrics (hit@k, MRR, recall@k, file-level nDCG@10, rerank lift,
+  sufficiency-gate accuracy + Brier)
+- an independent LLM judge (`kimi-k2.5`, different model family from the generators, JSON-only,
+  temperature 0) for RAGAS-style correctness/faithfulness + 3-way abstention classification
+- MT-Bench pairwise comparison with position swap and a consistency audit
+
+Methodology and sources: [docs/benchmarking.md](docs/benchmarking.md) · latest exported
+results: [docs/benchmark-results.md](docs/benchmark-results.md). A full run is ~48 × 2
+answers + ~240 judge calls (~40–70 min on 2 CPU cores, a few cents of endpoint spend).
+
 ## Repository layout
 
 ```
-backend/          FastAPI app (pipelines, Jev engine, ingestion, storage, tests)
-src/              Next.js frontend (chat, trace panel, documents, store)
-scripts/          setup / build / run scripts (+ validated decision experiments)
-docs/             architecture, hybrid design rationale, API protocol
+backend/          FastAPI app (pipelines, Jev engine, ingestion, storage, benchmark harness, tests)
+src/              Next.js frontend (chat, trace panel, documents, benchmarks dashboard, store)
+scripts/          setup / build / run scripts (+ validated decision experiments, bench export)
+docs/             architecture, hybrid design rationale, API protocol, benchmarking + results
 AGENTS.md         DOX framework — binding rules for any AI agent working here
 ```
 
