@@ -4,7 +4,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import JSON, DateTime, Float, ForeignKey, Integer, String, Text, create_engine
+from sqlalchemy import JSON, Boolean, DateTime, Float, ForeignKey, Integer, String, Text, create_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
 
 from app.config import get_settings
@@ -58,6 +58,63 @@ class Message(Base):
     completion_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
     cost_usd: Mapped[float | None] = mapped_column(Float, nullable=True)
     trace: Mapped[dict | list | None] = mapped_column(JSON, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class BenchRun(Base):
+    """One benchmark execution over a set of scenarios (both pipelines)."""
+    __tablename__ = "bench_runs"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    label: Mapped[str] = mapped_column(String(256), default="benchmark run")
+    status: Mapped[str] = mapped_column(String(16), default="queued")
+    # queued | running | cancelling | cancelled | completed | failed
+    scenario_ids: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    judge_model: Mapped[str] = mapped_column(String(64), default="")
+    config: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    progress_total: Mapped[int] = mapped_column(Integer, default=0)
+    progress_done: Mapped[int] = mapped_column(Integer, default=0)
+    progress_stage: Mapped[str] = mapped_column(String(256), default="")
+    judge_selftest: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    summary: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class BenchResult(Base):
+    """One pipeline answer to one benchmark question (mode = traditional | hybrid)."""
+    __tablename__ = "bench_results"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    run_id: Mapped[str] = mapped_column(ForeignKey("bench_runs.id", ondelete="CASCADE"), index=True)
+    scenario_id: Mapped[str] = mapped_column(String(64))
+    question_id: Mapped[str] = mapped_column(String(64))
+    question: Mapped[str] = mapped_column(Text, default="")
+    mode: Mapped[str] = mapped_column(String(16))               # traditional | hybrid
+    qtype: Mapped[str] = mapped_column(String(32), default="")
+    answerable: Mapped[bool] = mapped_column(Boolean, default=True)
+    reference: Mapped[str] = mapped_column(Text, default="")
+
+    answer: Mapped[str] = mapped_column(Text, default="")
+    model: Mapped[str] = mapped_column(String(64), default="")
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    retrieved_files: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    pre_rerank_files: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    retrieval: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    naive_retrieval: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    generation: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    pairwise: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    timings: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    tokens_in: Mapped[int] = mapped_column(Integer, default=0)
+    tokens_out: Mapped[int] = mapped_column(Integer, default=0)
+    cost_usd: Mapped[float | None] = mapped_column(Float, nullable=True)
+    sufficiency_p: Mapped[float | None] = mapped_column(Float, nullable=True)
+    verification_p: Mapped[float | None] = mapped_column(Float, nullable=True)
+    routed_model: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    jev_decisions: Mapped[list | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
 

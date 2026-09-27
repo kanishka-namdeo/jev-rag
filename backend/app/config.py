@@ -63,6 +63,14 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     lazy_models: bool = False           # True: skip eager model loading at startup (tests)
 
+    # --- Benchmarking (app.bench) ---
+    # Judge model is deliberately INDEPENDENT from both pipelines' generators
+    # (qwen3.x-plus): kimi-k2.5 avoids self-preference bias (MT-Bench/G-Eval
+    # guidance). Verified: json_object response_format works, ~1.4s/call.
+    bench_judge_model: str = "kimi-k2.5"
+    bench_pairwise: bool = True         # MT-Bench position-swap comparison
+    bench_max_questions_per_scenario: int = 0   # 0 = all questions (smoke runs can limit)
+
     # --- Derived paths ---
     @property
     def data_path(self) -> Path:

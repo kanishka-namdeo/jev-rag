@@ -13,7 +13,10 @@ from fastapi.middleware.cors import CORSMiddleware
 
 import app  # noqa: F401  (ensures package init)
 from app import __version__
+from app.api.bench_routes import router as bench_router
 from app.api.routes import router
+from app.bench.judge import BenchJudge
+from app.bench.runner import BenchRunner
 from app.config import get_settings
 from app.db import init_db
 from app.llm.dashscope import DashscopeLLM
@@ -53,6 +56,10 @@ async def lifespan(fastapi_app: FastAPI):
     fastapi_app.state.llm = llm
     fastapi_app.state.ingestor = Ingestor(settings, embedder, store)
     fastapi_app.state.chat_service = ChatService(settings, llm, jev, embedder, store)
+    fastapi_app.state.bench_judge = BenchJudge(settings)
+    fastapi_app.state.bench_runner = BenchRunner(
+        settings, llm, jev, embedder, store, fastapi_app.state.ingestor,
+        fastapi_app.state.bench_judge)
     logger.info("backend up (v%s) in %.1fs — lazy_models=%s", __version__,
                 time.perf_counter() - t0, settings.lazy_models)
     yield
@@ -76,6 +83,8 @@ def create_app() -> FastAPI:
     # rewrites to (works both through the gateway and on localhost:3000).
     application.include_router(router, prefix="/api")
     application.include_router(router, prefix="/backend-api")
+    application.include_router(bench_router, prefix="/api")
+    application.include_router(bench_router, prefix="/backend-api")
     return application
 
 

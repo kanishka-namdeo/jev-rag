@@ -131,9 +131,17 @@ class VectorStore:
         self._collection.upsert(ids=ids, embeddings=embeddings, documents=texts, metadatas=metadatas)
         return len(ids)
 
-    def query(self, embedding: list[float], k: int) -> list[RetrievedChunk]:
+    def query(self, embedding: list[float], k: int,
+              doc_ids: list[str] | None = None) -> list[RetrievedChunk]:
+        """k nearest chunks (cosine). doc_ids restricts the search to a document
+        subset (benchmark scenario isolation)."""
         self._ensure()
-        res = self._collection.query(query_embeddings=[embedding], n_results=min(k, max(self.count(), 1)))
+        where = {"doc_id": {"$in": list(doc_ids)}} if doc_ids is not None else None
+        res = self._collection.query(
+            query_embeddings=[embedding],
+            n_results=min(k, max(self.count(), 1)),
+            where=where,
+        )
         chunks: list[RetrievedChunk] = []
         if not res.get("ids") or not res["ids"][0]:
             return chunks
