@@ -56,8 +56,11 @@ Design notes:
 - **Effort routing replaces model routing.** The v1 `choice` between qwen3.7-plus and
   qwen3.6-plus is gone; the same single decide() call now picks the retrieval strategy.
   Validation: 9/12 on the Adaptive-RAG taxonomy, and P(no_retrieval) separates chat
-  (0.76–0.96) from doc questions (≤0.17) — the skip-retrieval fast path is safe at a 0.5
-  threshold.
+  (0.76–0.96) from doc questions (≤0.17). Full-run evidence (run 0314ac0a) moved the
+  shipped threshold from 0.5 to 0.9: at 0.5 one look-up policy question was misrouted
+  (automatic loss) and one unanswerable question was answered from parametric knowledge
+  (judged fabricated); real chat clears 0.94, so 0.9 keeps the fast path for chat while
+  defaulting factual questions to retrieval.
 - **Conflict-blocked passages keep their [n] labels** and move to a dedicated
   "Conflicting evidence" prompt section — the generator must weigh them explicitly instead of
   being silently poisoned. First live test caught a premise conflict (tiered vs global limits)
@@ -76,9 +79,9 @@ Design notes:
 | Knob | Default | Controls |
 | --- | --- | --- |
 | `HYBRID_EFFORT_ROUTING` | true | slot 1 on/off |
-| `JEV_NO_RETRIEVAL_THRESHOLD` | 0.5 | skip retrieval only when P ≥ this |
+| `JEV_NO_RETRIEVAL_THRESHOLD` | 0.9 | skip retrieval only when P ≥ this (0.5 → 0.9 after run 0314ac0a) |
 | `JEV_MULTISTEP_SUBQUERY_K` / `JEV_MULTISTEP_MAX_POOL` | 6 / 12 | decomposition retrieval depth / rerank pool cap |
-| `HYBRID_PASSAGE_BATTERY` | true | slot 3 on/off |
+| `HYBRID_PASSAGE_BATTERY` | **false** | slot 3 on/off — OFF after full-run evidence (see below) |
 | `JEV_INJECTION_DROP_THRESHOLD` | 0.9 | drop passage when P(injection) ≥ this |
 | `JEV_CONTRADICTION_BLOCK_THRESHOLD` | 0.5 | conflict-block when P(contradiction) ≥ this |
 | `JEV_EVIDENCE_DROP_THRESHOLD` | 0.1 | drop when P(evidence) < this AND relevance < 0.5 |
@@ -89,6 +92,15 @@ Design notes:
 
 Every threshold follows the calibration discipline from the research: nominal thresholds miss
 realized budgets, so gates are Brier-scored in the benchmark rather than trusted blindly.
+
+**Battery status — OFF by default (evidence-based).** The full v2 run
+([docs/benchmark-results.md](benchmark-results.md), run 0314ac0a) measured the battery's
+absolute thresholds as miscalibrated for the 0.8B stand-in: P(prompt-injection) fires at
+0.91–0.98 on ordinary earnings/technical prose (25 drops, 8 gold passages lost) and
+P(evidence) collapses to ~0.03 on near-duplicate KBs — over-abstention 39.5%, correctness
+−20.8pp vs traditional. The finance ablation (run e98907aa,
+[docs/benchmark-v2-ablation.md](benchmark-v2-ablation.md)) recovered 50% → 100% with the
+battery off. Re-enable only after per-corpus threshold calibration against labeled data.
 
 ## v1 decision points (superseded, kept for trace continuity)
 

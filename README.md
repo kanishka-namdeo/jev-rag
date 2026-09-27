@@ -39,12 +39,16 @@ Everything except the cloud LLM endpoint runs **locally**: embeddings (ONNX CPU)
 
 ## What was achieved
 
-> **v2 update (2026-09-28):** the hybrid pipeline was rebuilt around the single-generator
-> insight (effort routing, passage screening battery, corrective retry, best-of-2 selection,
-> citation-level verification, composite quality score — every slot research-validated first:
-> [docs/jev-improvements-research.md](docs/jev-improvements-research.md)). The numbers below are
-> the **v1** full-run results; a v2 full re-run is pending (smoke-verified: 1-question techdocs
-> run, hybrid hit1/MRR/NDCG all 1.0).
+> **v2 update (2026-09-28) — full re-run complete, and it changed the conclusion.** The v2
+> pipeline (effort routing, passage screening battery, corrective retry, best-of-2 selection,
+> citation-level verification — [docs/jev-improvements-research.md](docs/jev-improvements-research.md))
+> was benchmarked on the same 48 questions and **lost to the traditional pipeline: 62.5% vs
+> 83.3% correctness (Wilcoxon p = 0.033, pairwise 4W/24L/20T)**. The regression is attributed
+> mechanistically to the new screening battery's false positives (prompt-injection scores of
+> 0.91–0.98 on ordinary prose dropping gold passages; over-abstention 39.5%). The v1 numbers
+> below are retained because v1 remains the better hybrid configuration on this evidence —
+> the battery ships disabled by default (`JEVRAG_HYBRID_PASSAGE_BATTERY=true` to re-enable).
+> Full analysis: [docs/benchmark-results.md](docs/benchmark-results.md).
 
 The two systems were benchmarked head-to-head on **6 document scenarios × 48 ground-truth
 questions**, both arms under a matched context budget (top-4), scored by an **independent LLM
@@ -73,8 +77,12 @@ position-swapped pairwise verdicts, 8/8 canary self-test).
   so the quality gains come from the hybrid's full-system orchestration — gate + route + verify —
   not from raw ranking. The honest tradeoff is **latency**: three local Jev decision calls add
   ~29 s on 2 CPU cores. Tuning knobs are documented.
+- **Statistical honesty**: retroactive paired tests on the v1 run give McNemar p = 0.125 and
+  Wilcoxon p = 0.046 (bootstrap CI +0.02…+0.17) — a positive trend, underpowered at n=48, not an
+  established win. The v2 regression, by contrast, is significant on two of three tests. We
+  report both directions with the same yardstick.
 - Everything is reproducible from the UI: open the **Benchmarks** tab, pick scenarios, run.
-  A full run is ~40–70 min on 2 cores for a few cents of endpoint spend.
+  A full run is ~40–100 min on 2 cores for a few cents of endpoint spend.
 
 ## The app
 

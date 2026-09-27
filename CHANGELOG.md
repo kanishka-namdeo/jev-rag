@@ -4,6 +4,44 @@ Milestone history for Jev-RAG. Each entry links to the commit that delivered it.
 Dates are YYYY-MM-DD (commit date). Format is loosely inspired by
 [Keep a Changelog](https://keepachangelog.com/), grouped by project phase.
 
+## 2026-09-28 — v2 full benchmark: objective evaluation, memory hardening, evidence-based defaults
+
+The full v2 re-run (48 questions × 2 arms, run `0314ac0a`) **changed the conclusion**,
+and the repo now says so plainly:
+
+- **Result (within-run, controlled comparison): hybrid v2 62.5% vs traditional 83.3%
+  correctness (−20.8pp; Wilcoxon p = 0.033; bootstrap CI −0.40…−0.02; pairwise
+  4W/24L/20T = 29.2% win rate).** The v1 result (93.8%, +8.3pp) is re-labeled
+  honestly: McNemar p = 0.125 — a positive trend, underpowered at n=48, not an
+  established win. Both directions get the same statistical yardstick
+  (`scripts/analyze_bench_run.py`: McNemar exact/χ², Wilcoxon + rank-biserial,
+  paired bootstrap CI, Wilson intervals, verbosity-bias probe).
+- **Mechanistic attribution** (`scripts/diagnose_v2_losses.py`): 8/16 losses from the
+  screening battery's injection noul firing 0.91–0.98 on ordinary prose (gold passages
+  dropped), 3 from all-evidence drops emptying the context, 3 from conflict-flag
+  hedging, 1 from a no_retrieval misroute (plus 2 judge-noise flips at the abstention
+  boundary). Over-abstention 39.5% (v1: 2.3%); 1 fabrication via the no_retrieval
+  fast path; sufficiency gate degraded to 82.2%/Brier 0.164 evaluating
+  battery-depleted contexts.
+- **Ablation confirmation** (`docs/benchmark-v2-ablation.md`, run `e98907aa`): finance
+  scenario re-run with `JEVRAG_HYBRID_PASSAGE_BATTERY=false` isolates how much of the
+  regression the battery alone accounts for.
+- **Evidence-based default changes**: `hybrid_passage_battery` now ships **false**
+  (absolute-threshold gating needs per-corpus calibration before shipping on);
+  `jev_no_retrieval_threshold` 0.5 → 0.9 (misroute + fabrication evidence; validated
+  chat questions still clear 0.94). `.env.example` and config comments cite the run.
+- **Objectivity protocol documented** (docs/benchmark-results.md): judge independence
+  + position swap + blind absolute scoring (audited, unchanged, sound); new
+  confound disclosures — cloud latency/behavior drift across runs (traditional's own
+  score moved with identical code), judge variance on abstention scoring, and the
+  within-run vs cross-run distinction.
+- **Sandbox survivability fix**: jev-score allocation trimmed ~306 MB
+  (env-tunable `--n-seq-max`/`--n-outputs-max`; our exact-mode requests only use
+  sequences 0/1). Verified bit-identical decisions; full 98-minute run completed
+  with zero OOM incidents. RLIMIT_DATA child cap tested and rejected (context init
+  fails at 1600 MB against ~1.23 GB actual RSS — llama.cpp reservations count).
+  Statistics deps (scipy, statsmodels) added to the backend venv for analysis.
+
 ## 2026-09-28 — Hybrid v2 pipeline: decisions beyond model routing (single generator)
 
 Implements the v2 proposal from the research pass — every slot was validated locally before

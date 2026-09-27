@@ -80,11 +80,23 @@ class Settings(BaseSettings):
     # With one cloud generator the model-routing slot degenerates into effort routing;
     # every flag below maps to one researched + validated decision slot.
     hybrid_effort_routing: bool = True  # [1] choice {no_retrieval,single_pass,multi_step} (~1.2s)
-    jev_no_retrieval_threshold: float = 0.5  # skip retrieval only when P(no_retrieval) >= this
+    jev_no_retrieval_threshold: float = 0.9  # skip retrieval only when P(no_retrieval) >= this.
+    # 0.5 -> 0.9 after run 0314ac0a: at 0.5 the fast path misrouted a look-up policy
+    # question (p7, automatic loss) and answered an unanswerable question from
+    # parametric knowledge (o6, judged fabricated). Validated chat questions score
+    # P >= 0.94, so 0.9 keeps the fast path for real chat while defaulting factual
+    # questions to retrieval.
     hybrid_multistep: bool = True       # multi_step: decompose -> per-subquery retrieval -> merge
     jev_multistep_subquery_k: int = 6   # chunks retrieved per sub-query before the merge
     jev_multistep_max_pool: int = 12    # deduped pool cap fed into the reranker
-    hybrid_passage_battery: bool = True  # [2] per-passage screen: evidence/conflict/injection
+    hybrid_passage_battery: bool = False  # [2] per-passage screen: evidence/conflict/injection.
+    # OFF by default after full-run evidence (bench run 0314ac0a, 48Q): the battery's
+    # injection noul fired 0.91-0.98 on ordinary earnings/technical prose (25 drops,
+    # 8 of them gold passages) and its evidence noul collapsed to ~0.03 on near-duplicate
+    # KBs (all-4-passage drops) -> over-abstention 39.5%, correctness -20.8pp vs
+    # traditional (Wilcoxon p=0.033). Absolute-threshold gating needs per-corpus
+    # calibration before it can ship ON; re-enable with JEVRAG_HYBRID_PASSAGE_BATTERY=true
+    # and see docs/benchmark-results.md + docs/benchmark-v2-ablation.md.
     jev_injection_drop_threshold: float = 0.9   # drop passage when P(prompt_injection) >= this
     jev_contradiction_block_threshold: float = 0.5  # conflict-block when P(contradiction) >= this
     jev_evidence_drop_threshold: float = 0.1  # drop when P(evidence) < this AND relevance < 0.5
