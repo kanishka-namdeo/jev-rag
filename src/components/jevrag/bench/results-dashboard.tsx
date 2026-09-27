@@ -255,11 +255,14 @@ export function ResultsDashboard() {
 
   const order = scenarios.map((s) => s.id).filter((id) => id in summary.scenarios);
   const label = (id: string) => (scenarios.find((s) => s.id === id)?.name ?? id).split(" ")[0];
+  /** generation metrics live at the arm root, retrieval metrics under `retrieval` */
+  const armMetric = (arm: ArmMetrics, field: string): number | null =>
+    (arm[field] as number | null | undefined) ?? arm.retrieval?.[field] ?? null;
   const chart = (field: string) =>
     order.map((id) => ({
       scenario: label(id),
-      trad: summary.scenarios[id].traditional[field] ?? null,
-      hyb: summary.scenarios[id].hybrid[field] ?? null,
+      trad: armMetric(summary.scenarios[id].traditional, field),
+      hyb: armMetric(summary.scenarios[id].hybrid, field),
     }));
 
   const t = summary.overall.traditional;
