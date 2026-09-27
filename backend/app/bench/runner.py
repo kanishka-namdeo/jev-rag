@@ -16,6 +16,8 @@ serialized by design. Only one run may be active at a time.
 from __future__ import annotations
 
 import asyncio
+import ctypes
+import gc
 import logging
 import time
 from collections import defaultdict
@@ -52,6 +54,20 @@ class RunConflictError(RuntimeError):
 
 def _now() -> datetime:
     return datetime.now(timezone.utc)
+
+
+def _trim_memory() -> None:
+    """Return freed Python/glibc heap to the OS after each question.
+
+    Long benchmark runs accumulate allocator arenas (numpy scratch, JSON blobs,
+    SQLAlchemy rows); without trimming the uvicorn process grows ~25MB/question
+    and eventually becomes the OOM killer's favourite victim in the 4GB sandbox.
+    """
+    gc.collect()
+    try:
+        ctypes.CDLL("libc.so.6").malloc_trim(0)
+    except Exception:  # noqa: BLE001 — non-glibc platforms simply skip it
+        pass
 
 
 class BenchRunner:
@@ -161,6 +177,7 @@ class BenchRunner:
                         self._persist_error(run_id, scenario, q, e)
                     done += 1
                     self._patch_run(run_id, progress_done=done)
+                    _trim_memory()
 
             self._patch_run(run_id, progress_stage="aggregating")
             summary = await asyncio.to_thread(self._summarize, run_id)

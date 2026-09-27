@@ -5,6 +5,8 @@ set -euo pipefail
 
 BACKEND_DIR="/home/z/my-project/backend"
 export PYTHONUNBUFFERED=1
+# Reduce glibc allocator fragmentation for the long-lived bench process
+export MALLOC_ARENA_MAX=2
 
 if [ ! -x "$BACKEND_DIR/.venv/bin/python" ]; then
   echo "backend venv missing — run scripts/setup_backend.sh first" >&2

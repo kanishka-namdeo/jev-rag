@@ -7,9 +7,11 @@ from __future__ import annotations
 import logging
 import time
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import select
 
 import app  # noqa: F401  (ensures package init)
 from app import __version__
@@ -60,10 +62,34 @@ async def lifespan(fastapi_app: FastAPI):
     fastapi_app.state.bench_runner = BenchRunner(
         settings, llm, jev, embedder, store, fastapi_app.state.ingestor,
         fastapi_app.state.bench_judge)
+    _reap_orphaned_bench_runs()
     logger.info("backend up (v%s) in %.1fs — lazy_models=%s", __version__,
                 time.perf_counter() - t0, settings.lazy_models)
     yield
     logger.info("backend shutting down")
+
+
+def _reap_orphaned_bench_runs() -> None:
+    """Mark runs stuck in a live status as failed — their asyncio tasks died
+    with the previous process (restart, crash, OOM kill)."""
+    from app.db import BenchRun, db_session
+
+    try:
+        with db_session() as session:
+            orphans = session.execute(
+                select(BenchRun).where(
+                    BenchRun.status.in_(("queued", "running", "cancelling")))
+            ).scalars().all()
+            for run in orphans:
+                run.status = "failed"
+                run.error = (f"run orphaned by backend restart (was {run.status} at "
+                             f"{run.progress_done}/{run.progress_total})")
+                run.finished_at = datetime.now(timezone.utc)
+            if orphans:
+                session.commit()
+                logger.warning("reaped %d orphaned bench run(s)", len(orphans))
+    except Exception as e:  # noqa: BLE001 — bookkeeping must never block startup
+        logger.warning("bench run reaping failed: %s", e)
 
 
 def create_app() -> FastAPI:
