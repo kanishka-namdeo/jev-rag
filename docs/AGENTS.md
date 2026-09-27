@@ -10,6 +10,9 @@
 
 - `architecture.md` — system components and data flow
 - `hybrid-design.md` — the Jev / System-One design rationale, research sources, latency notes
+- `jev-improvements-research.md` — research note: Jev-style decisions beyond model routing,
+  the single-LLM degenerate design (effort routing / best-of-N / corrective loop / citation
+  checks), local validation experiments and the v2 pipeline proposal
 - `api.md` — REST + SSE protocol reference
 - `benchmarking.md` — BINDING evaluation methodology: scenario taxonomy, metric definitions
   (RAGAS/DeepEval/MT-Bench lineage), judge fairness protocol, resilience notes

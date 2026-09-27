@@ -4,6 +4,23 @@ Milestone history for Jev-RAG. Each entry links to the commit that delivered it.
 Dates are YYYY-MM-DD (commit date). Format is loosely inspired by
 [Keep a Changelog](https://keepachangelog.com/), grouped by project phase.
 
+## 2026-09-28 — Research: Jev beyond routing / single-model design
+
+- **Research pass** (two websearch agents + local experiments):
+  [docs/jev-improvements-research.md](docs/jev-improvements-research.md) answers "what if
+  there were only one cloud model?" — routing degenerates into whether/how/how-many-times
+  to invoke the single model, plus which candidate output to keep — with published evidence
+  (Adaptive-RAG, CRAG, FrugalGPT/RouteLLM/Hybrid-LLM, verifiers/Speculative-RAG, TypeSafe's
+  own patterns/cookbooks) and 11 ranked improvement patterns for Jev-style decision models
+  in RAG pipelines.
+- **Local validation experiments**
+  (`backend/scripts/experiment_single_model_routing.py`): effort routing 3-way choice
+  **9/12** (and the `no_retrieval` probability cleanly separates chat from doc questions —
+  a safe skip-retrieval fast-path); best-of-2 selection picks the faithful answer
+  (**0.973 vs 0.817**, one call); per-citation `supports/contradicts/says_nothing` check
+  **3/3**. Includes a v2 pipeline proposal and a "what NOT to build" list from published
+  negative results.
+
 ## 2026-09-28 — Presentable & documented
 
 - **Repo beautification**: README with screenshots, results-at-a-glance tables, mermaid

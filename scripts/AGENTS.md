@@ -15,6 +15,10 @@
 - `backend/scripts/smoke_jev.py` — engine smoke test (noul warm-up, rerank, sufficiency+routing)
 - `backend/scripts/experiment_rerank*.py` — validated decision-pattern experiments (do not delete;
   they document why the rerank pattern looks the way it does)
+- `backend/scripts/experiment_single_model_routing.py` — validated experiments for the
+  single-LLM decision slots (effort routing, retrieval-need, best-of-2 selection, citation
+  check) backing `docs/jev-improvements-research.md` (do not delete; run with the backend
+  stopped — memory discipline)
 - `backend/scripts/export_bench_results.py` — exports a completed bench run to
   `docs/benchmark-results.md` + machine-readable JSON in `backend/data/bench_exports/`
 - `measure_jev_memory.py` — jev-score RSS probe across llama.cpp flags (memory debugging)

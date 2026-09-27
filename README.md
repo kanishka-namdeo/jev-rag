@@ -204,6 +204,7 @@ AGENTS.md         DOX framework — binding rules for any AI agent working here
 | --- | --- |
 | [docs/architecture.md](docs/architecture.md) | components, data flow, deployment topology |
 | [docs/hybrid-design.md](docs/hybrid-design.md) | why Jev-style System One, measured decision patterns, knobs |
+| [docs/jev-improvements-research.md](docs/jev-improvements-research.md) | research: using Jev beyond routing, incl. the single-model design + validated experiments |
 | [docs/api.md](docs/api.md) | REST + SSE wire protocol |
 | [docs/benchmarking.md](docs/benchmarking.md) | methodology, metrics, judge design, fairness checklist |
 | [docs/benchmark-results.md](docs/benchmark-results.md) | the full run: per-scenario tables, interpretation |
