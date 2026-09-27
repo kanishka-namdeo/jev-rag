@@ -61,6 +61,51 @@ else
   fi
 fi
 
+log "=== Phase 3b: patch runtime for reduced llama.cpp context (sandbox memory) ==="
+# The stock runtime hardcodes a 32k llama.cpp context (~900MB KV cache on CPU) which
+# the 4GB sandbox OOM-kills. Our patch makes the context env-tunable via
+# JEV_SCORE_N_CTX (the backend sets 8192 via JEVRAG_JEV_SCORE_N_CTX); input limits
+# scale down so over-budget requests still get the clean 422 budget rejection.
+python3 - <<'PYEOF'
+import re
+from pathlib import Path
+
+rt = Path("models/jev-style/jev_style_decision_gguf.py")
+src = rt.read_text()
+if "Jev-RAG patch" in src:
+    print("runtime already patched; skipping")
+else:
+    old = 'CONTEXT_LIMIT = 25_600          # state + question + options + readout\nHARD_HEAD_MAX = 2048            # question + options + readout\nQTYPES = ("choice", "score", "noul")\nHERE = Path(__file__).resolve().parent\n'
+    patch = old + '''
+# --- Jev-RAG patch: env-tunable llama.cpp context (JEV_SCORE_N_CTX) -----------------
+# The stock 32k context allocates ~900MB of KV cache on CPU. Jev-RAG workloads use
+# <=3k tokens, so JEV_SCORE_N_CTX (e.g. 8192) cuts ~700MB RSS and prevents OOM kills
+# in memory-constrained sandboxes. Setting it opts out of the model's full 25.6k-token
+# input mode: input limits scale down so over-budget requests still get the clean
+# budget rejection (422) instead of a llama.cpp context overflow.
+import os as _os
+_ctx_env = _os.environ.get("JEV_SCORE_N_CTX", "").strip()
+if _ctx_env.isdigit() and int(_ctx_env) < CONTEXT_LIMIT + 3 * HARD_HEAD_MAX:
+    LLAMA_N_CTX = int(_ctx_env)
+    CONTEXT_LIMIT = max(1024, LLAMA_N_CTX // 2)
+    HARD_HEAD_MAX = max(256, LLAMA_N_CTX // 8)
+else:
+    LLAMA_N_CTX = 32768
+assert LLAMA_N_CTX >= CONTEXT_LIMIT + 3 * HARD_HEAD_MAX
+# --- end Jev-RAG patch --------------------------------------------------------------
+'''
+    if old not in src:
+        raise SystemExit("FATAL: runtime constant block not found — upstream changed; port the patch manually")
+    src = src.replace(old, patch, 1)
+    old2 = 'GGUF_FILES = {q: f"{MODEL_NAME}-{q}.gguf" for q in ("F16", "Q8_0", "Q4_K_M")}\nLLAMA_N_CTX = 32768        # >= 25,600-token context + room for question suffixes\nassert LLAMA_N_CTX >= CONTEXT_LIMIT + 3 * HARD_HEAD_MAX\nMANY_MODES = ("exact", "batched")\n'
+    new2 = 'GGUF_FILES = {q: f"{MODEL_NAME}-{q}.gguf" for q in ("F16", "Q8_0", "Q4_K_M")}\nMANY_MODES = ("exact", "batched")\n'
+    if old2 not in src:
+        raise SystemExit("FATAL: LLAMA_N_CTX block not found — upstream changed; port the patch manually")
+    src = src.replace(old2, new2, 1)
+    rt.write_text(src)
+    print("patched jev_style_decision_gguf.py (JEV_SCORE_N_CTX support)")
+PYEOF
+
 log "=== Phase 4: clone llama.cpp (shallow, master) ==="
 if [ ! -d "$LLAMA_DIR/.git" ]; then
   git clone --depth 1 https://github.com/ggml-org/llama.cpp.git "$LLAMA_DIR" || { log "FATAL: llama.cpp clone failed"; exit 3; }

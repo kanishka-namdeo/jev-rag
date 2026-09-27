@@ -41,6 +41,9 @@ class Settings(BaseSettings):
     jev_scorer: str = ""                # empty -> the runtime's own lookup (JEV_SCORE_BIN)
     jev_enabled: bool = True
     jev_decision_timeout: float = 120.0
+    # llama.cpp context for the jev-score subprocess. Stock 32k allocates ~900MB KV
+    # cache (sandbox OOM kills); our states stay under ~3k tokens -> 8192 is plenty.
+    jev_score_n_ctx: int = 8192
 
     # --- Embeddings (local, ONNX via fastembed) ---
     embed_model: str = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"

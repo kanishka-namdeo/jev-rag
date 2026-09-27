@@ -182,13 +182,27 @@ class BenchRunner:
     async def _run_question(self, run_id: str, scenario: BenchScenario,
                             q: BenchQuestion, doc_ids: list[str]) -> None:
         trad = await self._arm_traditional(q, doc_ids)
-        try:
-            hyb = await self._arm_hybrid(q, doc_ids)
-        except JevEngineUnavailable as e:
+
+        # The jev-score subprocess can be OOM-killed transiently (sandbox memory
+        # pressure); the engine auto-reloads its subprocess, so retry the hybrid
+        # arm once after a grace period before declaring the engine unavailable.
+        hyb = None
+        last_err: JevEngineUnavailable | None = None
+        for attempt in (1, 2):
+            try:
+                hyb = await self._arm_hybrid(q, doc_ids)
+                break
+            except JevEngineUnavailable as e:
+                last_err = e
+                if attempt == 1:
+                    logger.warning("hybrid arm unavailable (%s) — retrying in 20s", e)
+                    self._patch_run(run_id, progress_stage=f"[{scenario.id}] {q.id} jev retry after engine kill")
+                    await asyncio.sleep(20)
+        if hyb is None:
             # fail fast: without the local decision engine the hybrid arm is
             # meaningless — abort instead of burning the run as per-question errors
             raise JevEngineUnavailable(
-                f"hybrid arm aborted at {scenario.id}/{q.id}: {e}") from e
+                f"hybrid arm failed at {scenario.id}/{q.id}: {last_err}") from last_err
 
         self._patch_run(run_id, progress_stage=f"[{scenario.id}] judging {q.id}")
         t_j = time.perf_counter()

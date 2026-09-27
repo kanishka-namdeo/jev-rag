@@ -10,10 +10,15 @@ Pipeline roles:
 - sufficiency  noul: "the passages are sufficient to answer"
 - routing      choice: which cloud model should answer
 - verification noul: "the answer is fully supported by the passages"
+
+Memory: the jev-score subprocess runs with a reduced llama.cpp context
+(`JEV_SCORE_N_CTX`, default 8192) — our states stay under ~3k tokens, and the stock
+32k context allocated ~900MB of KV cache that repeatedly triggered sandbox OOM kills.
 """
 from __future__ import annotations
 
 import logging
+import os
 import time
 from typing import Any
 
@@ -43,6 +48,9 @@ class JevEngine:
             return False
         t0 = time.perf_counter()
         try:
+            # Reduced llama.cpp context BEFORE the runtime import (the module reads
+            # it at import time). Must be set before `from jev_style import ...`.
+            os.environ.setdefault("JEV_SCORE_N_CTX", str(self.settings.jev_score_n_ctx))
             from jev_style import JevStyle  # deferred import: heavy at module import time
 
             kwargs: dict[str, Any] = {
