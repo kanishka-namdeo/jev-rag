@@ -35,12 +35,22 @@ from app.db import BenchResult, BenchRun, db_session, new_id
 from app.llm.dashscope import DashscopeLLM, estimate_cost_usd
 from app.llm.jev_engine import JevEngine, JevEngineUnavailable
 from app.rag.ingestion import Ingestor
-from app.rag.pipelines import SUFFICIENCY_THRESHOLD
+from app.rag.pipelines import (
+    SUFFICIENCY_THRESHOLD,
+    ChatService,
+    apply_battery_policy,
+    citation_summary,
+    composite_quality,
+    parse_citations,
+)
 from app.rag.prompts import (
+    HYBRID_CONFLICT_SUFFIX,
+    HYBRID_DIRECT_SUFFIX,
     HYBRID_INSUFFICIENT_SUFFIX,
     HYBRID_SYSTEM,
     TRADITIONAL_SYSTEM,
     build_user_message,
+    format_conflict_block,
     format_context,
 )
 from app.rag.retriever import Embedder, VectorStore
@@ -81,6 +91,9 @@ class BenchRunner:
         self.store = store
         self.ingestor = ingestor
         self.judge = judge
+        # Reuses the production ChatService's System Two helper calls (decompose,
+        # query rewrite) so the bench arm executes the exact same prompts + calls.
+        self.chat = ChatService(settings, llm, jev, embedder, store)
         self._task: asyncio.Task | None = None
 
     # ================================================================ lifecycle
@@ -88,7 +101,8 @@ class BenchRunner:
     def active(self) -> bool:
         return self._task is not None and not self._task.done()
 
-    def start(self, scenario_ids: list[str], label: str = "") -> str:
+    def start(self, scenario_ids: list[str], label: str = "",
+              max_questions: int | None = None) -> str:
         if self.active:
             raise RunConflictError("a benchmark run is already in progress")
         unknown = [s for s in scenario_ids if s not in SCENARIO_MAP]
@@ -97,7 +111,8 @@ class BenchRunner:
         if not scenario_ids:
             raise ValueError("scenario_ids must not be empty")
 
-        limit = self.settings.bench_max_questions_per_scenario
+        # per-request cap (smoke runs) overrides the settings default; 0 = all
+        limit = max_questions if max_questions else self.settings.bench_max_questions_per_scenario
         scenarios = [SCENARIO_MAP[s] for s in scenario_ids]
         total_q = sum(len(s.questions[:limit] if limit else s.questions) for s in scenarios)
 
@@ -109,12 +124,18 @@ class BenchRunner:
                 scenario_ids=scenario_ids,
                 judge_model=self.judge.model,
                 config={
+                    "pipeline": "hybrid-v2",
                     "top_k_retrieve": self.settings.top_k_retrieve,
                     "top_k_use": self.settings.top_k_use,
                     "llm_default": self.settings.llm_model_default,
                     "llm_reasoning": self.settings.llm_model_reasoning,
                     "pairwise": self.settings.bench_pairwise,
                     "sufficiency_threshold": SUFFICIENCY_THRESHOLD,
+                    "effort_routing": self.settings.hybrid_effort_routing,
+                    "passage_battery": self.settings.hybrid_passage_battery,
+                    "corrective_retry": self.settings.hybrid_corrective_retry,
+                    "best_of_n": self.settings.hybrid_best_of_n,
+                    "citation_verify": self.settings.hybrid_citation_verify,
                     "jev_model": "jev-style-0.8b-decision-v3",
                     "embed_model": self.settings.embed_model,
                     "question_limit_per_scenario": limit or "all",
@@ -126,7 +147,7 @@ class BenchRunner:
             session.add(run)
             session.commit()
             run_id = run.id
-        self._task = asyncio.create_task(self._execute(run_id, scenarios))
+        self._task = asyncio.create_task(self._execute(run_id, scenarios, limit))
         return run_id
 
     def _patch_run(self, run_id: str, **fields) -> None:
@@ -144,14 +165,15 @@ class BenchRunner:
             return run.status if run else None
 
     # ================================================================ execution
-    async def _execute(self, run_id: str, scenarios: list[BenchScenario]) -> None:
+    async def _execute(self, run_id: str, scenarios: list[BenchScenario],
+                       question_limit: int = 0) -> None:
         t_start = time.perf_counter()
         try:
             self._patch_run(run_id, status="running", started_at=_now(),
                             progress_stage="judge self-test")
             self._patch_run(run_id, judge_selftest=await asyncio.to_thread(self.judge.self_test))
 
-            limit = self.settings.bench_max_questions_per_scenario
+            limit = question_limit or self.settings.bench_max_questions_per_scenario
             done = 0
             for scenario in scenarios:
                 if await self._cancelled(run_id):
@@ -354,80 +376,254 @@ class BenchRunner:
         }
 
     async def _arm_hybrid(self, q: BenchQuestion, doc_ids: list[str]) -> dict:
-        """Mirror of pipelines._run_hybrid (broad retrieve -> Jev rerank/gate/route -> verify)."""
+        """Mirror of pipelines._run_hybrid v2 (single-generator design):
+
+        effort routing -> retrieval (broad / decomposed) -> Jev rerank -> screening
+        battery -> sufficiency gate (+ corrective retry) -> generation (best-of-2 on
+        the hard path) -> citation verification -> composite quality.
+        Shares prompts, engine methods, policy functions and System Two helpers with
+        the production pipeline; only the retrieval adds the scenario doc_ids filter.
+        """
         t0 = time.perf_counter()
-        retrieved, retrieval_ms = await asyncio.to_thread(
-            self._retrieve_sync, q.question, self.settings.top_k_retrieve, doc_ids)
-        pre_files = [c["filename"] for c in retrieved]
-        timings: dict[str, float] = {"retrieval_ms": round(retrieval_ms, 1)}
+        s = self.settings
+        timings: dict[str, float] = {}
         decisions: list[dict] = []
+        model = s.llm_model_default
+        extra: dict[str, Any] = {"effort": "single_pass"}
+
+        # -- [1] effort routing ---------------------------------------------------
+        effort, eprobs, econf = "single_pass", {}, 0.0
+        if s.hybrid_effort_routing:
+            effort, eprobs, econf, rec = await asyncio.to_thread(
+                self.jev.effort_routing, q.question)
+            decisions.append(rec)
+            timings["effort_ms"] = rec["latency_ms"]
+            if (effort == "no_retrieval"
+                    and eprobs.get("no_retrieval", 0.0) >= s.jev_no_retrieval_threshold):
+                answer, usage = await asyncio.to_thread(
+                    self._complete_sync, model, HYBRID_SYSTEM + HYBRID_DIRECT_SUFFIX,
+                    build_user_message(q.question, "(no passages — question classified as "
+                                     "not requiring the knowledge base)"))
+                timings["llm_ms"] = usage.get("_llm_ms", 0.0)
+                timings["latency_ms"] = round((time.perf_counter() - t0) * 1000, 1)
+                return {"answer": answer, "model": model, "usage": usage, "effort": "no_retrieval",
+                        "context": "(no passages)", "files": [], "pre_files": [], "chunks": [],
+                        "timings": timings, "decisions": decisions,
+                        "sufficiency_p": None, "verification_p": None, "extra": extra}
+
+        # -- [2] retrieval (broad or decomposed) -----------------------------------
+        retrieved: list[dict] = []
+        sub_queries: list[str] = []
+        if effort == "multi_step" and s.hybrid_multistep:
+            sub_queries, decomp_usage, decomp_ms = await asyncio.to_thread(
+                self.chat._decompose, q.question)
+            timings["decompose_ms"] = decomp_ms
+            if len(sub_queries) > 1:
+                decisions.append({
+                    "name": "decompose", "label": "Question decomposition (System Two)",
+                    "kind": "plan", "question": "Decompose into 2-4 standalone sub-questions",
+                    "answer": sub_queries, "probabilities": None, "confidence": None,
+                    "latency_ms": decomp_ms, "usage": decomp_usage or None,
+                })
+        if sub_queries:
+            retrieved, retrieval_ms = await asyncio.to_thread(
+                self._retrieve_multi_sync, sub_queries, doc_ids)
+        else:
+            retrieved, retrieval_ms = await asyncio.to_thread(
+                self._retrieve_sync, q.question, s.top_k_retrieve, doc_ids)
+        timings["retrieval_ms"] = round(retrieval_ms, 1)
+        pre_files = [c["filename"] for c in retrieved]
 
         if not retrieved:
-            model = self.settings.llm_model_default
-            context_block = "(no passages retrieved)"
             answer, usage = await asyncio.to_thread(
                 self._complete_sync, model, HYBRID_SYSTEM,
-                build_user_message(q.question, context_block))
-            return {"answer": answer, "model": model, "usage": usage, "context": context_block,
-                    "files": [], "pre_files": [], "chunks": [], "timings": timings,
-                    "decisions": decisions}
+                build_user_message(q.question, "(no passages retrieved)"))
+            timings["llm_ms"] = usage.get("_llm_ms", 0.0)
+            timings["latency_ms"] = round((time.perf_counter() - t0) * 1000, 1)
+            return {"answer": answer, "model": model, "usage": usage, "effort": effort,
+                    "context": "(no passages retrieved)", "files": [], "pre_files": [],
+                    "chunks": [], "timings": timings, "decisions": decisions,
+                    "sufficiency_p": None, "verification_p": None, "extra": extra}
 
-        def _rerank():
-            return self.jev.rerank_chunks(q.question, retrieved,
-                                          self.settings.jev_rerank_char_limit)
-        ranked, rerank_rec = await asyncio.to_thread(_rerank)
-        decisions.append(rerank_rec)
-        timings["rerank_ms"] = rerank_rec["latency_ms"]
+        # -- [3-5] rerank -> battery -> gate (+ one corrective retry) ---------------
+        search_query = q.question
+        rewritten_query: str | None = None
+        max_attempts = 2 if s.hybrid_corrective_retry else 1
+        screen: dict[str, Any] | None = None
+        for attempt in range(max_attempts):
+            if attempt == 1:
+                rewritten_query, rw_usage, rw_ms = await asyncio.to_thread(
+                    self.chat._rewrite_query, q.question)
+                timings["rewrite_ms"] = rw_ms
+                decisions.append({
+                    "name": "corrective", "label": "Corrective query rewrite (System Two)",
+                    "kind": "rewrite",
+                    "question": "Rewrite the question to improve retrieval (one retry)",
+                    "answer": rewritten_query, "probabilities": None, "confidence": None,
+                    "latency_ms": rw_ms, "usage": rw_usage or None,
+                })
+                search_query = rewritten_query
+                retrieved, retrieval_ms = await asyncio.to_thread(
+                    self._retrieve_sync, search_query, s.top_k_retrieve, doc_ids)
+                timings["retrieval_ms"] = round(retrieval_ms, 1)
+                pre_files = [c["filename"] for c in retrieved]
+                if not retrieved:
+                    screen = None
+                    break
 
-        kept = ranked[: self.settings.top_k_use]
-        labeled = self._label(kept)
-        context_block = format_context(labeled)
-        ctx_for_jev = "\n\n".join(
-            f"Passage [{d['chunk_index_label']}] (source: {d['filename']}):\n"
-            f"{d['text'][: self.settings.jev_context_char_limit]}"
-            for d in labeled
-        )
-        model_options = {
-            "default": (f"fast synthesis model ({self.settings.llm_model_default}): "
-                        "direct factual answers grounded in the provided passages"),
-            "reasoning": (f"deep reasoning model ({self.settings.llm_model_reasoning}): "
-                          "complex multi-step analysis, comparisons or calculations"),
-        }
-        suf_p, chosen, _probs, _conf, recs = await asyncio.to_thread(
-            self.jev.sufficiency_and_routing, q.question, ctx_for_jev, model_options)
-        decisions.append(recs["sufficiency"])
-        decisions.append(recs["routing"])
-        timings["sufficiency_routing_ms"] = recs["sufficiency"]["latency_ms"]
+            ranked, rerank_rec = await asyncio.to_thread(
+                self.jev.rerank_chunks, search_query, retrieved, s.jev_rerank_char_limit)
+            decisions.append(rerank_rec)
+            timings["rerank_ms"] = rerank_rec["latency_ms"]
 
-        model = (self.settings.llm_model_reasoning if chosen == "reasoning"
-                 else self.settings.llm_model_default)
+            kept = ranked[: s.top_k_use]
+            include, conflict = kept, []
+            if s.hybrid_passage_battery and kept:
+                verdicts, bat_rec = await asyncio.to_thread(
+                    self.jev.screen_passages, search_query, kept, s.jev_rerank_char_limit)
+                actions, reasons = apply_battery_policy(kept, verdicts, s)
+                bat_rec["answer"] = {f"passage {i}": f"{actions[i]} — {reasons[i]}"
+                                     for i in sorted(actions)}
+                decisions.append(bat_rec)
+                timings["battery_ms"] = bat_rec["latency_ms"]
+                include = [c for c in kept if actions[c["index"]] == "include"]
+                conflict = [c for c in kept if actions[c["index"]] == "conflict"]
+
+            labeled = self._label(include + conflict)
+            main, flagged = labeled[: len(include)], labeled[len(include):]
+            context_block = format_context(main) if main else "(no passages retained after screening)"
+            if flagged:
+                context_block += "\n\n" + format_conflict_block(flagged)
+            ctx_for_jev = "\n\n".join(
+                f"Passage [{d['chunk_index_label']}] (source: {d['filename']}):\n"
+                f"{d['text'][: s.jev_context_char_limit]}"
+                for d in labeled
+            )
+
+            suf_p, suf_rec = await asyncio.to_thread(self.jev.sufficiency, q.question, ctx_for_jev)
+            decisions.append(suf_rec)
+            timings["sufficiency_ms"] = suf_rec["latency_ms"]
+
+            screen = {"labeled": labeled, "flagged": flagged, "context_block": context_block,
+                      "ctx_for_jev": ctx_for_jev, "suf_p": suf_p, "kept": kept}
+            if suf_p >= SUFFICIENCY_THRESHOLD:
+                break
+
+        if screen is None:
+            answer, usage = await asyncio.to_thread(
+                self._complete_sync, model, HYBRID_SYSTEM + HYBRID_INSUFFICIENT_SUFFIX,
+                build_user_message(q.question, "(no passages retrieved)"))
+            timings["llm_ms"] = usage.get("_llm_ms", 0.0)
+            timings["latency_ms"] = round((time.perf_counter() - t0) * 1000, 1)
+            return {"answer": answer, "model": model, "usage": usage, "effort": effort,
+                    "context": "(no passages retrieved)", "files": [], "pre_files": pre_files,
+                    "chunks": [], "timings": timings, "decisions": decisions,
+                    "sufficiency_p": None, "verification_p": None, "extra": extra}
+
+        labeled = screen["labeled"]
+        context_block = screen["context_block"]
+        ctx_for_jev = screen["ctx_for_jev"]
+        suf_p = screen["suf_p"]
+        kept = screen["kept"]
+        extra.update({"effort": effort, "retried": rewritten_query is not None,
+                      "rewritten_query": rewritten_query,
+                      "conflict_passages": len(screen["flagged"])})
+
+        # -- [6] generation (best-of-2 on the hard path) ----------------------------
         system = HYBRID_SYSTEM
         if suf_p < SUFFICIENCY_THRESHOLD:
             system += HYBRID_INSUFFICIENT_SUFFIX
-        answer, usage = await asyncio.to_thread(
-            self._complete_sync, model, system, build_user_message(q.question, context_block))
+        if screen["flagged"]:
+            system += HYBRID_CONFLICT_SUFFIX
+        user_msg = build_user_message(q.question, context_block)
+
+        best_of = s.hybrid_best_of_n and (effort == "multi_step" or suf_p < SUFFICIENCY_THRESHOLD)
+        answer, usage = "", {}
+        if best_of:
+            t_gen = time.perf_counter()
+            (cand_direct, u_direct), (cand_reasoned, u_reasoned) = await asyncio.gather(
+                asyncio.to_thread(self.llm.complete, model=model, system=system,
+                                  user=user_msg, enable_thinking=False),
+                asyncio.to_thread(self.llm.complete, model=model, system=system,
+                                  user=user_msg, enable_thinking=True),
+            )
+            winner, scores, rec = await asyncio.to_thread(
+                self.jev.select_best_candidate, q.question, ctx_for_jev,
+                {"direct": cand_direct, "reasoned": cand_reasoned})
+            decisions.append(rec)
+            timings["select_ms"] = rec["latency_ms"]
+            answer = cand_direct if winner != "reasoned" else cand_reasoned
+            usage = {
+                "prompt_tokens": (u_direct.get("prompt_tokens", 0)
+                                  + u_reasoned.get("prompt_tokens", 0)),
+                "completion_tokens": (u_direct.get("completion_tokens", 0)
+                                      + u_reasoned.get("completion_tokens", 0)),
+                "_llm_ms": round((time.perf_counter() - t_gen) * 1000, 1),
+            }
+            extra["best_of"] = {k: round(v, 3) for k, v in scores.items()}
+        else:
+            answer, usage = await asyncio.to_thread(
+                self._complete_sync, model, system, user_msg)
         timings["llm_ms"] = usage.get("_llm_ms", 0.0)
 
+        # -- [7] citation verification + composite quality ---------------------------
         verification_p: float | None = None
-        if self.settings.hybrid_verify_answers and answer.strip():
-            def _verify():
-                return self.jev.verify_groundedness(
-                    q.question, answer[:4000], ctx_for_jev)
-            try:
-                verification_p, ver_rec = await asyncio.to_thread(_verify)
-                decisions.append(ver_rec)
-                timings["verify_ms"] = ver_rec["latency_ms"]
-            except Exception as e:  # noqa: BLE001 — best-effort, mirrors production
-                logger.warning("bench verification failed (non-fatal): %s", e)
+        if s.hybrid_verify_answers and answer.strip():
+            if s.hybrid_citation_verify and labeled:
+                cited = parse_citations(answer)
+                try:
+                    verdicts, grounded_p, addresses_p, recs = await asyncio.to_thread(
+                        self.jev.verify_citations_and_quality, q.question, answer[:4000],
+                        ctx_for_jev, labeled, cited, s.jev_context_char_limit)
+                    decisions.extend(recs)
+                    if recs:
+                        timings["citations_ms"] = recs[0]["latency_ms"]
+                    verification_p = round(grounded_p, 4) if grounded_p is not None else None
+                    cites_supported, contradicts, flags = citation_summary(verdicts, s)
+                    if addresses_p is not None and cites_supported is not None:
+                        extra["quality_score"] = composite_quality(
+                            addresses_p, cites_supported, contradicts)
+                        extra["citations_verified"] = {str(k): v for k, v in flags.items()} or {}
+                except Exception as e:  # noqa: BLE001 — best-effort, mirrors production
+                    logger.warning("bench citation verification failed (non-fatal): %s", e)
+            else:
+                try:
+                    verification_p, ver_rec = await asyncio.to_thread(
+                        self.jev.verify_groundedness, q.question, answer[:4000], ctx_for_jev)
+                    decisions.append(ver_rec)
+                    timings["verify_ms"] = ver_rec["latency_ms"]
+                except Exception as e:  # noqa: BLE001 — best-effort, mirrors production
+                    logger.warning("bench verification failed (non-fatal): %s", e)
 
         timings["latency_ms"] = round((time.perf_counter() - t0) * 1000, 1)
         return {
-            "answer": answer, "model": model, "usage": usage, "context": context_block,
-            "files": [c["filename"] for c in kept], "pre_files": pre_files, "chunks": kept,
+            "answer": answer, "model": model, "usage": usage, "effort": effort,
+            "context": context_block,
+            "files": [c["filename"] for c in labeled], "pre_files": pre_files, "chunks": kept,
             "timings": timings, "decisions": decisions,
-            "sufficiency_p": round(suf_p, 4), "verification_p": (
-                round(verification_p, 4) if verification_p is not None else None),
+            "sufficiency_p": round(suf_p, 4), "verification_p": verification_p,
+            "extra": extra,
         }
+
+    def _retrieve_multi_sync(self, sub_queries: list[str], doc_ids: list[str]
+                             ) -> tuple[list[dict], float]:
+        """Mirror of ChatService._retrieve_multi with the scenario doc_ids filter."""
+        t0 = time.perf_counter()
+        seen: dict[str, dict] = {}
+        for sq in sub_queries:
+            embedding = self.embedder.embed_query(sq)
+            for c in self.store.query(embedding, self.settings.jev_multistep_subquery_k,
+                                      doc_ids=doc_ids):
+                d = c.as_dict()
+                if d["chunk_id"] not in seen:
+                    seen[d["chunk_id"]] = d
+        pool = sorted(seen.values(), key=lambda d: d.get("similarity", 0.0), reverse=True)
+        pool = pool[: self.settings.jev_multistep_max_pool]
+        for i, d in enumerate(pool):
+            d["retrieval_rank"] = i + 1
+            d["index"] = i + 1
+        ms = (time.perf_counter() - t0) * 1000
+        return pool, ms
 
     # ================================================================ aggregation
     def _summarize(self, run_id: str) -> dict:

@@ -80,3 +80,4 @@ scripts/research/
 !.env.example
 # local test screenshots (regenerable)
 scripts/test-assets/*.png
+tool-results/

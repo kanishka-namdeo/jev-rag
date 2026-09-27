@@ -122,6 +122,11 @@ Latency: 0.7–1.9 s per decide() call at these small states — the effort-rout
 
 ## 4. Proposed Jev-RAG v2 pipeline (single-model design)
 
+> **Status: IMPLEMENTED (2026-09-28)** — this proposal ships as the hybrid pipeline
+> (`backend/app/rag/pipelines.py`, mirrored in `app/bench/runner.py`; design + measured
+> latencies in `docs/hybrid-design.md`). Live-verified on all three effort paths; see
+> `worklog.md` task 7. Every slot below maps 1:1 to code.
+
 What we would build next, in priority order (each item names the decision slot, the call
 budget, and the evidence):
 

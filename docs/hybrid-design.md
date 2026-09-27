@@ -1,5 +1,10 @@
 # Hybrid design: Jev-style System One + cloud System Two
 
+> **v2 (2026-09-28):** the hybrid pipeline was rebuilt around the single-generator insight —
+> with one cloud LLM, model routing degenerates into effort routing and five new decision
+> slots pay for themselves (research: `docs/jev-improvements-research.md`, all slots validated
+> locally before shipping). The v2 flow is documented first; v1 details remain below.
+
 ## What "Jev" is (researched, not assumed)
 
 - **Jev** (TypeSafe AI, Sep 2026) is a *closed-weights, cloud-only* "System One" decision model.
@@ -20,11 +25,72 @@
 
 The hybrid pipeline keeps the division of labor the Jev concept implies:
 
-- **System One (local, fast, calibrated, cheap)** decides: which passages matter, whether the
-  context suffices, which System Two model should answer, whether the answer is grounded.
-- **System Two (cloud, deliberative)** writes the final prose.
+- **System One (local, fast, calibrated, cheap)** decides: how much retrieval effort a question
+  needs, which passages carry evidence (and which contradict the premise or carry injections),
+  whether the context suffices, which sampled candidate to keep, whether each citation holds.
+- **System Two (cloud, deliberative)** writes the final prose — one model, not two.
 
-## Decision points in the pipeline
+## v2 pipeline: the seven decision slots
+
+```
+query
+  └▶ [1] effort routing        ONE choice {no_retrieval, single_pass, multi_step} (~1-4 s)
+         no_retrieval → answer directly (skip embedding search; Adaptive-RAG class A)
+         single_pass → broad top-10 retrieval
+         multi_step  → decompose (LLM) → per-sub-query retrieval → deduped pool (≤12)
+  └▶ [2] rerank                calibrated relevance, one decide() call (unchanged from v1)
+  └▶ [3] screening battery     3 nouls/passage: evidence · premise conflict · injection
+         ordered thresholds → include / conflict-block / drop   (TypeSafe cookbook)
+  └▶ [4] sufficiency gate      insufficient → corrective retry: rewrite query (LLM) →
+         re-retrieve → re-screen (cap 1 retry; CRAG pattern)
+  └▶ [5] generation            qwen3.7-plus only; multi_step or low-sufficiency →
+         2 candidates (thinking off/on, concurrent), Jev best-of-2 selection
+  └▶ [6] citation verification ONE batched call: choice per emitted [n]
+         (supports/contradicts/says_nothing) + groundedness + answers-request nouls
+  └▶ [7] composite score       0.4·answers_request + 0.4·citations_supported
+                               + 0.2·¬contradicts_context   (code, not a model call)
+```
+
+Design notes:
+
+- **Effort routing replaces model routing.** The v1 `choice` between qwen3.7-plus and
+  qwen3.6-plus is gone; the same single decide() call now picks the retrieval strategy.
+  Validation: 9/12 on the Adaptive-RAG taxonomy, and P(no_retrieval) separates chat
+  (0.76–0.96) from doc questions (≤0.17) — the skip-retrieval fast path is safe at a 0.5
+  threshold.
+- **Conflict-blocked passages keep their [n] labels** and move to a dedicated
+  "Conflicting evidence" prompt section — the generator must weigh them explicitly instead of
+  being silently poisoned. First live test caught a premise conflict (tiered vs global limits)
+  and the answer handled it correctly.
+- **Best-of-2 is a relative selector, never an absolute gate** — the planted-hallucination
+  candidate still scored 0.817 in validation; ranking is safe, thresholding is not.
+- **Citations auto-accept at confidence ≥ 0.8** (TypeSafe cookbook); below that they render as
+  unverified, not failed.
+- **One LLM per candidate, sampled concurrently** — the hard path costs one extra cloud call
+  (~$0.0004) and the two candidates are generated in parallel.
+- System Two also acts as a *tool* twice on the hard path: query rewrite (corrective loop) and
+  question decomposition (multi-step). Both are non-streaming utility calls with tiny outputs.
+
+### v2 knobs (`JEVRAG_*` env / `app/config.py`)
+
+| Knob | Default | Controls |
+| --- | --- | --- |
+| `HYBRID_EFFORT_ROUTING` | true | slot 1 on/off |
+| `JEV_NO_RETRIEVAL_THRESHOLD` | 0.5 | skip retrieval only when P ≥ this |
+| `JEV_MULTISTEP_SUBQUERY_K` / `JEV_MULTISTEP_MAX_POOL` | 6 / 12 | decomposition retrieval depth / rerank pool cap |
+| `HYBRID_PASSAGE_BATTERY` | true | slot 3 on/off |
+| `JEV_INJECTION_DROP_THRESHOLD` | 0.9 | drop passage when P(injection) ≥ this |
+| `JEV_CONTRADICTION_BLOCK_THRESHOLD` | 0.5 | conflict-block when P(contradiction) ≥ this |
+| `JEV_EVIDENCE_DROP_THRESHOLD` | 0.1 | drop when P(evidence) < this AND relevance < 0.5 |
+| `HYBRID_CORRECTIVE_RETRY` | true | slot 4 retry on/off |
+| `HYBRID_BEST_OF_N` | true | slot 5 on/off |
+| `HYBRID_CITATION_VERIFY` | true | slot 6 on/off |
+| `JEV_CITATION_CONFIDENCE` | 0.8 | citation auto-accept confidence |
+
+Every threshold follows the calibration discipline from the research: nominal thresholds miss
+realized budgets, so gates are Brier-scored in the benchmark rather than trusted blindly.
+
+## v1 decision points (superseded, kept for trace continuity)
 
 | Step | Primitive | State | Question |
 | --- | --- | --- | --- |
@@ -32,6 +98,8 @@ The hybrid pipeline keeps the division of labor the Jev concept implies:
 | Sufficiency | noul (shared call) | question + kept passages (truncated) | "The passages above contain sufficient information to answer the question completely and accurately." |
 | Routing | choice (shared call) | same state | options: fast synthesis model vs deep reasoning model |
 | Verification | noul | question + passages + answer | "The proposed answer is fully supported by the passages above." |
+
+Old conversations still render their v1 traces (`routing` decision records without effort).
 
 ## Validated decision patterns (experiments in `backend/scripts/`)
 
@@ -44,23 +112,30 @@ Measured on this sandbox (2 CPU cores, Q4_K_M):
 | **Passage text embedded in the noul instructions, one call** | **correct**: relevant 0.97 / distractor 0.02 | ~3 s for 4 passages |
 | Passage-as-state, N calls | correct but N× latency | ~0.85 s/passage |
 | Score (3 levels) | correct, richer signal, same cost | ~0.85 s/passage |
+| Effort routing (query-as-state choice) | 9/12; no_retrieval separates chat/docs | ~1.2 s |
+| Best-of-2 selection (candidates in instructions) | faithful 0.973 vs planted 0.817 | ~1.8 s |
+| Citation check (3-way choice per claim) | 3/3 | one batched call |
 
 Chosen pattern: passage text embedded in question instructions, single `decide()` call —
 the state is read once and every passage gets a calibrated verdict slot.
 
-## Cloud model routing (System Two)
+## Cloud model (System Two — v2 uses exactly one)
 
 | Model | Released | Price (in/out per Mtok) | Role here |
 | --- | --- | --- | --- |
-| qwen3.7-plus | 2026-05-31 | $0.32 / $1.28 | default synthesis (fast, cheap, agentic) |
-| qwen3.6-plus | 2026-03-31 | $0.50 / $3.00 | deep-reasoning route (always-on CoT) |
+| qwen3.7-plus | 2026-05-31 | $0.32 / $1.28 | the single generator (direct + reasoned candidates) |
+| qwen3.6-plus | 2026-03-31 | $0.50 / $3.00 | v1 reasoning route — kept in the price table for old runs; optional override for candidate B |
 
 Sources: llm-stats.com model pages, qwen.ai blog posts, live endpoint model list (verified
-2026-09-27). The Jev `choice` routes between them per query; probabilities are shown in the UI.
+2026-09-27).
 
-## Latency profile (this sandbox, 3-passage doc)
+## Latency profile (this sandbox, live v2 measurements 2026-09-28)
 
-- Traditional end-to-end: ~1.9 s (retrieval 12 ms + LLM 1.8 s)
-- Hybrid end-to-end: ~15 s (rerank ~3.7 s + sufficiency/routing ~6.7 s + LLM ~2 s + verify ~3.6 s)
+- Traditional end-to-end: ~16–30 s (retrieval ~0.1 s + LLM stream)
+- Hybrid v2 single_pass: ~116 s (effort 3.8 s + rerank 12 s + battery 14.3 s + sufficiency
+  5.1 s + LLM 43.7 s + citations 36.8 s — LLM endpoint latency included)
+- Hybrid v2 multi_step (hard path): ~180 s (adds decomposition, corrective retry, best-of-2)
+- Hybrid v2 no_retrieval: ~23 s (one decide() call + direct LLM stream)
+- Bench smoke (1 question, techdocs): hybrid 86 s vs traditional 16 s, hit1/MRR/NDCG all 1.0
 - Knobs to trade latency vs rigor: `JEVRAG_TOP_K_RETRIEVE`, `JEVRAG_JEV_RERANK_CHAR_LIMIT`,
-  `JEVRAG_JEV_CONTEXT_CHAR_LIMIT`, `JEVRAG_HYBRID_VERIFY_ANSWERS`.
+  `JEVRAG_JEV_CONTEXT_CHAR_LIMIT`, plus the per-slot v2 switches above.

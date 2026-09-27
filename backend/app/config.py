@@ -29,8 +29,12 @@ class Settings(BaseSettings):
     # --- Cloud LLM (System Two) ---
     dashscope_base_url: str = "https://coding-intl.dashscope.aliyuncs.com/v1"
     dashscope_api_key: str = ""
-    llm_model_default: str = "qwen3.7-plus"          # fast, cheap workhorse
-    llm_model_reasoning: str = "qwen3.6-plus"        # deep-reasoning route
+    llm_model_default: str = "qwen3.7-plus"          # the single generator (v2 design)
+    # v1 legacy: hybrid used to route hard questions to the reasoning model. The v2
+    # pipeline runs ONE generator and spends the saved decision on effort routing /
+    # best-of-2 instead (docs/jev-improvements-research.md §1). Kept for price table
+    # continuity and as an optional override for best-of-2 candidate B.
+    llm_model_reasoning: str = "qwen3.6-plus"        # deep-reasoning route (v1)
     disable_llm_thinking: bool = True                # strip chain-of-thought from answers
     llm_temperature: float = 0.3
     llm_max_tokens: int = 2000
@@ -60,6 +64,23 @@ class Settings(BaseSettings):
     jev_rerank_char_limit: int = 400    # per-chunk truncation inside Jev states (latency control)
     jev_context_char_limit: int = 1600  # context block truncation for sufficiency/verify states
     hybrid_verify_answers: bool = True  # post-answer groundedness check (Jev Noul)
+
+    # --- Hybrid v2 pipeline (single-generator design; docs/jev-improvements-research.md §4) ---
+    # With one cloud generator the model-routing slot degenerates into effort routing;
+    # every flag below maps to one researched + validated decision slot.
+    hybrid_effort_routing: bool = True  # [1] choice {no_retrieval,single_pass,multi_step} (~1.2s)
+    jev_no_retrieval_threshold: float = 0.5  # skip retrieval only when P(no_retrieval) >= this
+    hybrid_multistep: bool = True       # multi_step: decompose -> per-subquery retrieval -> merge
+    jev_multistep_subquery_k: int = 6   # chunks retrieved per sub-query before the merge
+    jev_multistep_max_pool: int = 12    # deduped pool cap fed into the reranker
+    hybrid_passage_battery: bool = True  # [2] per-passage screen: evidence/conflict/injection
+    jev_injection_drop_threshold: float = 0.9   # drop passage when P(prompt_injection) >= this
+    jev_contradiction_block_threshold: float = 0.5  # conflict-block when P(contradiction) >= this
+    jev_evidence_drop_threshold: float = 0.1  # drop when P(evidence) < this AND relevance < 0.5
+    hybrid_corrective_retry: bool = True  # [3/4] insufficient -> rewrite query -> re-retrieve (1 retry)
+    hybrid_best_of_n: bool = True       # [5] 2 candidates (thinking off/on) + Jev selection
+    hybrid_citation_verify: bool = True  # [6] per-citation supports/contradicts/says_nothing
+    jev_citation_confidence: float = 0.8  # confidence >= this auto-accepts a citation
 
     # --- Server ---
     port: int = 8000

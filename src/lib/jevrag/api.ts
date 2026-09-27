@@ -69,6 +69,14 @@ export interface TraceData {
   citations?: CitationData[];
   context_sufficiency?: number | null;
   verification?: number | null;
+  /** v2 hybrid trace fields */
+  routing_probabilities?: Record<string, number> | null;
+  effort?: string | null;
+  quality_score?: number | null;
+  best_of?: Record<string, number> | null;
+  retried?: boolean | null;
+  rewritten_query?: string | null;
+  citations_verified?: Record<string, { verdict: string; confidence: number; verified: boolean }> | null;
 }
 export interface MessageData {
   id: string;

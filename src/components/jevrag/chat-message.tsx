@@ -2,7 +2,7 @@
 
 import { Fragment, type ReactNode } from "react";
 import ReactMarkdown from "react-markdown";
-import { AlertCircle, BadgeCheck, ShieldQuestion, Zap } from "lucide-react";
+import { AlertCircle, BadgeCheck, Gauge, ShieldQuestion, Waypoints, Zap } from "lucide-react";
 
 import { CitationChip, ModeBadge, StageIndicator, formatCost } from "@/components/jevrag/ui-bits";
 import { useJevRag } from "@/lib/jevrag/store";
@@ -52,6 +52,32 @@ function VerificationBadge({ p }: { p: number }) {
   );
 }
 
+function QualityBadge({ score }: { score: number }) {
+  const ok = score >= 0.8;
+  const mid = score >= 0.5;
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium",
+        ok
+          ? "border-emerald-600/40 bg-emerald-600/10 text-emerald-700 dark:text-emerald-400"
+          : mid
+            ? "border-amber-600/40 bg-amber-600/10 text-amber-700 dark:text-amber-400"
+            : "border-red-600/40 bg-red-600/10 text-red-700 dark:text-red-400",
+      )}
+      title="Composite answer quality: 0.4 · answers_request + 0.4 · citations_supported + 0.2 · no contradiction"
+    >
+      <Gauge className="h-3 w-3" /> quality {(score * 100).toFixed(0)}%
+    </span>
+  );
+}
+
+const EFFORT_LABELS: Record<string, string> = {
+  no_retrieval: "no retrieval",
+  single_pass: "single pass",
+  multi_step: "multi-step",
+};
+
 export function ChatMessageView({ message }: { message: ChatMessage }) {
   const openTrace = useJevRag((s) => s.openTrace);
   const onCite = () => openTrace(message.id);
@@ -81,6 +107,14 @@ export function ChatMessageView({ message }: { message: ChatMessage }) {
         {message.model && (
           <span className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-mono text-muted-foreground">
             <Zap className="h-3 w-3" /> {message.model}
+          </span>
+        )}
+        {message.routing?.effort && (
+          <span
+            className="inline-flex items-center gap-1 rounded-full border border-emerald-600/30 bg-emerald-600/5 px-2 py-0.5 text-[11px] text-emerald-700 dark:text-emerald-400"
+            title="Jev effort routing: the retrieval strategy chosen for this question"
+          >
+            <Waypoints className="h-3 w-3" /> {EFFORT_LABELS[message.routing.effort] ?? message.routing.effort}
           </span>
         )}
         {message.contextSufficiency !== null && message.contextSufficiency !== undefined && (
@@ -157,8 +191,26 @@ export function ChatMessageView({ message }: { message: ChatMessage }) {
       )}
 
       <footer className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[11px] text-muted-foreground">
+        {message.qualityScore !== null && message.qualityScore !== undefined && (
+          <QualityBadge score={message.qualityScore} />
+        )}
         {message.verification !== null && message.verification !== undefined && (
           <VerificationBadge p={message.verification} />
+        )}
+        {message.bestOf && (
+          <span
+            className="font-mono tabular-nums"
+            title="Jev best-of-2 selection: P(candidate fully supported) per candidate"
+          >
+            best-of-2 {Object.entries(message.bestOf)
+              .map(([k, v]) => `${k} ${v.toFixed(2)}`)
+              .join(" · ")}
+          </span>
+        )}
+        {message.retried && (
+          <span title="Sufficiency failed once — the query was rewritten and retrieval retried">
+            corrective retry
+          </span>
         )}
         {message.latencyMs !== undefined && (
           <span className="font-mono tabular-nums">{(message.latencyMs / 1000).toFixed(1)}s</span>

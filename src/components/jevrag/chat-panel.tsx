@@ -12,7 +12,10 @@ const MODE_HINTS: Record<string, string> = {
   traditional:
     "Traditional RAG — embedding retrieval → cloud LLM (qwen3.7-plus) directly answers with citations.",
   hybrid:
-    "Hybrid RAG — the local Jev-style engine reranks passages, checks sufficiency and routes between qwen3.7-plus / qwen3.6-plus before the cloud LLM answers; the answer is then verified for groundedness.",
+    "Hybrid RAG v2 — the local Jev-style engine routes retrieval effort, screens every passage " +
+    "(evidence · conflicts · injection), gates sufficiency with a corrective retry, and can sample " +
+    "2 candidates that Jev selects between; the single cloud LLM (qwen3.7-plus) writes; answers get " +
+    "citation-level verification and a composite quality score.",
   compare: "Compare — runs both pipelines side by side on the same question.",
 };
 
@@ -56,8 +59,9 @@ function EmptyState() {
             <Sparkles className="h-4 w-4 text-emerald-600" /> Hybrid · Jev-style
           </span>
           <span className="text-xs leading-relaxed text-muted-foreground">
-            A local calibrated decision model (System One) reranks, gates and routes; the cloud LLM
-            (System Two) writes; answers get a groundedness score.
+            A local calibrated decision model (System One) routes effort, screens passages and
+            verifies citations; one cloud LLM (System Two) writes; answers carry a composite
+            quality score.
           </span>
         </button>
       </div>

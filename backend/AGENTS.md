@@ -23,38 +23,58 @@
   definitions), MT-Bench pairwise with position swap, 8-canary self-test
 - `app/bench/runner.py` — sequential orchestrator inside uvicorn: scenario re-ingest → both arms
   (production-identical prompts/knobs) → judge → aggregate → persist
-- `app/rag/pipelines.py` — both pipeline implementations + SSE event protocol
+- `app/rag/pipelines.py` — both pipeline implementations (hybrid = v2 single-generator design),
+  the SSE event protocol, and the shared v2 policy functions (`parse_citations`,
+  `apply_battery_policy`, `citation_summary`, `composite_quality`) imported by the bench runner
 - `app/rag/retriever.py` — fastembed Embedder + ChromaDB VectorStore (query supports doc_ids filter
   for scenario isolation)
-- `app/rag/ingestion.py` — markitdown parsing, chunking, indexing, doc deletion
-- `app/rag/prompts.py` — system prompts and context formatting (SHARED by pipelines AND bench arms)
-- `app/llm/dashscope.py` — OpenAI-compatible client, thinking suppression, streaming, cost estimate
-- `app/llm/jev_engine.py` — Jev-style decision wrapper (rerank / sufficiency+routing / verification);
+- `app/rag/prompts.py` — system prompts, conflict/direct suffixes, decompose/rewrite utility
+  prompts, and context formatting (SHARED by pipelines AND bench arms)
+- `app/llm/dashscope.py` — OpenAI-compatible client, thinking suppression + per-call override,
+  streaming + non-streaming `complete()`, cost estimate
+- `app/llm/jev_engine.py` — Jev-style decision wrapper (v2 slots: effort_routing /
+  rerank / screen_passages / sufficiency / select_best_candidate /
+  verify_citations_and_quality / legacy verify_groundedness);
   subprocess OOM auto-recovery; JEV_SCORE_N_CTX context control
+- `app/rag/ingestion.py` — markitdown parsing, chunking, indexing, doc deletion
 - `scripts/` — smoke tests, validated experiments, bench result export (keep them runnable)
 - `tests/` — hermetic tests (no models, no network): basic API, bench metrics math, scenario
-  integrity, judge parsing/clamping/degradation, engine recovery
+  integrity, judge parsing/clamping/degradation, engine recovery, v2 policy functions
+  (`tests/test_v2_pipeline.py`) — keep new decision-shape changes covered there first
 
 ## Local Contracts
 
 - All configuration via `JEVRAG_*` env vars; defaults must match `backend/.env.example`
 - SSE event types are a frontend contract: `meta | status | retrieval | decision | rerank |
   routing | sources | llm_start | delta | done | error | ping` — coordinate with `src/AGENTS.md`
-  before changing them
+  before changing them. The `routing` event carries v2 effort routing
+  (`{effort, model, probabilities, confidence}`); `done` may carry `effort`, `quality_score`,
+  `best_of`, `retried`, `rewritten_query`, `citations_verified`
 - Jev decisions run in threads (`asyncio.to_thread`); the jev-style adapter serializes model calls
 - Long LLM streams bridge to async via `asyncio.to_thread(next, it, sentinel)` — keep it
 - Errors inside a stream become `{"type":"error"}` frames, never dropped connections
-- Model calls that can fail must degrade: verification is best-effort; jev load failure disables
-  hybrid mode with a clear error, never crashes startup
+- Model calls that can fail must degrade: verification/citation checks are best-effort;
+  decomposition falls back to the original query; rewrite failure keeps the original;
+  jev load failure disables hybrid mode with a clear error, never crashes startup
+- The v2 policy functions in `pipelines.py` are shared with the bench runner — changing a
+  threshold formula changes BOTH arms by contract
 
 ## Work Guidance
 
 - Rerank pattern (validated in `scripts/experiment_rerank*.py`): ONE `decide()` call, state =
   `"Question: {query}"`, one noul question per passage with the passage text embedded in the
   instructions. Do not revert to shared-state generic statements (they do not discriminate).
-- Sufficiency + routing share one `decide()` call (state = question + truncated passages).
+  The same passage-in-instructions rule holds for the battery, best-of-2 candidates, and
+  citation questions (validated in `scripts/experiment_single_model_routing.py`).
+- Battery threshold policy is ORDERED: injection drop > conflict-block > evidence drop, with
+  rerank relevance ≥ 0.5 as the rescue for weak-evidence-but-clearly-relevant passages.
+- Best-of-2 candidates are generated CONCURRENTLY (asyncio.gather) — one thinking-off, one
+  thinking-on; selection ranks candidates, never hard-gates on absolute P(grounded).
+- Conflict-blocked passages keep their [n] citation labels — they move to the flagged prompt
+  section but stay citation-checkable.
 - `enable_thinking: false` is attempted first for Dashscope; on `BadRequestError` retry without
-  it and filter `reasoning_content` deltas.
+  it and filter `reasoning_content` deltas. Per-call `enable_thinking` overrides the global
+  setting (best-of-2 candidate B).
 - Truncation knobs (`jev_rerank_char_limit`, `jev_context_char_limit`) exist to control decision
   latency on CPU — tune there, not by removing decisions.
 

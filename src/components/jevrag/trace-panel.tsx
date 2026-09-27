@@ -1,30 +1,74 @@
 "use client";
 
-import { Brain, CircuitBoard, Cpu, Database, Route, Search, ShieldCheck, Timer, X } from "lucide-react";
+import {
+  Brain,
+  CircuitBoard,
+  Cpu,
+  Database,
+  FileCheck2,
+  Gauge,
+  ListTree,
+  PenLine,
+  Route,
+  Search,
+  ShieldCheck,
+  Timer,
+  Waypoints,
+  X,
+} from "lucide-react";
 
 import { ModeBadge, ProbabilityBar, formatCost } from "@/components/jevrag/ui-bits";
 import { useJevRag } from "@/lib/jevrag/store";
 import type { ChatMessage, Decision } from "@/lib/jevrag/types";
 import { cn } from "@/lib/utils";
 
+const DECISION_ICONS: Record<string, typeof Route> = {
+  effort: Waypoints,
+  routing: Route, // v1 conversations
+  battery: ShieldCheck,
+  citations: FileCheck2,
+  verification: ShieldCheck,
+  best_of_2: FileCheck2,
+  composite: Gauge,
+  decompose: ListTree,
+  corrective: PenLine,
+};
+
+function DecisionAnswer({ decision }: { decision: Decision }) {
+  const a = decision.answer;
+  if (a === null || a === undefined) return null;
+  if (typeof a === "number") {
+    return <p className="pb-1 font-mono text-xs font-semibold">{a}</p>;
+  }
+  if (typeof a === "string") {
+    return <p className="pb-1 text-[11px] leading-snug">{a}</p>;
+  }
+  if (Array.isArray(a)) {
+    return (
+      <ol className="list-decimal space-y-0.5 pb-1 pl-4 text-[11px] leading-snug">
+        {a.map((item, i) => (
+          <li key={i}>{String(item)}</li>
+        ))}
+      </ol>
+    );
+  }
+  return null;
+}
+
 function DecisionCard({ decision }: { decision: Decision }) {
   const isJev = decision.kind === "noul" || decision.kind === "choice";
+  const Icon = DECISION_ICONS[decision.name] ?? Cpu;
   return (
     <div className="rounded-lg border bg-card p-3">
       <div className="mb-1.5 flex items-center gap-1.5">
-        {decision.name === "routing" ? (
-          <Route className="h-3.5 w-3.5 text-emerald-600" />
-        ) : decision.name === "verification" ? (
-          <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
-        ) : (
-          <Cpu className="h-3.5 w-3.5 text-emerald-600" />
-        )}
+        <Icon className="h-3.5 w-3.5 text-emerald-600" />
         <span className="text-xs font-semibold">{decision.label}</span>
         <span className="ml-auto font-mono text-[10px] text-muted-foreground">
           {decision.latency_ms.toFixed(0)}ms
         </span>
       </div>
       <p className="mb-2 text-[11px] leading-snug text-muted-foreground">{decision.question}</p>
+      <DecisionAnswer decision={decision} />
 
       {isJev && decision.probabilities && Object.keys(decision.probabilities).length > 0 && (
         <div className="space-y-1">
@@ -92,12 +136,30 @@ export function TracePanelContent({ message }: { message: ChatMessage }) {
       <div className="flex items-center gap-2">
         <ModeBadge mode={message.mode ?? "traditional"} />
         {message.model && <span className="font-mono text-[11px] text-muted-foreground">{message.model}</span>}
+        {message.routing?.effort && (
+          <span className="rounded-full border border-emerald-600/30 bg-emerald-600/5 px-2 py-0.5 text-[10px] text-emerald-700 dark:text-emerald-400">
+            effort: {message.routing.effort}
+          </span>
+        )}
+        {message.qualityScore !== null && message.qualityScore !== undefined && (
+          <span className="ml-auto font-mono text-[10px] text-muted-foreground">
+            quality {message.qualityScore.toFixed(2)}
+          </span>
+        )}
       </div>
 
       {decisions.length > 0 && (
         <Section icon={Brain} title={`System One · Jev-style decisions (${decisions.length})`}>
           {decisions.map((d, i) => (
             <DecisionCard key={`${d.name}-${i}`} decision={d} />
+          ))}
+        </Section>
+      )}
+
+      {message.bestOf && (
+        <Section icon={Cpu} title="Best-of-2 candidates (System Two × 2, Jev selects)">
+          {Object.entries(message.bestOf).map(([name, p]) => (
+            <ProbabilityBar key={name} label={`candidate ${name}`} value={p} highlight />
           ))}
         </Section>
       )}

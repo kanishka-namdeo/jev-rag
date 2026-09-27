@@ -19,6 +19,8 @@ router = APIRouter(prefix="/bench")
 class RunCreateRequest(BaseModel):
     scenario_ids: list[str] = Field(min_length=1)
     label: str = ""
+    # optional per-run question cap (smoke runs); None -> settings default (0 = all)
+    max_questions: int | None = Field(default=None, ge=1)
 
 
 def _runner(request):
@@ -55,7 +57,8 @@ async def list_scenarios():
 async def create_run(req: RunCreateRequest, request: Request):
     runner = _runner(request)
     try:
-        run_id = runner.start(req.scenario_ids, req.label)
+        run_id = runner.start(req.scenario_ids, req.label,
+                              max_questions=req.max_questions)
     except RunConflictError as e:
         raise HTTPException(409, str(e)) from e
     except ValueError as e:

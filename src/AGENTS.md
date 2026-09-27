@@ -32,13 +32,17 @@
 
 - Never call the backend with absolute URLs or `XTransformPort` — only relative `/backend-api/*`
   (the Next.js rewrite in `next.config.ts` proxies to FastAPI :8000 in every context)
-- The SSE event schema is owned jointly with `backend/AGENTS.md`; update both sides together
+- The SSE event schema is owned jointly with `backend/AGENTS.md`; update both sides together.
+  v2: the `routing` event carries effort routing (`{effort, model, probabilities, confidence}`)
+  and `done` may add `quality_score`, `best_of`, `retried` — see `lib/jevrag/types.ts`
 - Keep the backend mount symmetrical: FastAPI serves both `/api/*` and `/backend-api/*`
 - One user-visible route only: `/` (sandbox constraint)
 - No blue/indigo palette: hybrid = emerald, traditional = sky/amber accents, neutrals = zinc
   (bench charts: traditional #0ea5e9, hybrid #10b981)
 - All state flows through the zustand store; components stay presentational where possible
 - Benchmarks polling only while a run is active (3s interval; stopped on completion/failure)
+- `lib/jevrag/types.ts` was lost from git once (recreated 2026-09-28): it is a build
+  blocker when missing — always commit it with any protocol change
 
 ## Work Guidance
 

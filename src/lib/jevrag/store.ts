@@ -67,6 +67,7 @@ function applyEvent(msg: ChatMessage, evt: Record<string, unknown>): ChatMessage
         ...msg,
         routing: {
           model: String(evt.model ?? ""),
+          effort: evt.effort ? String(evt.effort) : undefined,
           probabilities: (evt.probabilities as Record<string, number>) ?? {},
           confidence: (evt.confidence as number | undefined) ?? undefined,
         },
@@ -77,7 +78,7 @@ function applyEvent(msg: ChatMessage, evt: Record<string, unknown>): ChatMessage
       return {
         ...msg,
         model: String(evt.model ?? msg.model ?? ""),
-        stage: "answering…",
+        stage: evt.best_of ? "sampling 2 candidates…" : "answering…",
         contextSufficiency:
           (evt.context_sufficiency as number | undefined) ?? msg.contextSufficiency ?? null,
       };
@@ -97,6 +98,9 @@ function applyEvent(msg: ChatMessage, evt: Record<string, unknown>): ChatMessage
         verification: (evt.verification as number | null | undefined) ?? null,
         contextSufficiency:
           (evt.context_sufficiency as number | null | undefined) ?? msg.contextSufficiency ?? null,
+        qualityScore: (evt.quality_score as number | null | undefined) ?? null,
+        bestOf: (evt.best_of as Record<string, number> | null | undefined) ?? null,
+        retried: (evt.retried as boolean | undefined) ?? undefined,
         content: (evt.content as string | undefined) ?? msg.content,
       };
     case "error":
@@ -237,24 +241,37 @@ export const useJevRag = create<JevRagState>((set, get) => ({
         conversationId: id,
         traceMessageId: null,
         traceOpen: false,
-        messages: messages.map((m): ChatMessage => ({
-          id: m.id,
-          role: m.role,
-          content: m.content,
-          mode: (m.mode as PipelineMode | null) ?? undefined,
-          model: m.model ?? undefined,
-          latencyMs: m.latency_ms ?? undefined,
-          promptTokens: m.prompt_tokens ?? undefined,
-          completionTokens: m.completion_tokens ?? undefined,
-          costUsd: m.cost_usd ?? null,
-          sources: m.trace?.citations ?? undefined,
-          retrieved: m.trace?.retrieved ?? undefined,
-          decisions: (m.trace?.decisions as DecisionData[] | undefined) ?? undefined,
-          verification: m.trace?.verification ?? null,
-          contextSufficiency: m.trace?.context_sufficiency ?? null,
-          timings: m.trace?.timings ?? undefined,
-          createdAt: m.created_at,
-        })),
+        messages: messages.map((m): ChatMessage => {
+          const trace = (m.trace ?? {}) as Record<string, unknown>;
+          return {
+            id: m.id,
+            role: m.role,
+            content: m.content,
+            mode: (m.mode as PipelineMode | null) ?? undefined,
+            model: m.model ?? undefined,
+            latencyMs: m.latency_ms ?? undefined,
+            promptTokens: m.prompt_tokens ?? undefined,
+            completionTokens: m.completion_tokens ?? undefined,
+            costUsd: m.cost_usd ?? null,
+            sources: m.trace?.citations ?? undefined,
+            retrieved: m.trace?.retrieved ?? undefined,
+            decisions: (m.trace?.decisions as DecisionData[] | undefined) ?? undefined,
+            verification: m.trace?.verification ?? null,
+            contextSufficiency: m.trace?.context_sufficiency ?? null,
+            timings: m.trace?.timings ?? undefined,
+            routing: trace.routing_probabilities
+              ? {
+                  model: m.model ?? "",
+                  effort: trace.effort as string | undefined,
+                  probabilities: trace.routing_probabilities as Record<string, number>,
+                }
+              : undefined,
+            qualityScore: (trace.quality_score as number | null | undefined) ?? null,
+            bestOf: (trace.best_of as Record<string, number> | null | undefined) ?? null,
+            retried: trace.retried as boolean | undefined,
+            createdAt: m.created_at,
+          };
+        }),
       });
     } catch (e) {
       toast.error("Failed to load conversation", { description: String(e) });

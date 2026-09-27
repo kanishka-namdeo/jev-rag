@@ -49,16 +49,21 @@ class DashscopeLLM:
         system: str,
         user: str,
         history: list[dict[str, str]] | None = None,
+        enable_thinking: bool | None = None,
     ) -> Iterator[StreamEvent]:
         """Stream an answer. Yields delta events, then a final usage event.
 
         Qwen "thinking" output (reasoning_content) is suppressed when possible
         via enable_thinking=false; any leaked reasoning deltas are filtered out.
+        `enable_thinking` overrides the global setting per call (best-of-2 in the
+        v2 pipeline generates a thinking-on candidate this way).
         """
         messages: list[dict[str, str]] = [{"role": "system", "content": system}]
         if history:
             messages.extend(history)
         messages.append({"role": "user", "content": user})
+
+        thinking = self.settings.disable_llm_thinking if enable_thinking is None else not enable_thinking
 
         def _create(extra_body: dict[str, Any] | None):
             return self.client.chat.completions.create(
@@ -72,7 +77,7 @@ class DashscopeLLM:
             )
 
         extra_body: dict[str, Any] | None = None
-        if self.settings.disable_llm_thinking:
+        if thinking is False:
             extra_body = {"enable_thinking": False}
         try:
             stream = _create(extra_body)
@@ -104,6 +109,61 @@ class DashscopeLLM:
             if getattr(stream, "close", None):
                 stream.close()
         yield StreamEvent(type="usage", usage=usage)
+
+    def complete(
+        self,
+        *,
+        model: str,
+        system: str,
+        user: str,
+        history: list[dict[str, str]] | None = None,
+        max_tokens: int | None = None,
+        temperature: float | None = None,
+        enable_thinking: bool | None = None,
+    ) -> tuple[str, dict[str, int]]:
+        """Non-streaming completion for short utility calls (query rewrite, question
+        decomposition, best-of-N candidate sampling).
+
+        Returns (text, usage). Thinking is handled exactly like stream_answer: the
+        per-call override wins over the global setting, reasoning_content is never
+        returned, and endpoints rejecting enable_thinking are retried without it.
+        """
+        messages: list[dict[str, str]] = [{"role": "system", "content": system}]
+        if history:
+            messages.extend(history)
+        messages.append({"role": "user", "content": user})
+
+        thinking = self.settings.disable_llm_thinking if enable_thinking is None else not enable_thinking
+
+        def _create(extra_body: dict[str, Any] | None):
+            return self.client.chat.completions.create(
+                model=model,
+                messages=messages,  # type: ignore[arg-type]
+                temperature=self.settings.llm_temperature if temperature is None else temperature,
+                max_tokens=self.settings.llm_max_tokens if max_tokens is None else max_tokens,
+                stream=False,
+                extra_body=extra_body or {},
+            )
+
+        extra_body: dict[str, Any] | None = None
+        if thinking is False:
+            extra_body = {"enable_thinking": False}
+        try:
+            resp = _create(extra_body)
+        except BadRequestError as e:
+            logger.warning("complete: retry without enable_thinking (%s)", e)
+            resp = _create(None)
+
+        text = ""
+        choice = resp.choices[0] if resp.choices else None
+        if choice is not None:
+            msg = choice.message
+            text = (msg.content or "").strip()
+        usage = {
+            "prompt_tokens": (resp.usage.prompt_tokens or 0) if resp.usage else 0,
+            "completion_tokens": (resp.usage.completion_tokens or 0) if resp.usage else 0,
+        }
+        return text, usage
 
     def health(self) -> dict[str, Any]:
         try:

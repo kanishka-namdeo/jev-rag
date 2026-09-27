@@ -39,6 +39,13 @@ Everything except the cloud LLM endpoint runs **locally**: embeddings (ONNX CPU)
 
 ## What was achieved
 
+> **v2 update (2026-09-28):** the hybrid pipeline was rebuilt around the single-generator
+> insight (effort routing, passage screening battery, corrective retry, best-of-2 selection,
+> citation-level verification, composite quality score — every slot research-validated first:
+> [docs/jev-improvements-research.md](docs/jev-improvements-research.md)). The numbers below are
+> the **v1** full-run results; a v2 full re-run is pending (smoke-verified: 1-question techdocs
+> run, hybrid hit1/MRR/NDCG all 1.0).
+
 The two systems were benchmarked head-to-head on **6 document scenarios × 48 ground-truth
 questions**, both arms under a matched context budget (top-4), scored by an **independent LLM
 judge** (`kimi-k2.5` — a different model family than either generator, JSON-only, temperature 0,
@@ -114,10 +121,10 @@ message. Wire protocol: [docs/api.md](docs/api.md) · full architecture:
 | Component | Where | What |
 | --- | --- | --- |
 | Embeddings + vector store | 🖥️ local | fastembed ONNX (CPU) + embedded ChromaDB |
-| Jev-style decision model | 🖥️ local | 0.53 GB GGUF on llama.cpp (`jev-score`), 4 decisions per hybrid query |
+| Jev-style decision model | 🖥️ local | 0.53 GB GGUF on llama.cpp (`jev-score`), up to 6 decide() calls per hybrid v2 query |
 | Storage | 🖥️ local | SQLite (documents, conversations, traces, bench runs) |
 | Frontend + backend | 🖥️ local | Next.js 16 + FastAPI, both dev servers or Caddy |
-| Generation (System Two) | ☁️ endpoint | OpenAI-compatible Dashscope: `qwen3.7-plus` / `qwen3.6-plus` |
+| Generation (System Two) | ☁️ endpoint | OpenAI-compatible Dashscope: `qwen3.7-plus` (the single generator — v2) |
 
 ## Quickstart
 
@@ -152,14 +159,15 @@ Lint: `bun run lint` · both run in [CI](.github/workflows/ci.yml).
 | --- | --- | --- |
 | `JEVRAG_DASHSCOPE_BASE_URL` | `https://coding-intl.dashscope.aliyuncs.com/v1` | OpenAI-compatible endpoint |
 | `JEVRAG_DASHSCOPE_API_KEY` | — | your key (never commit) |
-| `JEVRAG_LLM_MODEL_DEFAULT` | `qwen3.7-plus` | default System Two model |
-| `JEVRAG_LLM_MODEL_REASONING` | `qwen3.6-plus` | deep-reasoning route |
+| `JEVRAG_LLM_MODEL_DEFAULT` | `qwen3.7-plus` | the single System Two generator (v2) |
+| `JEVRAG_LLM_MODEL_REASONING` | `qwen3.6-plus` | v1 reasoning route (kept for price continuity) |
 | `JEVRAG_JEV_MODEL_DIR` | `./models/jev-style` | Jev-Style GGUF folder |
 | `JEVRAG_JEV_QUANT` | `Q4_K_M` | GGUF quantization |
 | `JEVRAG_JEV_SCORER` | `./models/jev-style/build/jev-score` | scorer binary |
 | `JEVRAG_EMBED_MODEL` | `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` | fastembed model (must be in its supported list) |
 | `JEVRAG_TOP_K_RETRIEVE` / `JEVRAG_TOP_K_USE` | `10` / `4` | candidates for rerank / passages given to the LLM |
 | `JEVRAG_HYBRID_VERIFY_ANSWERS` | `true` | post-answer groundedness check |
+| `JEVRAG_HYBRID_*` / `JEVRAG_JEV_*` (v2) | see `.env.example` | per-slot switches + thresholds (effort routing, battery, corrective retry, best-of-2, citation verify) |
 
 Latency knobs for the hybrid: fewer Jev decisions (disable verification), smaller
 `JEVRAG_TOP_K_RETRIEVE`, or a larger-context scorer build — see
@@ -219,7 +227,9 @@ AGENTS.md         DOX framework — binding rules for any AI agent working here
 | 2026-09-27 | [`472c2a0`](https://github.com/kanishka-namdeo/jev-rag/commit/472c2a0) — benchmarking harness: scenarios, metrics, independent judge, pairwise |
 | 2026-09-27 | [`be74274`](https://github.com/kanishka-namdeo/jev-rag/commit/be74274) · [`48b94f5`](https://github.com/kanishka-namdeo/jev-rag/commit/48b94f5) · [`77993b2`](https://github.com/kanishka-namdeo/jev-rag/commit/77993b2) — OOM-resilient Jev engine + run hygiene for long local-model runs |
 | 2026-09-27 | [`3a950d2`](https://github.com/kanishka-namdeo/jev-rag/commit/3a950d2) — Benchmarks Lab UI + full 48-question run: hybrid +8.4pp correctness |
-| 2026-09-28 | this commit — README, screenshots, license, changelog + fixed empty per-scenario Hit@4/MRR charts |
+| 2026-09-28 | [`a1f0461`](https://github.com/kanishka-namdeo/jev-rag/commit/a1f0461) — README, screenshots, license, changelog + fixed empty per-scenario Hit@4/MRR charts |
+| 2026-09-28 | [`08a6db5`](https://github.com/kanishka-namdeo/jev-rag/commit/08a6db5) — research: Jev-style decisions beyond model routing + single-LLM design |
+| 2026-09-28 | this commit — **hybrid v2 pipeline**: effort routing, screening battery, corrective retry, best-of-2, citation verification, composite quality |
 
 ## Credits & key references
 

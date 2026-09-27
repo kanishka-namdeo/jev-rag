@@ -31,26 +31,33 @@ connection warm during long local-model calls.
 
 ```
 meta         {conversation_id, mode, assistant_message_id}
-status       {stage: retrieving|jev-reranking|jev-routing|jev-verifying|…, detail}
+status       {stage: retrieving|jev-routing|jev-screening|jev-gating|jev-verifying|…, detail}
 retrieval    {retrieved: [{rank, chunk_id, filename, similarity, jev_score?, snippet}]}
-decision     {decision: JevDecision}            (hybrid; one per System-One call)
+decision     {decision: JevDecision}            (hybrid; one per System-One call — up to 8 in v2)
 rerank       {kept: [lite chunks, jev_score set]} (hybrid)
-routing      {model, probabilities, confidence}   (hybrid)
+routing      {effort: no_retrieval|single_pass|multi_step, model, probabilities, confidence}
 sources      {citations: [{index, chunk_id, doc_id, filename, similarity, rerank_score?, snippet}]}
-llm_start    {model, system, context_sufficiency?}
-delta        {content}                            (many, streamed)
-decision     {decision: verification}             (hybrid, after stream)
-done         {message_id, model, content, usage, cost_usd, timings, decisions, retrieved, citations, verification?, context_sufficiency?}
+llm_start    {model, system, context_sufficiency?, best_of?}
+delta        {content}                            (many, streamed — or chunked after best-of-2 selection)
+decision     {decision: citations|verification|addresses|composite} (hybrid, after stream)
+done         {message_id, model, content, usage, cost_usd, timings, decisions, retrieved, citations,
+             verification?, context_sufficiency?, effort, quality_score?, best_of?, retried?,
+             rewritten_query?, citations_verified?}
 error        {message}                            (terminal on failure)
 ping         {}                                   (keepalive)
 ```
+
+v2 decision records in order: `effort` (choice) → `decompose` (plan, multi_step only) →
+`rerank` (noul × passages) → `battery` (3 nouls/passage) → `corrective` (rewrite, retry only) →
+`sufficiency` (noul) → `best_of_2` (noul, hard path only) → `citations` (choice × emitted [n]) →
+`verification` (noul) → `addresses` (noul) → `composite` (weighted score).
 
 `JevDecision` shape:
 
 ```json
 {
-  "name": "rerank|sufficiency|routing|verification",
-  "label": "…", "kind": "noul|choice", "question": "…",
+  "name": "effort|decompose|rerank|battery|corrective|sufficiency|best_of_2|citations|verification|addresses|composite",
+  "label": "…", "kind": "noul|choice|plan|rewrite", "question": "…",
   "answer": "…", "probabilities": {"…": 0.0}, "confidence": 0.0,
   "latency_ms": 0.0, "usage": {}
 }
@@ -59,7 +66,8 @@ ping         {}                                   (keepalive)
 ### Trace persistence
 
 Every assistant message row in SQLite stores the full trace (`retrieved`, `decisions`,
-`citations`, `timings`, `verification`, `context_sufficiency`) and is replayed by
+`citations`, `timings`, `verification`, `context_sufficiency`, `effort`, `quality_score`,
+`best_of`, `retried`, `rewritten_query`, `citations_verified`) and is replayed by
 `GET /conversations/{id}/messages`.
 
 ## Frontend proxy contract

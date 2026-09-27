@@ -4,6 +4,49 @@ Milestone history for Jev-RAG. Each entry links to the commit that delivered it.
 Dates are YYYY-MM-DD (commit date). Format is loosely inspired by
 [Keep a Changelog](https://keepachangelog.com/), grouped by project phase.
 
+## 2026-09-28 — Hybrid v2 pipeline: decisions beyond model routing (single generator)
+
+Implements the v2 proposal from the research pass — every slot was validated locally before
+shipping (`docs/jev-improvements-research.md` §3-4, now marked implemented):
+
+- **[1] Effort routing** replaces v1 model routing: one `choice`
+  `{no_retrieval, single_pass, multi_step}` per query; `no_retrieval` + P ≥ 0.5 skips
+  retrieval entirely (Adaptive-RAG class A fast path). `llm_model_reasoning` is now unused by
+  the hybrid pipeline — one generator (qwen3.7-plus) by design.
+- **[2] Multi-step retrieval**: LLM decomposition into sub-queries → per-sub-query retrieval →
+  deduped pool (≤12) → rerank.
+- **[3] Screening battery** (TypeSafe classifying-RAG cookbook): 3 nouls per kept passage
+  (answer evidence · premise contradiction · prompt injection) → ordered thresholds
+  include / conflict-block / drop; conflict-blocked passages keep their `[n]` labels and move
+  to a dedicated "Conflicting evidence" prompt section.
+- **[4] Corrective loop** (CRAG): insufficient context → LLM rewrites the query → re-retrieve →
+  re-screen, capped at one retry.
+- **[5] Best-of-2 generation** on the hard path (multi_step or low sufficiency): two concurrent
+  candidates (thinking off / thinking on), Jev selects by calibrated P(grounded) — a relative
+  selector, never an absolute gate.
+- **[6] Citation-level verification**: ONE batched decide() — choice per emitted `[n]`
+  (supports/contradicts/says_nothing, auto-accept ≥ 0.8 confidence) + whole-answer
+  groundedness (v1 continuity) + answers-request nouls.
+- **[7] Composite quality score** in code: `0.4·answers_request + 0.4·citations_supported +
+  0.2·¬contradicts_context` (TypeSafe's own answer-gating example).
+- **Bench runner mirrors v2 exactly** (DOX contract): shares prompts, engine methods, policy
+  functions and System Two helpers with the production pipeline; run config records
+  `pipeline: hybrid-v2`; `POST /bench/runs` accepts `max_questions` for smoke runs.
+- **Frontend**: `routing` event now carries effort; message badges for effort / quality /
+  best-of-2 / corrective retry; trace panel renders all 11 decision record kinds with
+  per-name icons and scalar/array answers; **recreated the accidentally-lost
+  `src/lib/jevrag/types.ts`** (the frontend did not build without it).
+- **Hermetic tests**: `tests/test_v2_pipeline.py` covers parse_citations, battery policy
+  ordering (injection > conflict > evidence, relevance rescue), citation summary/confidence
+  auto-accept, composite formula, and every new engine method with a mocked decide() (35 pass).
+- **Live verification**: single_pass (116 s, caught a real premise conflict and answered
+  through it), multi_step (178 s: decompose → insufficient → corrective retry → best-of-2 →
+  contradicted citation caught), no_retrieval (23 s, P=0.946); browser-verified traces with
+  zero console errors; bench smoke (techdocs × 1): both arms correct, hybrid hit1/MRR/NDCG
+  all 1.0, judge self-test 8/8.
+- Known trade-off (documented in `docs/hybrid-design.md`): v2 latency on 2 CPU cores —
+  ~116 s single_pass / ~178 s hard path vs ~30 s v1 — every slot is individually switchable.
+
 ## 2026-09-28 — Research: Jev beyond routing / single-model design
 
 - **Research pass** (two websearch agents + local experiments):
