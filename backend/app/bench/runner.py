@@ -31,7 +31,7 @@ from app.bench.scenarios import SCENARIO_MAP, BenchQuestion, BenchScenario, doc_
 from app.config import Settings
 from app.db import BenchResult, BenchRun, db_session, new_id
 from app.llm.dashscope import DashscopeLLM, estimate_cost_usd
-from app.llm.jev_engine import JevEngine
+from app.llm.jev_engine import JevEngine, JevEngineUnavailable
 from app.rag.ingestion import Ingestor
 from app.rag.pipelines import SUFFICIENCY_THRESHOLD
 from app.rag.prompts import (
@@ -150,6 +150,12 @@ class BenchRunner:
                     self._patch_run(run_id, progress_stage=f"[{scenario.id}] question {q.id}")
                     try:
                         await self._run_question(run_id, scenario, q, doc_ids)
+                    except JevEngineUnavailable as e:
+                        # fail fast: local decision engine is down — the hybrid arm
+                        # is meaningless; abort instead of filling the run with errors
+                        raise RuntimeError(
+                            f"local Jev engine unavailable — run aborted at "
+                            f"{scenario.id}/{q.id}: {e}") from e
                     except Exception as e:  # noqa: BLE001 — per-question isolation
                         logger.exception("bench question %s/%s failed", scenario.id, q.id)
                         self._persist_error(run_id, scenario, q, e)
@@ -176,7 +182,13 @@ class BenchRunner:
     async def _run_question(self, run_id: str, scenario: BenchScenario,
                             q: BenchQuestion, doc_ids: list[str]) -> None:
         trad = await self._arm_traditional(q, doc_ids)
-        hyb = await self._arm_hybrid(q, doc_ids)
+        try:
+            hyb = await self._arm_hybrid(q, doc_ids)
+        except JevEngineUnavailable as e:
+            # fail fast: without the local decision engine the hybrid arm is
+            # meaningless — abort instead of burning the run as per-question errors
+            raise JevEngineUnavailable(
+                f"hybrid arm aborted at {scenario.id}/{q.id}: {e}") from e
 
         self._patch_run(run_id, progress_stage=f"[{scenario.id}] judging {q.id}")
         t_j = time.perf_counter()

@@ -84,9 +84,40 @@ class JevEngine:
 
     # ---------------------------------------------------------------- raw call
     def _decide(self, state: Any, questions: dict[str, dict]) -> dict:
+        """One decide() call with automatic recovery.
+
+        The jev-score subprocess can be killed by the OS (sandbox OOM under
+        memory pressure) and can fail to start when memory is transiently
+        exhausted. Recovery policy:
+        - engine not loaded / previous load failed -> attempt ONE fresh load
+          (a later call succeeds once memory pressure subsides);
+        - subprocess dies mid-call -> reload once and retry the call,
+          so a single kill does not poison the whole app/session.
+        """
         if self._js is None:
-            raise JevEngineUnavailable(self._load_error or "jev engine not loaded")
-        return self._js.decide(state, questions)
+            if not self._try_load():
+                raise JevEngineUnavailable(self._load_error or "jev engine not loaded")
+        try:
+            return self._js.decide(state, questions)
+        except Exception as e:  # noqa: BLE001 — attempt one recovery reload
+            logger.warning("jev decide failed (%s: %s) — reloading engine once",
+                           type(e).__name__, e)
+            if self._try_load():
+                try:
+                    return self._js.decide(state, questions)  # type: ignore[union-attr]
+                except Exception as e2:  # noqa: BLE001 — dead again after reload
+                    raise JevEngineUnavailable(
+                        f"jev engine died again after reload ({type(e2).__name__}: {e2})") from e2
+            raise JevEngineUnavailable(
+                f"jev engine died ({type(e).__name__}: {e}) and reload failed: "
+                f"{self._load_error}") from e
+
+    def _try_load(self) -> bool:
+        """Force a fresh JevStyle load (spawns a new jev-score subprocess),
+        clearing any previous load-failure state first."""
+        self._js = None
+        self._load_error = None
+        return self.load()
 
     def _noul(self, instructions: str) -> dict:
         return {"type": "noul", "instructions": instructions}

@@ -268,3 +268,83 @@ def test_bench_run_validation():
     with TestClient(create_app()) as client:
         resp = client.post("/api/bench/runs", json={"scenario_ids": ["nope"]})
         assert resp.status_code == 400
+
+
+# ================================================================ jev engine recovery
+def test_jev_engine_recovers_after_subprocess_death():
+    """OOM resilience: a dead jev-score subprocess (BrokenPipeError) triggers an
+    engine reload + single retry instead of poisoning every later call."""
+    import sys
+    import types
+
+    from app.config import Settings
+    from app.llm.jev_engine import JevEngine
+
+    calls = {"n": 0}
+
+    class FakeJevStyle:
+        def __init__(self, **kwargs):
+            calls["n"] += 1
+
+        def decide(self, state, questions):
+            # first instance's decide works once, then dies like a killed subprocess
+            if calls["n"] == 1 and calls.get("decided", 0) >= 1:
+                raise BrokenPipeError(32, "Broken pipe")
+            calls["decided"] = calls.get("decided", 0) + 1
+            return {"answers": {"k": {"noul": 0.5}}, "usage": {}}
+
+    fake_module = types.ModuleType("jev_style")
+    fake_module.JevStyle = FakeJevStyle
+    sys.modules["jev_style"] = fake_module
+    try:
+        settings = Settings(JEVRAG_LAZY_MODELS="1", JEVRAG_DATA_DIR=_TMP,
+                            JEVRAG_DASHSCOPE_API_KEY="test-key")
+        engine = JevEngine(settings)
+        assert engine.load() is True
+
+        # first call: fine
+        out = engine._decide("state", {"k": {"type": "noul", "instructions": "x"}})
+        assert out["answers"]["k"]["noul"] == 0.5
+
+        # second call: subprocess died -> automatic reload + retry succeeds
+        out2 = engine._decide("state", {"k": {"type": "noul", "instructions": "x"}})
+        assert out2["answers"]["k"]["noul"] == 0.5
+        assert calls["n"] == 2  # a second subprocess was spawned
+    finally:
+        sys.modules.pop("jev_style", None)
+
+
+def test_jev_engine_unavailable_when_reload_fails():
+    import sys
+    import types
+
+    from app.config import Settings
+    from app.llm.jev_engine import JevEngine, JevEngineUnavailable
+
+    class DeadAfterWarmup:
+        """Warmup (first decide) succeeds; every later decide dies."""
+
+        def __init__(self, **kwargs):
+            self.calls = 0
+
+        def decide(self, state, questions):
+            self.calls += 1
+            if self.calls > 1:
+                raise BrokenPipeError(32, "Broken pipe")
+            return {"answers": {}, "usage": {}}
+
+    fake_module = types.ModuleType("jev_style")
+    fake_module.JevStyle = DeadAfterWarmup
+    sys.modules["jev_style"] = fake_module
+    try:
+        settings = Settings(JEVRAG_LAZY_MODELS="1", JEVRAG_DATA_DIR=_TMP,
+                            JEVRAG_DASHSCOPE_API_KEY="test-key")
+        engine = JevEngine(settings)
+        assert engine.load() is True  # warmup succeeds
+        try:
+            engine._decide("state", {"k": {"type": "noul", "instructions": "x"}})
+            raise AssertionError("expected JevEngineUnavailable")
+        except JevEngineUnavailable:
+            pass  # reload spawned a fresh engine, its decide died too -> clean error
+    finally:
+        sys.modules.pop("jev_style", None)
