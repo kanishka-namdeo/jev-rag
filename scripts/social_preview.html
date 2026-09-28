@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 1280px; height: 640px; overflow: hidden; }
+  body {
+    font-family: 'Segoe UI', -apple-system, Roboto, Helvetica, Arial, sans-serif;
+    background: linear-gradient(135deg, #0b1220 0%, #101a2e 55%, #0d1b2a 100%);
+    color: #f8fafc;
+    position: relative;
+  }
+  /* subtle grid texture */
+  body::before {
+    content: ''; position: absolute; inset: 0;
+    background-image:
+      linear-gradient(rgba(148,163,184,.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(148,163,184,.05) 1px, transparent 1px);
+    background-size: 48px 48px;
+  }
+  .glow-t { position:absolute; width:520px; height:520px; border-radius:50%;
+    background: radial-gradient(circle, rgba(56,189,248,.14), transparent 70%);
+    top:-200px; right:-120px; }
+  .glow-h { position:absolute; width:560px; height:560px; border-radius:50%;
+    background: radial-gradient(circle, rgba(16,185,129,.16), transparent 70%);
+    bottom:-240px; left:-140px; }
+
+  .wrap { position: relative; padding: 72px 80px; height: 100%;
+    display: flex; flex-direction: column; }
+
+  .eyebrow { font-size: 21px; letter-spacing: .22em; text-transform: uppercase;
+    color: #10b981; font-weight: 600; margin-bottom: 14px; }
+  h1 { font-size: 92px; font-weight: 800; letter-spacing: -1.5px; line-height: 1.02; }
+  h1 .accent { background: linear-gradient(90deg, #10b981, #34d399);
+    -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .tagline { margin-top: 18px; font-size: 30px; color: #94a3b8; font-weight: 400; }
+  .tagline b { color: #e2e8f0; font-weight: 600; }
+
+  .stats { display: flex; gap: 18px; margin-top: 44px; }
+  .stat { flex: 1; background: rgba(17,26,46,.85); border: 1.5px solid #1e293b;
+    border-radius: 16px; padding: 22px 26px; }
+  .stat .n { font-size: 44px; font-weight: 800; color: #34d399; letter-spacing: -1px; }
+  .stat.sky .n { color: #38bdf8; }
+  .stat .l { font-size: 17.5px; color: #94a3b8; margin-top: 6px; line-height: 1.35; }
+
+  .footer { margin-top: auto; display: flex; align-items: center; gap: 14px;
+    font-size: 19px; color: #64748b; }
+  .chip { border: 1.5px solid #334155; border-radius: 999px; padding: 7px 18px;
+    color: #cbd5e1; font-size: 18px; white-space: nowrap; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; }
+</style>
+</head>
+<body>
+  <div class="glow-t"></div>
+  <div class="glow-h"></div>
+  <div class="wrap">
+    <div class="eyebrow">Local-first · Open Source (Apache-2.0)</div>
+    <h1>Jev<span class="accent">-RAG</span></h1>
+    <div class="tagline"><b>Two RAG pipelines</b>, one app — and a benchmark lab that proves
+      exactly what the <b>hybrid</b> adds.</div>
+
+    <div class="stats">
+      <div class="stat"><div class="n">+8.4pp</div><div class="l">correctness on the internal suite (48 Q, independent judge)</div></div>
+      <div class="stat"><div class="n">+18.4pp</div><div class="l">pooled on public multi-hop benchmarks (SQuAD · HotpotQA · MuSiQue …)</div></div>
+      <div class="stat sky"><div class="n">0</div><div class="l">fabrications · over-abstention 14% → 2.3% · $0.0004 per query</div></div>
+    </div>
+
+    <div class="footer">
+      <span class="dot" style="background:#38bdf8"></span><span>Traditional</span>
+      <span class="dot" style="background:#10b981;margin-left:10px"></span><span>Hybrid · Jev-style</span>
+      <span style="margin-left:auto" class="chip">Python 3.12 · FastAPI</span>
+      <span class="chip">Next.js 16</span>
+      <span class="chip">local GGUF decisions</span>
+    </div>
+  </div>
+</body>
+</html>

@@ -31,6 +31,12 @@
   `diagnose_public_bench.py` — run analysis/diagnostics over the bench DB (repo-anchored paths)
 - `measure_jev_memory.py` / `verify_jev_flags.py` / `verify_jev_runtime_parity.py` — jev-score
   memory/parity probes (repo-anchored paths)
+- `validate_readme.py` — README hygiene audit: link/anchor/image existence, `<details>`
+  balance, secret-pattern scan (run before pushing README changes)
+- `render_social_preview.py` + `social_preview.html` — regenerates the repo social
+  preview card (Playwright, 1280×640 @2x) into `docs/assets/img/social-preview.png`;
+  update the HTML source, re-render, then upload via repo Settings (the REST upload
+  endpoint is closed to PATs)
 - `test-assets/` — sample documents for manual testing (unindexed)
 
 ## Local Contracts

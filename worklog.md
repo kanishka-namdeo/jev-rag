@@ -204,3 +204,35 @@ Stage Summary:
 - ACTION STILL REQUIRED (user): rotate the DashScope key (it lived in
   pushed history and in chat); consider rotating the GitHub PAT too. Old
   commit objects may remain reachable on GitHub via direct SHA until GC
+
+---
+Task ID: 11 — repo beautification (user-friendly README + community files)
+Agent: Super Z (main agent)
+Task: "readme is too text heavy, we want a user friendly experience for people
+visiting this repo. check online how to do this and beautify the repo overall
+while following best practices and implement them. push changes to repo"
+Work Log:
+- Researched online: README best-practice searches + Standard Readme spec
+  (section order, badges, TOC, security/contributing sections, no broken links)
+  and repo-beautification patterns (visual-first hierarchy, collapsibles)
+- README rewritten 302→336 lines but ~60% less visible text: centered banner →
+  pitch → badges (+PRs Welcome) → stat strip → hero screenshot → emoji section
+  nav; screenshots moved to top; interpretation prose, full config table,
+  milestones, DOX/agent notes moved into 5 <details> collapsibles; all numbers,
+  caveats and negative results preserved (objectivity contract intact)
+- New community files: CONTRIBUTING.md, SECURITY.md
+- New .github: ISSUE_TEMPLATE/bug_report.md + feature_request.md + config.yml
+  (contact links), PULL_REQUEST_TEMPLATE.md (safety + evidence checklist)
+- scripts/validate_readme.py: link/anchor/image/details/secret audit — CLEAN
+  (fixed one fragile emoji-variation-selector anchor 🗂️→📁)
+- Social preview card: scripts/social_preview.html + render_social_preview.py
+  (Playwright, 1280x640 @2x → docs/assets/img/social-preview.png, VLM-verified);
+  GitHub REST upload endpoint 404s for PATs — image ships in repo for manual
+  upload via Settings → Social preview
+- DOX pass: scripts/AGENTS.md ownership updated with the 3 new scripts;
+  CHANGELOG.md entry added; root AGENTS.md unchanged (no contract change)
+Stage Summary:
+- Repo surface now follows published best practices: scannable visual README,
+  contribution/security policies, structured issue+PR flows
+- README validation green; all 16 commit links and doc anchors verified
+- Social preview: image in repo, needs one manual upload by maintainer

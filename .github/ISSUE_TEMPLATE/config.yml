@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 📖 Setup guide & troubleshooting
+    url: https://github.com/kanishka-namdeo/jev-rag/blob/main/docs/setup.md
+    about: Most install/run problems are already answered in the setup guide's troubleshooting table.
+  - name: 📊 Benchmark methodology & results
+    url: https://github.com/kanishka-namdeo/jev-rag/blob/main/docs/benchmarking.md
+    about: How the two pipelines are compared and scored — read before filing result-discrepancy issues.
+  - name: 🔒 Security disclosures
+    url: https://github.com/kanishka-namdeo/jev-rag/blob/main/SECURITY.md
+    about: Found a vulnerability or a leaked credential? Please report privately, not via issues.

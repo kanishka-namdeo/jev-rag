@@ -4,6 +4,31 @@ Milestone history for Jev-RAG. Each entry links to the commit that delivered it.
 Dates are YYYY-MM-DD (commit date). Format is loosely inspired by
 [Keep a Changelog](https://keepachangelog.com/), grouped by project phase.
 
+## 2026-09-29 — Repo beautification: user-friendly README + community files
+
+The README was accurate but text-heavy (302 lines, dense prose walls). Following
+published README best practices (visual-first hierarchy, collapsible depth,
+one-glance answers), the repo surface was restructured for visitors:
+
+- **README rewritten around the visitor's path**: centered banner → one-line
+  pitch → badges (added PRs Welcome) → headline stat strip → hero screenshot →
+  emoji-anchored section nav. Screenshots moved to the top (show, don't tell);
+  interpretation prose, full config table, milestones, and agent/DOX notes now
+  live in `<details>` collapsibles — the visible surface is scannable in one
+  viewport per section, while every number, caveat, and negative result is
+  preserved (objectivity contract intact: losses stay visible, full readings
+  one click away).
+- **New community files**: [CONTRIBUTING.md](CONTRIBUTING.md) (60-second dev
+  setup, tests/lint bar, what a good PR looks like — measured claims in both
+  directions, no secrets), [SECURITY.md](SECURITY.md) (private disclosure
+  policy, leaked-credential handling, local-only scope note).
+- **Issue & PR templates**: structured bug report (pipeline picker, trace
+  panel, preflight checklist), feature request (failure-mode framing, local-first
+  scope check), issue-template contact links (setup guide, benchmarking docs,
+  security), and a PR checklist template with the safety boxes.
+- README now links all of the above; broken-link and anchor audit passed
+  (every referenced file, image, and doc anchor exists).
+
 ## 2026-09-28 — Portability hardening + fresh-system setup guide
 
 Setting the repo up on **another machine** is now a documented, verified path —
