@@ -169,7 +169,12 @@ class ChatService:
     async def run(self, req: ChatRequest) -> AsyncGenerator[dict, None]:
         t_total = time.perf_counter()
         try:
-            conv_id, history = self._open_conversation(req)
+            if req.bench:
+                # Bench mode: no conversation rows, no persistence, ephemeral id.
+                # The benchmark runner drives this same orchestrator directly.
+                conv_id, history = new_id(), []
+            else:
+                conv_id, history = self._open_conversation(req)
             assistant_id = new_id()
             yield {
                 "type": "meta", "conversation_id": conv_id, "mode": req.mode,
@@ -182,13 +187,18 @@ class ChatService:
                     evt["mode"] = req.mode
                     evt["conversation_id"] = conv_id
                     evt["latency_ms"] = round((time.perf_counter() - t_total) * 1000, 1)
-                    self._persist_assistant(assistant_id, conv_id, evt)
+                    if not req.bench:
+                        self._persist_assistant(assistant_id, conv_id, evt)
                 yield evt
         except JevEngineUnavailable as e:
+            if req.bench:
+                raise  # the bench runner retries on engine kills — it needs the exception
             logger.error("hybrid unavailable: %s", e)
             yield {"type": "error", "message": f"Local Jev-style engine unavailable: {e}. "
                     "Check /api/system/status — the hybrid pipeline requires it."}
         except Exception as e:  # noqa: BLE001 — surface any failure as an SSE error event
+            if req.bench:
+                raise
             logger.exception("pipeline failed")
             yield {"type": "error", "message": f"{type(e).__name__}: {e}"}
 
@@ -202,7 +212,7 @@ class ChatService:
         yield {"type": "status", "stage": "retrieving",
                "detail": f"embedding similarity search (top {self.settings.top_k_use})"}
         retrieved, timings["retrieval_ms"] = await asyncio.to_thread(
-            self._retrieve, req.message, self.settings.top_k_use)
+            self._retrieve, req.message, self.settings.top_k_use, req.doc_ids)
         yield {"type": "retrieval", "retrieved": self._lite(retrieved)}
 
         labeled = self._label(retrieved)
@@ -223,7 +233,8 @@ class ChatService:
         content = usage.get("_content", "")
 
         yield self._done_event(assistant_id, model, content, usage, timings, decisions,
-                               self._lite(retrieved), citations, "traditional")
+                               self._lite(retrieved), citations, "traditional",
+                               extra=self._ctx(req, context_block) or None)
 
     # ================================================================ hybrid v2
     async def _run_hybrid(self, req: ChatRequest, conv_id: str, assistant_id: str,
@@ -271,7 +282,9 @@ class ChatService:
                 timings["llm_ms"] = usage.get("_llm_ms", 0.0)
                 yield self._done_event(assistant_id, model, usage.get("_content", ""), usage,
                                        timings, decisions, [], [], "hybrid", None, None,
-                                       extra={**extra, "effort": "no_retrieval"})
+                                       extra=self._ctx(req, "(no passages — question "
+                                         "classified as not requiring the knowledge base)",
+                                         {**extra, "effort": "no_retrieval"}))
                 return
         yield {"type": "routing", "effort": effort, "model": model,
                "probabilities": {k: round(v, 3) for k, v in eprobs.items()},
@@ -298,12 +311,12 @@ class ChatService:
                    "detail": f"retrieving per sub-query ({len(sub_queries)} queries, "
                              f"top {s.jev_multistep_subquery_k} each)"}
             retrieved, timings["retrieval_ms"] = await asyncio.to_thread(
-                self._retrieve_multi, sub_queries)
+                self._retrieve_multi, sub_queries, req.doc_ids)
         elif not kb_empty:
             yield {"type": "status", "stage": "retrieving",
                    "detail": f"broad embedding search (top {s.top_k_retrieve})"}
             retrieved, timings["retrieval_ms"] = await asyncio.to_thread(
-                self._retrieve, query, s.top_k_retrieve)
+                self._retrieve, query, s.top_k_retrieve, req.doc_ids)
         yield {"type": "retrieval", "retrieved": self._lite(retrieved)}
 
         if not retrieved:
@@ -319,7 +332,8 @@ class ChatService:
                     usage = evt["usage"]
             content = usage.get("_content", "")
             yield self._done_event(assistant_id, model, content, usage, timings, decisions,
-                                   [], [], "hybrid", None, None, extra=extra)
+                                   [], [], "hybrid", None, None,
+                                   extra=self._ctx(req, "(no passages retrieved)", extra))
             return
 
         # -- [3-5] rerank -> battery -> gate, with one corrective retry ----------
@@ -344,7 +358,7 @@ class ChatService:
                 yield {"type": "decision", "decision": decisions[-1]}
                 search_query = rewritten_query
                 retrieved, timings["retrieval_ms"] = await asyncio.to_thread(
-                    self._retrieve, search_query, s.top_k_retrieve)
+                    self._retrieve, search_query, s.top_k_retrieve, req.doc_ids)
                 yield {"type": "retrieval", "retrieved": self._lite(retrieved)}
                 if not retrieved:
                     screen = None
@@ -412,7 +426,8 @@ class ChatService:
             extra["retried"] = True
             extra["rewritten_query"] = rewritten_query
             yield self._done_event(assistant_id, model, content, usage, timings, decisions,
-                                   self._lite(retrieved), [], "hybrid", None, None, extra=extra)
+                                   self._lite(retrieved), [], "hybrid", None, None,
+                                   extra=self._ctx(req, "(no passages retrieved)", extra))
             return
 
         labeled = screen["labeled"]
@@ -536,13 +551,14 @@ class ChatService:
 
         yield self._done_event(assistant_id, model, content, usage, timings, decisions,
                                self._lite(retrieved), citations, "hybrid", verification,
-                               round(suf_p, 3), extra=extra)
+                               round(suf_p, 3), extra=self._ctx(req, context_block, extra))
 
     # ================================================================ helpers
-    def _retrieve(self, query: str, k: int) -> tuple[list[dict], float]:
+    def _retrieve(self, query: str, k: int,
+                  doc_ids: list[str] | None = None) -> tuple[list[dict], float]:
         t0 = time.perf_counter()
         embedding = self.embedder.embed_query(query)
-        chunks: list[RetrievedChunk] = self.store.query(embedding, k)
+        chunks: list[RetrievedChunk] = self.store.query(embedding, k, doc_ids=doc_ids)
         ms = (time.perf_counter() - t0) * 1000
         out: list[dict] = []
         for i, c in enumerate(chunks):
@@ -552,7 +568,8 @@ class ChatService:
             out.append(d)
         return out, ms
 
-    def _retrieve_multi(self, sub_queries: list[str]) -> tuple[list[dict], float]:
+    def _retrieve_multi(self, sub_queries: list[str],
+                        doc_ids: list[str] | None = None) -> tuple[list[dict], float]:
         """Multi-step retrieval: per-sub-query search, dedupe by chunk, cap the pool.
 
         The pool is ranked by best similarity across sub-queries before capping at
@@ -562,7 +579,8 @@ class ChatService:
         seen: dict[str, dict] = {}
         for sq in sub_queries:
             embedding = self.embedder.embed_query(sq)
-            for c in self.store.query(embedding, self.settings.jev_multistep_subquery_k):
+            for c in self.store.query(embedding, self.settings.jev_multistep_subquery_k,
+                                      doc_ids=doc_ids):
                 d = c.as_dict()
                 if d["chunk_id"] not in seen:
                     seen[d["chunk_id"]] = d
@@ -721,6 +739,14 @@ class ChatService:
                 session.commit()
         except Exception as e:  # noqa: BLE001 — persistence must not kill the stream
             logger.error("failed to persist assistant message: %s", e)
+
+    @staticmethod
+    def _ctx(req: ChatRequest, context_block: str, extra: dict | None = None) -> dict:
+        """Merge the bench-only context_used field into a done-event extra dict."""
+        out = dict(extra or {})
+        if req.bench:
+            out["context_used"] = context_block
+        return out
 
     def _done_event(self, assistant_id: str, model: str, content: str, usage: dict,
                     timings: dict, decisions: list, retrieved: list, citations: list,

@@ -12,6 +12,15 @@ class ChatRequest(BaseModel):
     message: str = Field(min_length=1, max_length=8000)
     conversation_id: str | None = None
     mode: ChatMode = "traditional"
+    # Internal fields (not part of the public chat API surface — the benchmark
+    # runner sets them when it drives the SAME ChatService orchestrator):
+    # doc_ids restricts retrieval to a document subset (scenario isolation).
+    doc_ids: list[str] | None = None
+    # bench=True: no conversation persistence, done event carries the exact
+    # context block used for generation, and errors PROPAGATE (the bench runner
+    # needs real exceptions for its engine-retry logic) instead of becoming
+    # SSE error events.
+    bench: bool = False
 
 
 class Citation(BaseModel):
