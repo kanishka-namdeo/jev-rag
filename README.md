@@ -279,7 +279,7 @@ AGENTS.md         DOX framework — binding rules for any AI agent working here
 | 2026-09-28 | [`42e2c7f`](https://github.com/kanishka-namdeo/jev-rag/commit/42e2c7f) · [`bb7a8b4`](https://github.com/kanishka-namdeo/jev-rag/commit/bb7a8b4) — public RAG benchmarks wave 1: SQuAD v1.1 + HotpotQA scenarios, split verdict |
 | 2026-09-28 | [`9d829a6`](https://github.com/kanishka-namdeo/jev-rag/commit/9d829a6) · [`89f9d1b`](https://github.com/kanishka-namdeo/jev-rag/commit/89f9d1b) — public benchmarks wave 2: TriviaQA + 2WikiMultiHopQA + MuSiQue — five-benchmark suite, multi-hop sweep |
 | 2026-09-28 | [`aab887a`](https://github.com/kanishka-namdeo/jev-rag/commit/aab887a) — **portability hardening + fresh-system setup guide** ([docs/setup.md](docs/setup.md)): repo-root path anchoring (CWD-independent backend), machine-independent setup scripts, secrets out of the endpoint probe, CI trigger fix |
-| 2026-09-29 | history scrub — a leaked DashScope API key replaced and ~1.5k `.next/` build-cache files purged from every commit (git-filter-repo rewrite + force-push); stale commit refs repointed |
+| 2026-09-29 | [`1367c56`](https://github.com/kanishka-namdeo/jev-rag/commit/1367c56) — history scrub: a leaked DashScope API key replaced and ~1.5k `.next/` build-cache files purged from every commit (git-filter-repo rewrite + force-push); stale commit refs repointed |
 
 ## Credits & key references
 
