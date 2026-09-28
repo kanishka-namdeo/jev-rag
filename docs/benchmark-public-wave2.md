@@ -142,7 +142,7 @@ cd backend && .venv/bin/python scripts/build_public_scenarios.py
 .venv/bin/python scripts/bench_resume.py --scenarios triviaqa,wiki2,musique \
     --label "public RAG benchmarks wave 2"
 # analysis
-.venv/bin/python ../scripts/analyze_bench_run.py <run_id> --db sqlite:////home/z/my-project/backend/data/app.db
+.venv/bin/python ../scripts/analyze_bench_run.py <run_id>   # --db defaults to backend/data/app.db
 .venv/bin/python ../scripts/analyze_per_scenario.py <run_id>
 ```
 

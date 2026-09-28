@@ -14,9 +14,18 @@ if ENV_PATH.exists():
             k, v = line.split("=", 1)
             os.environ.setdefault(k.strip(), v.strip())
 
-MODEL_DIR = os.environ.get("JEVRAG_JEV_MODEL_DIR", "/home/z/my-project/models/jev-style")
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+
+
+def _repo_path(value: str) -> str:
+    """Resolve relative values against the repo root (same anchoring as app config)."""
+    p = Path(value).expanduser()
+    return str(p if p.is_absolute() else (_REPO_ROOT / p))
+
+
+MODEL_DIR = _repo_path(os.environ.get("JEVRAG_JEV_MODEL_DIR", "./models/jev-style"))
 QUANT = os.environ.get("JEVRAG_JEV_QUANT", "Q4_K_M")
-SCORER = os.environ.get("JEVRAG_JEV_SCORER", f"{MODEL_DIR}/build/jev-score")
+SCORER = _repo_path(os.environ.get("JEVRAG_JEV_SCORER", f"{MODEL_DIR}/build/jev-score"))
 
 QUERY = "What is the refund policy for annual subscriptions?"
 PASSAGES = {

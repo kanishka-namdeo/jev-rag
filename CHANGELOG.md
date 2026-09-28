@@ -4,6 +4,35 @@ Milestone history for Jev-RAG. Each entry links to the commit that delivered it.
 Dates are YYYY-MM-DD (commit date). Format is loosely inspired by
 [Keep a Changelog](https://keepachangelog.com/), grouped by project phase.
 
+## 2026-09-28 — Portability hardening + fresh-system setup guide
+
+Setting the repo up on **another machine** is now a documented, verified path —
+and the code was proactively fixed to make it true, not just claimed:
+
+- **[docs/setup.md](docs/setup.md)** — the binding fresh-system guide: hardware/OS/software
+  requirements, the five-step setup path, the path-resolution contract, verification
+  (health, endpoint probe, tests, lint, e2e smoke), day-2 operations, benchmark
+  reproduction and a troubleshooting table. Linked from the README quickstart and the
+  docs index; every doc that touches setup cross-references it.
+- **Repo-root path anchoring** (`backend/app/config.py`): relative paths in
+  `backend/.env` and `.env` discovery now resolve against the repo root instead of the
+  process CWD — uvicorn, scripts and diagnostics behave identically no matter where
+  they're launched from. Verified from three different working directories.
+- **Machine-independent scripts**: `setup_backend.sh`, `setup_local_models.sh`,
+  `backend_service.sh`, `init-fullstack-reference.sh` and the ensure-backend route no
+  longer hardcode the original sandbox path; file-size checks use `python3` (GNU-only
+  `stat -c%s` breaks macOS); the cmake pip-bootstrap honors `JEVRAG_PIP_INDEX_URL` /
+  `UV_INDEX_URL` mirror overrides instead of baking one in.
+- **Secrets hygiene**: the endpoint probe (`scripts/probe_public_gateway.sh`) now reads
+  credentials from `backend/.env`/env instead of a hardcoded API key; the stale tracked
+  root `.env` was removed; build noise (`.next/`, `dev.log`) untracked from git.
+- **Fixes**: corrupted CI push trigger (`branches: ain]` → `[main]` — pushes to main now
+  run CI); `analyze_bench_run.py --db` now actually reads the DB it's pointed at
+  (previously parsed but ignored, with a stale default path).
+- **Validation**: the fixed setup path was executed end-to-end on a wiped environment
+  (venv rebuild → model download + llama.cpp build → backend boot from an outside CWD,
+  healthy in 15 s); 35/35 backend tests and frontend lint green.
+
 ## 2026-09-28 — Public benchmarks wave 2: TriviaQA + 2WikiMultiHopQA + MuSiQue
 
 Run `bcfdd120`: 48 further seeded questions (16 per benchmark) through the same

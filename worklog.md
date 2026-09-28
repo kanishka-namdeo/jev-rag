@@ -4,6 +4,56 @@ Single shared work log for all agents working on this repo. Append-only; each
 section starts with `---`. Newest at top.
 
 ---
+Task ID: 12
+Agent: main (Super Z)
+Task: write clear setup instructions/guides linked to fresh-system setup
+instructions; proactively ensure code compatibility for setting the project up
+on another system; push changes to repo
+
+Work Log:
+- Third sandbox reset recovery rode on top of the portability work itself: the
+  fixed scripts WERE the fresh-machine validation (venv rebuilt via fixed
+  setup_backend.sh with UV_INDEX_URL mirror; models+jev-score rebuilt via fixed
+  setup_local_models.sh incl. new pip-bootstrap path with JEVRAG_PIP_INDEX_URL
+  mirror override; backend booted healthy in 15s launched from /tmp via fixed
+  backend_service.sh)
+- Portability audit found + fixed: hardcoded /home/z/my-project in
+  setup_backend.sh / setup_local_models.sh / backend_service.sh /
+  ensure-backend route.ts / init-fullstack-reference.sh / 8 diagnostics
+  scripts / 4 backend experiment scripts; GNU-only stat -c%s (macOS break);
+  hardcoded Tencent mirror for cmake bootstrap; probe_public_gateway.sh had
+  the API key hardcoded (now reads backend/.env/env — flagged key rotation to
+  user since old key lives in git history); corrupted CI trigger
+  (branches: ain] -> [main]); analyze_bench_run.py --db arg was parsed but
+  ignored (stale default ./db/custom.db)
+- backend/app/config.py: REPO_ROOT + _anchor_path() — relative .env paths and
+  .env discovery now resolve against repo root (CWD-independent; verified
+  identical from repo root, backend/ and /tmp); .env.example paths updated to
+  repo-root-relative
+- NEW docs/setup.md: requirements (hw/os/sw/network), 5-step setup,
+  path-anchoring contract, verification, benchmark reproduction (public suite
+  ships in-repo, zero downloads), day-2 ops, troubleshooting table,
+  portability guarantees
+- Cross-links: README quickstart + docs table + milestones table (also fixed
+  stale "this commit - v2" row -> real hashes + added missing public-bench
+  milestone rows); DOX pass on root/scripts/docs/backend AGENTS.md; CHANGELOG
+  entry; worklog (this entry)
+- Git hygiene: untracked .next/** (~250 build-artifact files), dev.log, stale
+  root .env; .gitignore += .env
+- Verification: 35/35 pytest, bun lint clean, endpoint probe OK via
+  backend/.env (all 3 models), backend health 200 from neutral cwd
+
+Stage Summary:
+- Repo is now portable: fresh-clone -> docs/setup.md -> running stack, with
+  the exact path re-validated on a wiped sandbox (documented in the guide +
+  CHANGELOG)
+- Key rotation recommended: the user-provided Dashscope gateway key was found
+  hardcoded in scripts/probe_public_gateway.sh and lives in pushed git
+  history (removed from HEAD now, but rotate if repo is shared)
+- Environment fully restored for future bench work: venv + models + backend
+  all live again post-reset
+
+---
 Task ID: 11
 Agent: main (Super Z)
 Task: add more popular RAG benchmarks (user: "add more benchmarks and continue

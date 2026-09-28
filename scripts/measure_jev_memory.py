@@ -3,9 +3,11 @@ import json
 import subprocess
 import sys
 import time
+from pathlib import Path
 
-BINARY = "/home/z/my-project/models/jev-style/build/jev-score"
-MODEL = "/home/z/my-project/models/jev-style/Jev-Style-0.8B-Decision-v3-Q4_K_M.gguf"
+ROOT = Path(__file__).resolve().parents[1]
+BINARY = str(ROOT / "models/jev-style/build/jev-score")
+MODEL = str(ROOT / "models/jev-style/Jev-Style-0.8B-Decision-v3-Q4_K_M.gguf")
 
 
 def measure(extra_args, label):

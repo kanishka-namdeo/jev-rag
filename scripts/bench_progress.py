@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """bench_progress.py — quick progress readout for a bench run."""
 import sys
-sys.path.insert(0, "/home/z/my-project/backend")
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "backend"))
 from app.db import db_session, BenchRun, BenchResult
 from sqlalchemy import select
 from collections import Counter

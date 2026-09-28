@@ -19,7 +19,8 @@ Reads run results straight from the SQLite DB (no API dependency). Prints a
 compact JSON blob to stdout for pasting into docs.
 
 Usage:
-  python analyze_bench_run.py RUN_ID [--db sqlite:///.../custom.db]
+  python analyze_bench_run.py RUN_ID [--db sqlite:///.../app.db]  (paths are
+  repo-anchored; the default DB lives at backend/data/app.db)
 """
 from __future__ import annotations
 
@@ -28,14 +29,16 @@ import json
 import math
 import sys
 from collections import defaultdict
+from pathlib import Path
 
 import numpy as np
 from scipy import stats as sps
 from statsmodels.stats.contingency_tables import mcnemar
 
-sys.path.insert(0, "/home/z/my-project/backend")
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "backend"))
 from app.db import BenchResult, BenchRun, db_session  # noqa: E402
-from sqlalchemy import select  # noqa: E402
+from sqlalchemy import create_engine, select  # noqa: E402
+from sqlalchemy.orm import sessionmaker  # noqa: E402
 
 CORRECT_THRESHOLD = 0.5
 
@@ -108,12 +111,26 @@ def wilcoxon_analysis(trad, hyb) -> dict:
 
 
 def main() -> None:
+    root = Path(__file__).resolve().parents[1]
     ap = argparse.ArgumentParser()
     ap.add_argument("run_id")
-    ap.add_argument("--db", default="sqlite:///./db/custom.db")
+    ap.add_argument("--db", default=f"sqlite:///{root / 'backend/data/app.db'}",
+                    help="SQLAlchemy URL (default: the app DB under backend/data/, "
+                         "which follows JEVRAG_DATA_DIR from backend/.env)")
     args = ap.parse_args()
 
-    with db_session() as session:
+    if args.db:
+        # Explicit URL: read straight from it (portable — no dependence on the
+        # app settings); the default URL points at the same file the app uses.
+        engine = create_engine(args.db, connect_args={"check_same_thread": False})
+        session_factory = sessionmaker(bind=engine, expire_on_commit=False)
+    else:
+        session_factory = None
+
+    def open_session():
+        return session_factory() if session_factory else db_session()
+
+    with open_session() as session:
         run = session.get(BenchRun, args.run_id)
         if run is None:
             sys.exit(f"run {args.run_id} not found")

@@ -9,9 +9,10 @@ sufficiency-gate calibration (accuracy vs answerable ground truth + Brier).
 import json
 import sys
 from collections import defaultdict
+from pathlib import Path
 from statistics import median
 
-sys.path.insert(0, "/home/z/my-project/backend")
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "backend"))
 from app.db import db_session, BenchResult
 from sqlalchemy import select
 

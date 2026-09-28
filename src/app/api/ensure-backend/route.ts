@@ -1,9 +1,10 @@
 import { spawn } from "node:child_process";
-import { openSync } from "node:fs";
+import { mkdirSync, openSync } from "node:fs";
+import path from "node:path";
 import { NextResponse } from "next/server";
 
 /**
- * Self-healing backend launcher (sandbox-specific).
+ * Self-healing backend launcher (dev/preview environments).
  *
  * The sandbox reaps processes spawned from tool-call shells, but the Next.js
  * dev server (and its children) persist. This route checks the FastAPI
@@ -12,11 +13,14 @@ import { NextResponse } from "next/server";
  *
  * In normal local development you would run `scripts/dev.sh` instead; this
  * route exists so the preview stays functional without manual restarts.
+ * All paths are derived from the Next.js process cwd (the repo root when run
+ * via `bun run dev` / `next dev`), so the route works on any clone path.
  */
 
 const BACKEND_URL = "http://127.0.0.1:8000/api/system/health";
-const LAUNCH_SCRIPT = "/home/z/my-project/scripts/backend_service.sh";
-const LOG_PATH = "/home/z/my-project/logs/backend.log";
+const PROJECT_ROOT = process.cwd();
+const LAUNCH_SCRIPT = path.join(PROJECT_ROOT, "scripts", "backend_service.sh");
+const LOG_PATH = path.join(PROJECT_ROOT, "logs", "backend.log");
 
 async function isHealthy(timeoutMs: number): Promise<boolean> {
   try {
@@ -38,11 +42,12 @@ let spawning: Promise<boolean> | null = null;
 async function spawnBackend(): Promise<boolean> {
   if (await isHealthy(1500)) return true;
   try {
+    mkdirSync(path.dirname(LOG_PATH), { recursive: true });
     const fd = openSync(LOG_PATH, "a");
     const child = spawn("bash", [LAUNCH_SCRIPT], {
       detached: true,
       stdio: ["ignore", fd, fd],
-      cwd: "/home/z/my-project",
+      cwd: PROJECT_ROOT,
       env: { ...process.env, PYTHONUNBUFFERED: "1" },
     });
     child.unref();

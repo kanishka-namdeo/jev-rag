@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # backend_service.sh — runs the FastAPI backend (uvicorn) for the Jev-RAG app.
-# Started by .zscripts/dev.sh via mini-services/backend (or manually: bash scripts/backend_service.sh)
+# Started by .zscripts/dev.sh via mini-services/backend (or manually: bash scripts/backend_service.sh).
+# Portable: resolves the repo root from this script's location (docs/setup.md).
 set -euo pipefail
 
-BACKEND_DIR="/home/z/my-project/backend"
+BACKEND_DIR="$(cd "$(dirname "$0")/.." && pwd)/backend"
 export PYTHONUNBUFFERED=1
 # Reduce glibc allocator fragmentation for the long-lived bench process
 export MALLOC_ARENA_MAX=2

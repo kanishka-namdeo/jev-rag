@@ -163,6 +163,11 @@ message. Wire protocol: [docs/api.md](docs/api.md) · full architecture:
 
 ## Quickstart
 
+**Setting up on a new machine?** The full step-by-step — requirements, verification,
+troubleshooting, benchmark reproduction — lives in **[docs/setup.md](docs/setup.md)**.
+It was re-validated end-to-end on a wiped environment exactly as written. The short
+version:
+
 Prereqs: Python 3.12 + [uv](https://docs.astral.sh/uv/), [bun](https://bun.sh), ~2 GB disk for
 local models, and an OpenAI-compatible endpoint key.
 
@@ -183,7 +188,12 @@ bash scripts/dev.sh                    # backend :8000 + frontend :3000
 
 Open http://localhost:3000, upload documents in the sidebar, and ask questions in any of the
 three modes (Traditional / Hybrid · Jev / Compare). To reproduce the numbers above: switch to
-the **Benchmarks** tab and run all six scenarios.
+the **Benchmarks** tab and run all six scenarios. Setup problems? The
+[setup guide's troubleshooting table](docs/setup.md#troubleshooting) covers the common ones.
+
+All five public benchmark scenarios (SQuAD, HotpotQA, TriviaQA, 2Wiki, MuSiQue) ship in the
+repo with their corpora — a fresh clone can run them with zero dataset downloads
+([details](docs/setup.md#running-the-benchmarks)).
 
 Tests: `cd backend && .venv/bin/python -m pytest tests -v` (hermetic — no models, no network) ·
 Lint: `bun run lint` · both run in [CI](.github/workflows/ci.yml).
@@ -245,6 +255,7 @@ AGENTS.md         DOX framework — binding rules for any AI agent working here
 
 | Doc | What's inside |
 | --- | --- |
+| [docs/setup.md](docs/setup.md) | **fresh-system setup guide** — requirements, step-by-step, verification, troubleshooting |
 | [docs/architecture.md](docs/architecture.md) | components, data flow, deployment topology |
 | [docs/hybrid-design.md](docs/hybrid-design.md) | why Jev-style System One, measured decision patterns, knobs |
 | [docs/jev-improvements-research.md](docs/jev-improvements-research.md) | research: using Jev beyond routing, incl. the single-model design + validated experiments |
@@ -264,7 +275,10 @@ AGENTS.md         DOX framework — binding rules for any AI agent working here
 | 2026-09-27 | [`3a950d2`](https://github.com/kanishka-namdeo/jev-rag/commit/3a950d2) — Benchmarks Lab UI + full 48-question run: hybrid +8.4pp correctness |
 | 2026-09-28 | [`a1f0461`](https://github.com/kanishka-namdeo/jev-rag/commit/a1f0461) — README, screenshots, license, changelog + fixed empty per-scenario Hit@4/MRR charts |
 | 2026-09-28 | [`08a6db5`](https://github.com/kanishka-namdeo/jev-rag/commit/08a6db5) — research: Jev-style decisions beyond model routing + single-LLM design |
-| 2026-09-28 | this commit — **hybrid v2 pipeline**: effort routing, screening battery, corrective retry, best-of-2, citation verification, composite quality |
+| 2026-09-28 | [`44323fb`](https://github.com/kanishka-namdeo/jev-rag/commit/44323fb) — **hybrid v2 pipeline**: effort routing, screening battery, corrective retry, best-of-2, citation verification, composite quality |
+| 2026-09-28 | [`c69d8cd`](https://github.com/kanishka-namdeo/jev-rag/commit/c69d8cd) · [`48b8b31`](https://github.com/kanishka-namdeo/jev-rag/commit/48b8b31) — public RAG benchmarks wave 1: SQuAD v1.1 + HotpotQA scenarios, split verdict |
+| 2026-09-28 | [`3856726`](https://github.com/kanishka-namdeo/jev-rag/commit/3856726) · [`fcbf003`](https://github.com/kanishka-namdeo/jev-rag/commit/fcbf003) — public benchmarks wave 2: TriviaQA + 2WikiMultiHopQA + MuSiQue — five-benchmark suite, multi-hop sweep |
+| 2026-09-28 | this commit — **portability hardening + fresh-system setup guide** ([docs/setup.md](docs/setup.md)): repo-root path anchoring (CWD-independent backend), machine-independent setup scripts, secrets out of the endpoint probe, CI trigger fix |
 
 ## Credits & key references
 

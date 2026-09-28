@@ -3,9 +3,13 @@
 # 1) Downloads Jev-Style-0.8B-Decision-v3-GGUF repo files (scripts + Q4_K_M model)
 # 2) Clones llama.cpp (shallow)
 # 3) Builds the `jev-score` scorer binary via the repo's build_jev_score.sh
+#
+# Portable across machines (see docs/setup.md): the repo root is derived from this
+# script's location, file sizes are checked with python3 (not GNU-only `stat -c%s`),
+# and the cmake bootstrap honors JEVRAG_PIP_INDEX_URL for mirror-restricted networks.
 set -uo pipefail
 
-ROOT="/home/z/my-project"
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 MODELS_DIR="$ROOT/models/jev-style"
 LLAMA_DIR="$ROOT/vendor/llama.cpp"
 HF_REPO="chaoliangUNSW/Jev-Style-0.8B-Decision-v3-GGUF"
@@ -28,11 +32,21 @@ if ! command -v g++ >/dev/null 2>&1; then
   log "FATAL: no C++ compiler (g++) available — cannot build llama.cpp/jev-score"
   exit 5
 fi
-# Bootstrap cmake via pip if absent (lands in /home/z/.venv/bin)
+# Bootstrap cmake via pip if absent (portable: user-site first, venv-python fallback).
+# JEVRAG_PIP_INDEX_URL overrides the index (e.g. a mirror when pypi.org is
+# unreachable — see docs/setup.md → troubleshooting).
 if ! command -v cmake >/dev/null 2>&1; then
-  log "cmake missing — installing via pip (tencent mirror: pypi.org egress flaky from this sandbox)"
-  pip3 install -q --index-url https://mirrors.cloud.tencent.com/pypi/simple/ cmake ninja && export PATH="/home/z/.venv/bin:$PATH" || log "WARN: pip cmake install failed"
-  log "cmake after pip: $(command -v cmake || echo STILL-MISSING)"
+  log "cmake missing — attempting pip bootstrap"
+  PIP_INDEX_ARGS=""
+  [ -n "${JEVRAG_PIP_INDEX_URL:-}" ] && PIP_INDEX_ARGS="-i $JEVRAG_PIP_INDEX_URL"
+  # --user works for system Pythons (lands in the user-base bin); the plain
+  # fallback covers venv Pythons (installs into the active venv, already on PATH).
+  python3 -m pip install --user -q $PIP_INDEX_ARGS cmake ninja \
+    || python3 -m pip install -q $PIP_INDEX_ARGS cmake ninja \
+    || log "WARN: pip cmake bootstrap failed"
+  USER_BASE="$(python3 -m site --user-base 2>/dev/null || true)"
+  [ -n "$USER_BASE" ] && export PATH="$USER_BASE/bin:$PATH"
+  log "cmake after bootstrap: $(command -v cmake || echo STILL-MISSING — install via your OS package manager, e.g. 'apt install cmake' or 'brew install cmake', then re-run)"
 fi
 
 log "=== Phase 2: download Jev-Style repo files (scripts, configs) ==="
@@ -48,15 +62,18 @@ for f in $FILES; do
   fi
 done
 
+# size helper: python3-based (portable — `stat -c%s` is GNU-only and fails on macOS)
+filesize() { python3 -c 'import os,sys; p=sys.argv[1]; print(os.path.getsize(p) if os.path.exists(p) else 0)' "$1" 2>/dev/null || echo 0; }
+
 log "=== Phase 3: download $GGUF (expected $EXPECTED_GGUF_BYTES bytes) ==="
-CURRENT_SIZE=$(stat -c%s "$MODELS_DIR/$GGUF" 2>/dev/null || echo 0)
+CURRENT_SIZE=$(filesize "$MODELS_DIR/$GGUF")
 if [ "$CURRENT_SIZE" = "$EXPECTED_GGUF_BYTES" ]; then
   log "GGUF already present with correct size; skipping"
 else
   if curl -sL --fail --retry 3 -C - -o "$MODELS_DIR/$GGUF" "https://huggingface.co/$HF_REPO/resolve/main/$GGUF"; then
-    log "GGUF download complete: $(stat -c%s "$MODELS_DIR/$GGUF") bytes"
+    log "GGUF download complete: $(filesize "$MODELS_DIR/$GGUF") bytes"
   else
-    log "FATAL: GGUF download failed (partial: $(stat -c%s "$MODELS_DIR/$GGUF" 2>/dev/null || echo 0) bytes)"
+    log "FATAL: GGUF download failed (partial: $(filesize "$MODELS_DIR/$GGUF") bytes)"
     exit 2
   fi
 fi
@@ -185,10 +202,10 @@ sh ./build_jev_score.sh "$LLAMA_DIR"
 RC=$?
 log "build_jev_score.sh exit code: $RC"
 log "=== jev-score binaries found ==="
-python3 - <<'PY'
-import pathlib
+MODELS_DIR="$MODELS_DIR" LLAMA_DIR="$LLAMA_DIR" python3 - <<'PY'
+import os, pathlib
 found = False
-for base in ("/home/z/my-project/models/jev-style", "/home/z/my-project/vendor/llama.cpp"):
+for base in (os.environ["MODELS_DIR"], os.environ["LLAMA_DIR"]):
     for p in sorted(pathlib.Path(base).rglob("jev-score*")):
         print(p, p.stat().st_size)
         found = True

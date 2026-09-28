@@ -10,9 +10,12 @@ import json
 import os
 import subprocess
 import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
 
 os.environ["JEV_SCORE_N_CTX"] = "8192"
-sys.path.insert(0, "/home/z/my-project/models/jev-style")
+sys.path.insert(0, str(ROOT / "models/jev-style"))
 
 STATE = ("Customer question: What is the maximum message size for the NimbusDB Pro tier "
          "and how does it compare across tiers?\n\n"
@@ -60,7 +63,7 @@ def run_variant(label: str, env_extra: dict) -> tuple[dict, float]:
     import jev_style_decision_gguf as rt
     importlib.reload(rt)  # re-read spawn-time env defaults
     runtime = rt.JevStyleDecisionGGUF(
-        model_dir="/home/z/my-project/models/jev-style", quant="Q4_K_M")
+        model_dir=str(ROOT / "models/jev-style"), quant="Q4_K_M")
     try:
         out = runtime.decide_many(STATE, QUESTIONS)
         rss = child_rss_mb(runtime.proc)

@@ -12,3 +12,6 @@ db/
 dev.log
 tool-results/
 .zscripts/
+.env
+__pycache__/
+*.pyc

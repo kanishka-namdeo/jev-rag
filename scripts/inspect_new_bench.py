@@ -3,7 +3,7 @@
 import pyarrow.parquet as pq
 from pathlib import Path
 
-RAW = Path("/home/z/my-project/backend/data/public_bench/raw")
+RAW = Path(__file__).resolve().parents[1] / "backend/data/public_bench/raw"
 
 for fname in ["2wiki-validation.parquet", "musique-validation.parquet",
               "triviaqa-rc-wikipedia-validation.parquet"]:

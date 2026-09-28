@@ -21,8 +21,9 @@ from __future__ import annotations
 import json
 import sys
 from collections import Counter
+from pathlib import Path
 
-sys.path.insert(0, "/home/z/my-project/backend")
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "backend"))
 from app.db import BenchResult, db_session  # noqa: E402
 from sqlalchemy import select  # noqa: E402
 

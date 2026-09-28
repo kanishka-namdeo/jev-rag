@@ -9,6 +9,20 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 logger = logging.getLogger("jevrag.config")
 
+# Repo root (backend/app/config.py -> three levels up). All RELATIVE paths in
+# backend/.env resolve against this anchor instead of the process working
+# directory, so uvicorn can be launched from backend/ (scripts/dev.sh,
+# backend_service.sh) or the repo root with identical behavior — required for
+# fresh-machine setups (docs/setup.md → "Where paths resolve").
+REPO_ROOT = Path(__file__).resolve().parents[2]
+
+
+def _anchor_path(value: str) -> Path:
+    """Resolve a configured path; relative values anchor to the repo root."""
+    p = Path(value).expanduser()
+    return p if p.is_absolute() else (REPO_ROOT / p).resolve()
+
+
 # Verified Dashscope prices (USD per 1M tokens) for cost estimation.
 # Sources: llm-stats.com model pages + Alibaba Cloud pricing, verified 2026-09-27.
 LLM_PRICES_PER_MTOK: dict[str, tuple[float, float]] = {
@@ -21,7 +35,7 @@ DEFAULT_PRICE = (0.0, 0.0)  # unknown model -> cost shown as n/a
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="JEVRAG_",
-        env_file=".env",
+        env_file=str(REPO_ROOT / "backend" / ".env"),
         env_file_encoding="utf-8",
         extra="ignore",
     )
@@ -138,7 +152,7 @@ class Settings(BaseSettings):
     # --- Derived paths ---
     @property
     def data_path(self) -> Path:
-        p = Path(self.data_dir).expanduser().resolve()
+        p = _anchor_path(self.data_dir)
         p.mkdir(parents=True, exist_ok=True)
         return p
 
@@ -160,17 +174,17 @@ class Settings(BaseSettings):
 
     @property
     def fastembed_cache_dir(self) -> Path:
-        p = Path(self.embed_cache_dir).expanduser() if self.embed_cache_dir else self.data_path / "fastembed_cache"
+        p = _anchor_path(self.embed_cache_dir) if self.embed_cache_dir else self.data_path / "fastembed_cache"
         p.mkdir(parents=True, exist_ok=True)
         return p
 
     @property
     def jev_model_dir_path(self) -> Path:
-        return Path(self.jev_model_dir).expanduser().resolve()
+        return _anchor_path(self.jev_model_dir)
 
     @property
     def jev_scorer_path(self) -> Path | None:
-        return Path(self.jev_scorer).expanduser().resolve() if self.jev_scorer else None
+        return _anchor_path(self.jev_scorer) if self.jev_scorer else None
 
 
 @lru_cache

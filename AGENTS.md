@@ -95,8 +95,11 @@ When the user requests a durable behavior change, record it here or in the relev
 - Cloud LLM endpoint (OpenAI-compatible): `https://coding-intl.dashscope.aliyuncs.com/v1`
   - `qwen3.7-plus` — default workhorse (fast, cheap, strong synthesis)
   - `qwen3.6-plus` — deep-reasoning route (always-on chain-of-thought)
-- Setup: `scripts/setup_local_models.sh` (models + jev-score build) then `scripts/setup_backend.sh`
-  (backend venv) then `scripts/dev.sh` (backend + frontend). Copy `backend/.env.example` → `backend/.env` first.
+- Setup: **[docs/setup.md](docs/setup.md)** is the binding fresh-machine guide. In short:
+  `scripts/setup_local_models.sh` (models + jev-score build) then `scripts/setup_backend.sh`
+  (backend venv) then `scripts/dev.sh` (backend + frontend). Copy `backend/.env.example` →
+  `backend/.env` first. Setup scripts must resolve the repo root from their own location
+  (never hardcode absolute paths) and stay idempotent.
 - Backend tests: `cd backend && .venv/bin/python -m pytest tests -v`
 - Frontend lint: `bun run lint`
 - Frontend dev: `bun run dev` (port 3000); backend: port 8000 (proxied via `/backend-api/*` rewrite)

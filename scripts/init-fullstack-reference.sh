@@ -2,8 +2,8 @@
 
 set -euo pipefail
 
-# Project directory: use MY_PROJECT_DIR if set, otherwise fallback to default
-PROJECT_DIR="${MY_PROJECT_DIR:-/home/z/my-project}"
+# Project directory: use MY_PROJECT_DIR if set, otherwise this script's repo root
+PROJECT_DIR="${MY_PROJECT_DIR:-$(cd "$(dirname "$0")/.." && pwd)}"
 # Code package URL placeholders (replaced with actual URLs before upload by
 # upload-to-oss.ts). CODE_TAR_URL 是首选源（OSS 内网 endpoint，同 region VPC
 # 直连，~几百 ms）；CODE_TAR_FALLBACK_URL 是备用源（公网 CDN），仅当内网下载
