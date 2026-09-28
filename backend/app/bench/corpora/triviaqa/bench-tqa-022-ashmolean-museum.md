@@ -1,0 +1,153 @@
+# Ashmolean Museum
+
+The Ashmolean Museum (in full the Ashmolean Museum of Art and Archaeology) on Beaumont Street, Oxford, England, is the world's first university museum.  Its first building was erected in 1678–1683 to house the cabinet of curiosities that Elias Ashmole gave to the University of Oxford in 1677. The museum reopened in 2009 after a major redevelopment. In November 2011, new galleries focusing on Egypt and Nubia were also unveiled.
+
+History
+
+The collection includes that of Elias Ashmole which he had collected himself, including objects he had acquired from the gardeners, travelers, and collectors John Tradescant the elder and his son, John Tradescant the younger. The collection included antique coins, books, engravings, geological specimens, and zoological specimens—one of which was the stuffed body of the last dodo ever seen in Europe; but by 1755 the stuffed dodo was so moth-eaten that it was destroyed, except for its head and one claw. The museum opened on 24 May 1683, with naturalist Robert Plot as the first keeper. The first building, which became known as the Old Ashmolean, is sometimes attributed to Sir Christopher Wren or Thomas Wood. 
+
+After the various specimens had been moved into new museums, the "Old Ashmolean" building on Broad Street was used as office space for the Oxford English Dictionary. Since 1924, the building has been established as the Museum of the History of Science, with exhibitions including the scientific instruments given to Oxford University by Lewis Evans (1853–1930), amongst them the world's largest collection of astrolabes. 
+
+The present building dates from 1841–45. It was designed by Charles Cockerell  in a classical style and stands on Beaumont Street. One wing of the building is occupied by the Taylor Institution, the modern languages faculty of the university, standing on the corner of Beaumont Street and St Giles' Street. This building dates from 1845–48 and was also designed by Charles Cockerell, using the Ionic order of Greek architecture.  The main museum contains huge collections of archaeological specimens and fine art. It has one of the best collections of Pre-Raphaelite paintings, majolica pottery, and English silver. The archaeology department includes the bequest of Arthur Evans and so has an excellent collection of Greek and Minoan pottery. The department also has an extensive collection of antiquities from Ancient Egypt and the Sudan, and the museum hosts the Griffith Institute for the advancement of Egyptology. Charles Buller Heberden left £1,000 to the University, which was used for the Coin Room at the museum. 
+
+In 2012, the Ashmolean was awarded a grant of $1.1m by the Andrew W. Mellon Foundation to establish the University Engagement Programme or UEP. The programme employs three Teaching Curators and a Programme Director to develop the use of the Museum's collections in the teaching and research of the University. 
+
+Renovation
+
+The interior of the Ashmolean has been extensively modernised in recent years and now includes a restaurant and large gift shop. 
+
+Between 2006 and 2009, the museum was expanded to the designs of architect Rick Mather and the exhibition design company Metaphor, supported by the Heritage Lottery Fund. The $98.2 million  rebuilding resulted in five floors instead of three, with a doubling of the display space, as well as new conservation studios and an education centre.The galleries are quirky and unpredictable, full of nooks and crannies and yet completely navigable even to the dyspraxically challenged, like me. That’s as much to do with the layout by the exhibition designers Metaphor as with the architecture. The renovated museum re-opened on 7 November 2009. 
+
+On 26 November 2011, the Ashmolean opened to the public the new galleries of Ancient Egypt and Nubia. This second phase of major redevelopment now allows the Museum to exhibit objects that have been in storage for decades, more than doubling the number of coffins and mummies on display. The project received lead support from Lord Sainsbury’s Linbury Trust, along with the Selz Foundation, Mr Christian Levett, as well as other trusts, foundations, and individuals. Rick Mather Architects led the redesign and display of the four previous Egypt galleries and the extension to the restored Ruskin Gallery, previously occupied by the Museum Shop. 
+
+The Sackler Library, incorporating the older library collections of the Ashmolean, opened in 2001 and has allowed an expansion of the book collection, which concentrates on classical civilization, archaeology and art history. 
+
+In 2000, the Chinese Picture Gallery, designed by van Heyningen and Haward Architects, opened at the entrance of the Ashmolean and is partly integrated into the structure. The gallery was inserted into a lightwell in the Grade 1 listed building, and was designed to support future construction from its roof. Apart from the original Cockerell spaces, this gallery was the only part of the museum retained in the rebuilding. It houses the Ashmolean’s own collection, but is also used from time to time for the display of loan exhibitions and works by contemporary Chinese artists. It is the only museum gallery in Britain devoted to Chinese paintings. 
+
+File:Ashmolean Museum Oxford Information Desk 2014.jpg|Ashmolean Information Desk 2014 
+File:Ashmolean_Museum_Entrance_and_Forecourt_2015.png|Ashmolean Entrance March 2015
+File:Ashmolean Museum Oxford Forecourt 2014.jpg|Ashmolean Forecourt September 2014
+File:Ashmolean Museum Oxford Forecourt April 2014.jpg|Ashmolean Forecourt April 2014
+File:Ashmolean Museum Oxford European Ceramics Gallery 2014.jpg|European Ceramics Gallery
+
+Collections
+
+Highlights of the Ashmolean's collection include:
+
+* Drawings by Michelangelo, Raphael and Leonardo da Vinci
+* Paintings by Pablo Picasso, Giambattista Pittoni, Paolo Uccello, Anthony van Dyck, Peter Paul Rubens, Paul Cézanne, John Constable, Titian, Claude Lorrain, Samuel Palmer, John Singer Sargent, Piero di Cosimo, William Holman Hunt and Edward Burne-Jones
+* The Alfred Jewel
+* Watercolours and paintings by Turner
+* The Messiah Stradivarius, a violin made by Antonio Stradivari
+* The Pissarro Family Archive, donated in the 1950s to the Ashmolean, consisting of paintings, prints, drawings, books, and letters by Camille Pissarro, Lucien Pissarro, Orovida Camille Pissarro, and other members of the Pissarro family  
+* Arab ceremonial dress owned by Lawrence of Arabia
+* A death mask of Oliver Cromwell
+* A substantial number of Oxyrhynchus Papyri, including Old and New Testament biblical manuscripts
+* Over 30 pieces of Late Roman gold glass roundels from the Catacombs of Rome, the 3rd largest collection after the Vatican and British Museum. 
+* A collection of Posie rings.
+* An extensive collection of antiquities from Prehistoric Egypt and the succeeding Early Dynastic Period of Egypt
+* The Parian Marble, the earliest extant example of a Greek chronological table
+* The Metrological Relief, showing Ancient Greek measurements
+* The ceremonial cloak of Chief Powhatan
+* The lantern that Gunpowder Plot conspiracist Guy Fawkes carried in 1605
+* The Minoan collection of Arthur Evans, the biggest outside Crete
+* The Narmer Macehead and Scorpion Macehead
+* The Kish tablet
+* The Abingdon Sword, an Anglo-Saxon sword found at Abingdon south of Oxford
+* The Dalboki hoard of Thracian artefacts, central Bulgaria
+* The Scythian antiquities from Nymphaeum, Crimea
+
+Recent major bequests and acquisitions include:
+* In 2012 the museum acquired Édouard Manet's Portrait of Mademoiselle Claus, painted in 1868, after a public campaign to raise £7.83million while a temporary export bar was placed on it by the RCEWA The campaign received £5.9m from the Heritage Lottery Fund, and a grant of £850,000 from The Art Fund.  
+* In 2013 the museum was left a 500 piece collection of gold and silver objets d'art, including many pieces of Renaissance silverware, assembled by the antique dealer Michael Welby. The bequest will be displayed in a new gallery.
+* In 2013 the museum was given the sculpture 'Taichi Arch' by Taiwanese artist Ju Ming, which was installed on the Museum’s main forecourt. It was given to the museum by the Juming Culture and Education Foundation in memory of art historian and collector Michael Sullivan. 
+* In late 2013, art historian and collector Michael Sullivan bequeathed his collection of more than 400 works of art to the museum. The collection, which includes paintings by Chinese masters Qi Baishi, Zhang Daqian, and Wu Guanzhong, was considered one of the world's most significant collections of modern Chinese art. Ashmolean Museum has a gallery dedicated to Sullivan and his wife Khoan. 
+* In October 2014 the Ashmolean acquired a collection of historic English embroideries which was given to the Museum by collectors Micheál and Elizabeth Feller. The gift comprises 61 pieces which span the whole of the seventeenth century.  
+* In October 2014 the Ashmolean acquired a painting by John Constable titled 'Willy Lott’s House from the Stour (The Valley Farm). The painting was accepted by the nation through the Acceptance in Lieu scheme. The farm building depicted in the painting is also seen from a different angle in The Hay Wain, painted 1821 and now at the National Gallery.   
+* In 2015 the Ashmolean raised the money needed to a acquire major painting by J. M. W. Turner. With lead support from the Heritage Lottery Fund, a grant from the Art Fund, and a public appeal, the fundraising target was met to secure Turner's only full size townscape in oils: an 1810 painting "The High Street, Oxford". The painting was accepted by the nation through the Acceptance in Lieu scheme. 
+
+Collections gallery
+
+File:BrightonPierrotsWalterSickert.jpg|'The Brighton Pierrots', painted 1915 by Walter Sickert
+File:Alfred Jewel Ashmolean 2014.JPG|The Alfred Jewel
+File:Edward Burne-Jones, ‘Music’, 1877. Oil on canvas.jpg|'Music' by Edward Burne-Jones
+File:Ceremonial_Palette_from_Hierakonpolis-2.jpg|The "Two Dog Palette" from Hierakonpolis
+File:Messiah Stradivarius.jpg|The Messiah Stradivarius violin
+File:Edouard Manet - Portrait of Mademoiselle Claus.jpg|'Portrait of Mademoiselle Claus', by Edouard Manet
+File:Narmer_Macehead.png|The Narmer Macehead
+File:Raffaello, studio per la trasfigurazione 02.jpg|'Studies of the Heads of two Apostles and of their Hands', by Raphael
+File:Paolo Uccello - The Hunt in the Forest - WGA23239.jpg|'The Hunt in the Forest' by Paolo Uccello
+File:Sobek Oxford.jpg|Statue of Sobek, the crocodile god, from the pyramid temple of Amenemhat III
+File:Leighton, Frederic - Acme and Septimius - c. 1868.jpg|'Acme and Septimius', by Frederic Leighton, 1st Baron Leighton
+File:0 Gemma Tiberiana - Rubens - Ashmolean Museum - WA1989.74.JPG|The 'Apotheosis of Germanicus', a copy after an antique Cameo painted in 1626 by Peter Paul Rubens
+File:Millais - Die Rückkehr der Taube zur Arche Noah.jpg|The Return of the Dove to the Ark, by Sir John Everett Millais
+File:Tragic mask dating to the 1st century BC or 1st century AD, Ashmolean Museum (8400677139).jpg|A Greek tragic mask dating to the 1st century BC or 1st century AD. See Theatre of ancient Greece.
+File:3 A lady singing 1740-45 Ashmolean Museum, Oxford - копия.jpg|'A lady singing', gouache painting with gold on paper 1740-45, Rajasthan, artist unknown
+File:Jeanne Holding a Fan, c.1874, by Camille Pissarro. Oil on canvas, The Ashmolean Museum,.jpg|'Jeanne Holding a Fan', an oil on canvas painting by Camille Pissarro, c.1874
+File:Heilige Familie mit dem Johannesknaben (Ashmolean Museum).jpg|'The Holy Family with St John the Baptist', brush and brown wash on panel by Michelangelo
+File:Tombstone, the doctor Claudius Agathemerus and his wife Myrtale, from Rome, about AD 100, Ashmolean Museum (8401778336).jpg|Tombstone, the doctor Claudius Agathemerus and his wife Myrtale, from Rome, about AD 100
+File:Oliver Cromwell death mask- Ashmolean Museum.jpg|A death mask of Oliver Cromwell
+File:Millais Ruskin.jpg|Portrait of John Ruskin by John Everett Millais
+File:Powhatan's mantle, lithography 1888.jpg| The Mantle of Chief Powhatan
+File:Abingdon_Sword_2014.JPG|The Abingdon Sword
+File:Paolo uccello, annunciazione, ashmolean.jpg|'The Annunciation', attributed to Paolo Uccello
+File:Van Gogh - Das Restaurant de la Sirène in Asnières.jpeg|'Restaurant de la Sirène, Asnières', by Vincent van Gogh
+File:Pierre-Auguste_Renoir_029.jpg|A Garden in Montmartre by Pierre-Auguste Renoir
+File:Young Englishwoman, costume study by Hans Holbein the Younger.jpg|'Young Englishwoman', a costume study by Hans Holbein the Younger
+File:Samuel Palmer - Self-Portrait - WGA16951.jpg|A self-portrait by Samuel Palmer
+File:Domitianus_II_obverse_ashmolean_(edited).JPG|A coin of Domitianus II
+File:Ashmolean_Museum_(8401780654).jpg|Egyptian Mummy Portrait
+File:Pinturicchio_Virgen_con_niño_Ashmolean_Museum.jpg|The Virgin and Child, by Bernardino Pintoricchio
+File:4_Maharaja_Bakhat_Singh_of_Nagaur._ca._1735,_Jodhpur,_Ashmolean.jpg|Maharaja Bakhat Singh of Nagaur. ca. 1735
+File:Cycladic_figurine_female,_2800–2300_BC,_AshmoleanM,_AE_178,_142426.jpg|Early Bronze Age Cycladic art figurine, 2800–2300 BC.
+File:The_oldest_writing_in_the_world_-_The_Sumerian_Stone_Tablet.jpg|The Kish tablet
+
+Major exhibitions
+
+Major exhibitions and temporary displays in 2016 include:
+* Storms, War and Shipwrecks: Treasures from the Sicilian Seas: Open from June until September 2016, this exhibition will explore the roots of Sicily's multi-cultural heritage through the discoveries made by underwater archaeologists – from chance finds to excavated shipwrecks.  The exhibition will also feature what has been described as a "flat pack" Byzantine church interior, intended for assembly at its destination, with marble items raised from a wreck off the southeast coast of Sicily in the 1960s by archaeologist Gerhard Kapitan. 
+* Power and Protection: Islamic Art and the Supernatural: Open from October 2016 until January 2017, this is the first major exhibition to explore the supernatural in the art of the Islamic world. The exhibition includes objects and works of art from the 12th to the 20th century, from Morocco to China, which have been used as sources of guidance and protection in the dramatic events of human history. These include dream-books, talismanic charts and amulets.  
+
+Major exhibitions in recent years include:
+* Andy Warhol: Works from the Hall Collection: Open from February until May 2016, this exhibition will feature over a hundred works, by Andy Warhol, from the Hall Collection (USA), plus loans of films from The Andy Warhol Museum, Pittsburgh. Curated by Sir Norman Rosenthal, the exhibition spans Warhol’s entire output, from iconic pieces of the 1960s Pop pioneer to the experimental works of his last decade.  
+*Elizabeth Price: A RESTORATION: Open from March until May 2016, this two-screen video installation by British artist Elizabeth Price is a newly commissioned work in response to the collections and archives of the Ashmolean and Pitt Rivers museums, in partnership with the Ruskin School of Drawing and Fine Art, and funded by the 2013 Contemporary Art Society Award. The main focus are the records of Arthur Evans’s excavation of the Cretan city of Knossos.  
+* Drawing in Venice: Titian to Canaletto: Open from October 2015 until January 2016, this exhibition will feature a hundred drawings from The Uffizi Gallery in Florence, the Ashmolean, and Christ Church, Oxford. It will be based on new research tracing continuities in Venetian drawing over three centuries, from around 1500 down to the foundation of the first academy of art in Venice in 1750.  The exhibition also features 20 works on paper and canvas by contemporary artist Jenny Saville, produced in response to the Venetian drawings in the exhibition. 
+* Great British Drawings: An exhibition open from March until August 2015 showing more than one hundred British drawings and watercolours from the Ashmolean's collection, spanning three hundred years. 
+* An Elegant Society: Adam Buck, artist in the age of Jane Austen: Open from July until October 2015 this exhibition will explore the work of Adam Buck, Irish Regency era portrait and miniature painter.
+* Love Bites: Caricatures by James Gillray: An exhibition in 2015 to mark the 200th anniversary of the death of British caricaturist James Gillray (1757–1815). The caricatures on display will be from the collection of New College, Oxford.
+* William Blake: Apprentice and Master: Open from December 2014 until March 2015, this exhibition celebrates the work of William Blake. 
+* Discovering Tutankhamun: a special exhibition, open from July until November 2014, explored Howard Carter’s excavation of the tomb of Tutankhamun in 1922. Original records, drawings and photographs from the Griffith Institute were on display.  
+* The Eye of the Needle: English Embroideries from the Feller Collection: a special exhibition, open from August until October 2014, of 17th-century embroideries from the Feller Collection, together with examples from the Ashmolean’s own holdings.  
+* Cézanne and the Modern: a special exhibition, open from March to June 2014, displaying Impressionist and Post-Impressionist paintings and sketches from the Henry and Rose Pearlman Collection  
+* Francis Bacon / Henry Moore: Flesh and Bone: a special exhibition, open from September 2013 until July 2014, displaying paintings by Francis Bacon and sculptures and drawings by Henry Moore.  
+* Stradivarius: a special exhibition, open from June until August 2013, exploring the life and work of Antonio Stradivari. It was the first time twenty-one of his instruments, from guitar to cello to violin, were on display together in the UK.  
+* Master Drawings: a special exhibition, open from May until August 2013, displaying a selection of the Ashmolean's on western art collection. The exhibition surveyed drawings of all types by some of the biggest names in art history, including Leonardo, Michelangelo and Raphael, as well as Gwen John, David Hockney and Antony Gormley.  
+* Xu Bing: Landscape Landscript: a special exhibition of the work of Xu Bing, open from February until May 2013. It was the Ashmolean's first major exhibition of contemporary art. 
+
+Keepers and Directors
+
+Beginning in 1973, the position of Keeper was superseded by that of Director:
+
+In popular culture
+
+Comics
+
+*  The 21st book in the Belgian comics series Blake and Mortimer, titled The Oath of the Five Lords, centres around a series of burglaries at the Ashmolean and their connection to T. E. Lawrence.
+
+Literature
+
+*Philip Pullman's novel The Subtle Knife, in the His Dark Materials series, references the Ashmolean Museum. The two main characters, Lyra and Will, pretend to be looking for the Ashmolean in order to fool a pair of police officers because half of the story is based in Oxford.
+*In Ghost Stories of an Antiquary  within the short story the Mezzotint, M.R.James makes reference to the Ashleian Museum which is clearly a reference to the Ashmolean Museum.
+
+Stage productions
+
+*The musical Where's Charley? (1948), written by Frank Loesser based on the play Charley's Aunt, includes a song called "The New Ashmolean Marching Society and Students' Conservatory Band".
+
+Television
+
+*The Alfred Jewel was the inspiration for the Inspector Morse episode "The Wolvercote Tongue" (1988), in which the museum's interior was used as a set.  
+* The Ashmolean also figures prominently in several episodes of the successor series Lewis, particularly the episode "Point of Vanishing" where the painting The Hunt in the Forest (ca. 1470) is a key plot element; the characters visit the painting at the museum and are instructed on its features by an art expert before solving the case.
+
+Theft
+
+On 31 December 1999, during the fireworks that accompanied the celebration of the millennium, thieves used scaffolding on an adjoining building to climb onto the roof of the Ashmolean Museum and stole Cézanne’s landscape painting View of Auvers-sur-Oise. Valued at £3 million, the painting has been described as an important work illustrating the transition from early to mature Cézanne painting.  As the thieves ignored other works in the same room, and the stolen Cézanne has not been offered for sale, it is speculated that this was a case of an artwork stolen to order.

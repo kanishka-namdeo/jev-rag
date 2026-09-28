@@ -1,0 +1,3 @@
+# Nughu
+
+Nughu is an island in the Solomon Islands; it is located in Guadalcanal Province. The estimated terrain elevation above sea level is some 12 metres.

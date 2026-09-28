@@ -1,0 +1,3 @@
+# Adolf Gutknecht
+
+Oberleutnant Adolf Gutknecht (born 12 September 1891, date of death unknown) was a World War I flying ace credited with eight aerial victories.

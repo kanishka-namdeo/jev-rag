@@ -1,0 +1,3 @@
+# Marc Pajot
+
+Marc Pajot( born 21 September 1953 in La Baule) is a French sailor. He has been a crew member on Éric Tabarly ’s boats. Noted for winning the Silver medal at the 1972 Olympics at 19 with his older brother Yves, 5 times world champion, winner of the cross- Atlantic Route du Rhum, twice semi-finalist representing France at the America ’s Cup as a Project Manager and Skipper, he has been representing French sailing achievement around the world. Member of French Maritime Academy, the French Yacht Club, and the Monaco Yacht Club he is now settled in Cannes, Côte d’ Azur, running a Yacht Selection activity and a consulting activity in marina landscaping.

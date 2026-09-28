@@ -1,0 +1,3 @@
+# Africa
+
+Africans profess a wide variety of religious beliefs, and statistics on religious affiliation are difficult to come by since they are often a sensitive topic for governments with mixed religious populations. According to the World Book Encyclopedia, Islam is the largest religion in Africa, followed by Christianity. According to Encyclopædia Britannica, 45% of the population are Christians, 40% are Muslims, and 10% follow traditional religions. A small number of Africans are Hindu, Buddhist, Confucianist, Baha'i, or Jewish. There is also a minority of people in Africa who are irreligious.

@@ -1,0 +1,3 @@
+# Troy Baker
+
+Troy Edward Baker (born April 1, 1976) is an American voice actor and musician known for portraying lead characters in video games. He is known for portraying Joel in The Last of Us, Booker DeWitt in BioShock Infinite, Delsin Rowe in Infamous Second Son, The Joker in Batman: Arkham Origins and Batman: Assault on Arkham, Rhys in Tales from the Borderlands, Talion in Middle - earth: Shadow of Mordor, Jack Mitchell in Call of Duty: Advanced Warfare, Vincent Brooks in Catherine, Yuri Lowell in Tales of Vesperia and Pagan Min in Far Cry 4. He also voiced in a number of English adaptations of Japanese anime shows, including Basilisk, Trinity Blood, Fullmetal Alchemist, One Piece, Bleach and Naruto: Shippuden.

@@ -1,0 +1,3 @@
+# Julien Guerrier
+
+Julien Guerrier (born 1 July 1985) is a French professional golfer. Guerrier was born in Évreux. He has a successful amateur career, which included winning The Amateur Championship in 2006, and turned professional in 2007 after competing in the Masters Tournament. He finished third on the Alps Tour Order of Merit in 2008 to graduate to the second tier Challenge Tour for 2009. He again progressed, finishing 16th on the 2009 Challenge Tour Rankings to earn a European Tour card for 2010, although he later improved his exemption category at qualifying school, recording a record low round of 60 in the process.

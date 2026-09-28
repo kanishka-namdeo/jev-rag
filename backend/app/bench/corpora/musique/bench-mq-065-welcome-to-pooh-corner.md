@@ -1,0 +1,3 @@
+# Welcome to Pooh Corner
+
+Welcome to Pooh Corner is a live-action/puppet television series that aired on Disney Channel, featuring the characters from the Winnie the Pooh universe portrayed by actors in human-sized puppet suits, except Roo, who was originally a traditional puppet. The animatronic costumes used for the characters were created by Alchemy II, Inc., headed by Ken Forsse who later created Teddy Ruxpin. The show was first aired on April 18, 1983, the day The Disney Channel was launched. Its timeslot for its early run was at 8:30 a.m. Eastern/Pacific Time, making it the third program of The Disney Channel's 16 (later 18) hour programming day. Reruns of the show aired on The Disney Channel until at least January 1997.

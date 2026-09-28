@@ -1,0 +1,3 @@
+# Buddhism by country
+
+Buddhism is a religion practiced by an estimated 488 million in the world, 495 million, or 535 million people as of the 2010s, representing 9% to 10% of the world's total population.

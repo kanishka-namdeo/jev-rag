@@ -1,0 +1,3 @@
+# James Gooderham Worts
+
+James Gooderham Worts (June 4, 1818 - June 20, 1882) was the eldest son of James Worts and Elizabeth Gooderham.

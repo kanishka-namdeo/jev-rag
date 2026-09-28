@@ -1,0 +1,3 @@
+# Julien Mitchell
+
+Julien Mitchell( 13 November 1888 – 4 November 1954) was an English actor, in films from the mid-1930s. Mitchell supported comedians George Formby and Will Hay, and appeared in some Hollywood films in the early war years, but is perhaps best remembered for his role as a mad train driver in the quota quickie" The Last Journey", made in 1936. Mitchell was born in Glossop, Derbyshire. His parents were Julien Mitchell, a dentist, born in Haworth, West Riding of Yorkshire, and Ellen Kitchen, born in Bolton( in the Moor), Lancashire. His siblings born in Bolton were Martha Elizabeth, Josephine Mariner, Ada and Gertrude. Born in Glossop were Mary Hannah and Hilda. Mitchell died in London, aged 65.

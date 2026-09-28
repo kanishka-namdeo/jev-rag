@@ -1,0 +1,3 @@
+# Unicode
+
+Each code point has a single General Category property. The major categories are: Letter, Mark, Number, Punctuation, Symbol, Separator and Other. Within these categories, there are subdivisions. The General Category is not useful for every use, since legacy encodings have used multiple characteristics per single code point. E.g., U+000A <control-000A> Line feed (LF) in ASCII is both a control and a formatting separator; in Unicode the General Category is "Other, Control". Often, other properties must be used to specify the characteristics and behaviour of a code point. The possible General Categories are:

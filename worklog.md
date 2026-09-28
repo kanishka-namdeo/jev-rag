@@ -4,6 +4,41 @@ Single shared work log for all agents working on this repo. Append-only; each
 section starts with `---`. Newest at top.
 
 ---
+Task ID: 11
+Agent: main (Super Z)
+Task: add more popular RAG benchmarks (user: "add more benchmarks and continue
+testing"); same DashScope endpoint + PAT push
+
+Work Log:
+- Second full sandbox reset recovery: rebuilt venv (uv + Tencent mirror),
+  models (GGUF + llama.cpp + jev-score, flags verified live: seq2/out32 trim),
+  backend/.env (absolute paths), probed all 3 gateway models OK (json mode OK);
+  bench smoke 2 questions passed end-to-end (run 9fa5079a, throwaway)
+- Downloaded 3 new public benchmark parquets from HF: TriviaQA rc.wikipedia
+  validation (234MB, 7993 rows), 2WikiMultiHopQA validation (29.5MB, 12576),
+  MuSiQue-Ans validation (11MB, 2417) -> backend/data/public_bench/raw/
+- Extended build_public_scenarios.py with three builders (pyarrow, memory-safe
+  row-group cache for TriviaQA): triviaqa (16 Q answer-verified, 64-doc corpus
+  padded with other questions' wiki pages), wiki2 (16 Q stratified by ACTUAL
+  split types: 7 compositional/4 comparison/3 bridge_comparison/2 inference —
+  the expected 'bridge' label doesn't exist in this parquet; 132 docs after
+  dropping <80-char non-gold stubs), musique (16 Q stratified by hop class
+  from id prefix: 8/5/3; 282 docs). Merge semantics: existing squad/hotpotqa
+  kept verbatim in manifest (their raw data was wiped by the reset); new
+  scenarios append only. All provenance baked into the manifest
+- pyarrow>=15 added to requirements.txt (parquet reads); 35/35 tests pass
+- git core.fileMode=false (sandbox reset flips exec bits -> pure noise)
+- NOTE: `chmod -R 644` on corpus dirs strips dir x-bits -> use 644 files +
+  755 dirs (recovered immediately, tests re-verified)
+
+Stage Summary:
+- Public suite now 5 benchmarks / 98 questions: SQuAD 25, HotpotQA 25,
+  TriviaQA 16, 2WikiMultiHopQA 16, MuSiQue 16 — single-hop x3, multi-hop x3
+  (distractor-style, structured-evidence, compositional-adversarial)
+- Next: two-arm run (triviaqa,wiki2,musique) via bench_resume.py chained
+  windows; analysis; docs; commit
+
+---
 Task ID: 10
 Agent: main (Super Z)
 Task: run popular public RAG benchmarks on this setup and compare; update docs

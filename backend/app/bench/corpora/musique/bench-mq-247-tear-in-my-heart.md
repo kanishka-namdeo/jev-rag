@@ -1,0 +1,3 @@
+# Tear in My Heart
+
+``Tear in My Heart ''is a song written and recorded by American musical duo Twenty One Pilots, for their fourth studio album Blurryface.`` Tear in My Heart'' was uploaded to YouTube on April 6, 2015, being released as a single on the same day. ``Tear in My Heart ''was released to radio on April 14, 2015. The video was directed by Marc Klasfeld. In addition to both band members, lead singer Tyler Joseph's wife Jenna also appears in the music video. It is one of the band's highest - charting songs, spending eight weeks at the number two spot on the Billboard Alternative Songs chart, with X Ambassadors'`` Renegades'' keeping it from topping the chart.

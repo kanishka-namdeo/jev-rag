@@ -1,0 +1,59 @@
+# Petrol engine
+
+A petrol engine (known as a gasoline engine in American English) is an internal combustion engine with spark-ignition, designed to run on petrol (gasoline) and similar volatile fuels. The first practical petrol engine was built in 1876 in Germany by Nikolaus August Otto, although there had been earlier attempts by Étienne Lenoir, Siegfried Marcus, Julius Hock and George Brayton.  The first petrol combustion engine (one cylinder, 121.6 cm3 displacement) was prototyped in 1882 in Italy by Enrico Bernardi. In most petrol engines, the fuel and air are usually pre-mixed before compression (although some modern petrol engines now use cylinder-direct petrol injection). The pre-mixing was formerly done in a carburetor, but now it is done by electronically controlled fuel injection, except in small engines where the cost/complication of electronics does not justify the added engine efficiency. The process differs from a diesel engine in the method of mixing the fuel and air, and in using spark plugs to initiate the combustion process.  In a diesel engine, only air is compressed (and therefore heated), and the fuel is injected into very hot air at the end of the compression stroke, and self-ignites.
+
+Compression ratio
+
+With both air and fuel in a closed cylinder, compressing the mixture too much poses the danger of auto-ignition — or behaving like a diesel engine. Because of the difference in burn rates between the two different fuels, petrol engines are mechanically designed with different timing than diesels, so to auto-ignite a petrol engine causes the expansion of gas inside the cylinder to reach its greatest point before the cylinder has reached the "top dead center" (TDC) position. Spark plugs are typically set statically or at idle at a minimum of 10 degrees or so of crankshaft rotation before the piston reaches TDC, but at much higher values at higher engine speeds to allow time for the fuel-air charge to substantially complete combustion before too much expansion has occurred - gas expansion occurring with the piston moving down in the power stroke. Higher octane petrol burns slower, therefore it has a lower propensity to auto-ignite and its rate of expansion is lower. Thus, engines designed to run high-octane fuel exclusively can achieve higher compression ratios.
+
+Speed and efficiency
+
+Petrol engines run at higher speeds than diesels, partially due to their lighter pistons, connecting rods and crankshaft (a design efficiency made possible by lower compression ratios) and due to petrol burning more quickly than diesel. Because pistons in petrol engines tend to have much shorter strokes than pistons in diesel engines, typically it takes less time for a piston in a petrol engine to complete its stroke than a piston in a diesel engine. However the lower compression ratios of petrol engines give petrol engines lower efficiency than diesel engines.
+
+Applications
+
+Current
+
+Petrol engines have many applications, including:
+
+* Automobiles
+* Motorcycles
+* Aircraft
+* Motorboats
+* Small engines, such as lawn mowers, chainsaws and portable engine-generators
+
+Historical
+
+Before the use of diesel engines became widespread, petrol engines were used in buses, lorries (trucks) and a few railway locomotives. Examples:
+
+* Bedford OB bus
+* Bedford M series lorry
+* GE 57-ton gas-electric boxcab locomotive
+
+Design
+
+Working cycles
+
+Petrol engines may run on the four-stroke cycle or the two-stroke cycle.  For details of working cycles see:
+
+* Four-stroke cycle
+* Two-stroke cycle
+* Wankel engine
+
+Cylinder arrangement
+
+Common cylinder arrangements are from 1 to 6 cylinders in-line or from 2 to 16 cylinders in V-formation. Flat engines – like a V design flattened out – are common in small airplanes and motorcycles and were a hallmark of Volkswagen automobiles into the 1990s. Flat 6s are still used in many modern Porsches, as well as Subarus. Many flat engines are air-cooled. Less common, but notable in vehicles designed for high speeds is the W formation, similar to having 2 V engines side by side. Alternatives include rotary and radial engines the latter typically have 7 or 9 cylinders in a single ring, or 10 or 14 cylinders in two rings.
+
+Cooling
+
+Petrol engines may be air-cooled, with fins (to increase the surface area on the cylinders and cylinder head); or liquid-cooled, by a water jacket and radiator.  The coolant was formerly water, but is now usually a mixture of water and either ethylene glycol or propylene glycol.  These mixtures have lower freezing points and higher boiling points than pure water and also prevent corrosion, with modern antifreezes also containing lubricants and other additives to protect water pump seals and bearings.  The cooling system is usually slightly pressurized to further raise the boiling point of the coolant.
+
+Ignition
+
+Petrol engines use spark ignition and high voltage current for the spark may be provided by a magneto or an ignition coil.  In modern car engines the ignition timing is managed by an electronic Engine Control Unit.
+
+Power measurement
+
+The most common way of engine rating is what is known as the brake power, measured at the flywheel, and given in kilowatts (metric) or horsepower (Imperial/USA).  This is the actual mechanical power output of the engine in a usable and complete form.  The term "brake" comes from the use of a brake in a dynamometer test to load the engine.  For accuracy, it is important to understand what is meant by usable and complete. For example, for a car engine, apart from friction and thermodynamic losses inside the engine, power is absorbed by the , alternator, and radiator fan, thus reducing the power available at the flywheel to move the car along.  Power is also absorbed by the power steering pump and air conditioner (if fitted), but these are not installed for a power output test or calculation. Power output varies slightly according to the energy value of the fuel, the ambient air temperature and humidity, and the altitude. Therefore, there are agreed standards in the USA and Europe on the fuel to use when testing, and engines are rated at  (Europe), and  (USA)  at sea level, . Marine engines, as supplied, usually have no radiator fan, and often no alternator. In such cases the quoted power rating does not allow for losses in the radiator fan and alternator.  The SAE in USA, and the ISO in Europe publish standards on exact procedures, and how to apply corrections for deviating conditions like high altitude.
+
+Car testers are most familiar with the chassis dynamometer or "rolling road" installed in many workshops.  This measures drive wheel brake horsepower, which is generally  less than the brake horsepower measured at the crankshaft or flywheel on an engine dynamometer. [http://www.youtube.com/watch?v=WkqbTIM5RbI A YouTube video] shows workshop measurement of a car's power.  The measured power curve in kW is shown at 3:39.

@@ -1,0 +1,3 @@
+# Father of the Bride Part II
+
+Father of the Bride Part II is a 1995 American comedy film starring Steve Martin, Diane Keaton and Martin Short. It is a sequel to" Father of the Bride" and a remake of the 1951 film" Father's Little Dividend", the sequel to the original" Father of the Bride" film released in 1950.

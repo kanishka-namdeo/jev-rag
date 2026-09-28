@@ -1,0 +1,3 @@
+# Adolf IX of Berg
+
+Adolf IX of Berg (also referred to as Adolf VI) (c. 1280 – 3 April 1348) was the eldest son of Henry of Berg, Lord of Windeck and Agnes of the Mark.

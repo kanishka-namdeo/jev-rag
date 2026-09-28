@@ -1,0 +1,3 @@
+# Universal Pictures
+
+Universal owned the rights to the "Oswald the Lucky Rabbit" character, although Walt Disney and Ub Iwerks had created Oswald, and their films had enjoyed a successful theatrical run. After Charles Mintz had unsuccessfully demanded that Disney accept a lower fee for producing the property, Mintz produced the films with his own group of animators. Instead, Disney and Iwerks created Mickey Mouse who in 1928 stared in the first "sync" sound animated short, Steamboat Willie. This moment effectively launched Walt Disney Studios' foothold, while Universal became a minor player in film animation. Universal subsequently severed its link to Mintz and formed its own in-house animation studio to produce Oswald cartoons headed by Walter Lantz.

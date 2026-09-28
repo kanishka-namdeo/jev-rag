@@ -1,0 +1,3 @@
+# Adolf Fischhof
+
+Adolf Fischhof (Hungarian: Fischhof Adolf) (8 December 1816 – 23 March 1893) was a Hungarian-Austrian writer and politician of Jewish descent.

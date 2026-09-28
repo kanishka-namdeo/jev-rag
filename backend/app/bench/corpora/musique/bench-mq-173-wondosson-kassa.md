@@ -1,0 +1,3 @@
+# Wondosson Kassa
+
+"Leul" Wondosson Kassa was the eldest son of "Ras" Kassa Haile Darge. "Ras" Kassa was a loyal ally of "Negus" Tafari Makonnen, who ultimately was crowned Emperor Haile Selassie I of Ethiopia.

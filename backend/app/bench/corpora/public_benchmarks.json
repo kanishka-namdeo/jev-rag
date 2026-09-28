@@ -1,5 +1,6 @@
 {
   "generated": "2026-09-28",
+  "extended": "2026-09-28",
   "provenance": {
     "squad": {
       "dataset": "SQuAD v1.1 dev",
@@ -19,6 +20,39 @@
         "n": 25,
         "seed": 42,
         "strategy": "stratified by type: 18 bridge / 7 comparison (dev split is 100% level=hard)",
+        "supporting_facts_verified_in_context": true
+      }
+    },
+    "triviaqa": {
+      "dataset": "TriviaQA rc.wikipedia validation",
+      "url": "https://huggingface.co/datasets/mandarjoshi/trivia_qa (rc.wikipedia/validation parquet); original: http://nlp.cs.washington.edu/triviaqa/",
+      "split_size": 7993,
+      "sample": {
+        "n": 16,
+        "seed": 42,
+        "strategy": "answer-verified questions from a seeded shuffle; corpus padded with other questions' entity pages to ~64 docs",
+        "answer_verified_in_evidence": true
+      }
+    },
+    "musique": {
+      "dataset": "MuSiQue-Ans validation",
+      "url": "https://huggingface.co/datasets/dgslibisey/MuSiQue (validation parquet); original: https://github.com/StonyBrookNLP/musique",
+      "split_size": 2417,
+      "sample": {
+        "n": 16,
+        "seed": 42,
+        "strategy": "answerable rows stratified by hop class (id prefix): 8 two-hop / 5 three-hop / 3 four-hop — split is 52/31/17",
+        "supporting_paragraphs_verified_nonempty": true
+      }
+    },
+    "wiki2": {
+      "dataset": "2WikiMultiHopQA validation",
+      "url": "https://huggingface.co/datasets/framolfese/2WikiMultihopQA (validation parquet); original: https://github.com/Alab-NII/2wikimultihop",
+      "split_size": 12576,
+      "sample": {
+        "n": 16,
+        "seed": 42,
+        "strategy": "stratified by type matching the split distribution: 7 compositional / 4 comparison / 3 bridge-comparison / 2 inference",
         "supporting_facts_verified_in_context": true
       }
     }
@@ -893,6 +927,1098 @@
           "answerable": true,
           "qtype": "multi-hop",
           "note": "HotpotQA dev distractor (bridge, hard) — gold titles: Edith Windsor, Same-sex marriage in the United States"
+        }
+      ]
+    },
+    {
+      "id": "triviaqa",
+      "name": "TriviaQA (rc.wikipedia validation sample)",
+      "category": "Single-hop open-domain QA (public benchmark)",
+      "description": "16 seeded-sample questions from the TriviaQA rc.wikipedia validation split with answer-verified wiki evidence. Corpus = the sampled questions' entity pages plus other questions' wiki pages as distractors (64 docs).",
+      "stresses": "Open-domain-style single-hop retrieval over real trivia quiz questions and full Wikipedia evidence pages — canonical web-scale QA reference (Joshi et al. 2017).",
+      "docs": [
+        "bench-tqa-001-russian-blue.md",
+        "bench-tqa-002-vijay-singh.md",
+        "bench-tqa-003-backup-band.md",
+        "bench-tqa-004-stevie-ray-vaughan.md",
+        "bench-tqa-005-boxing.md",
+        "bench-tqa-006-moi-air-base.md",
+        "bench-tqa-007-southampton.md",
+        "bench-tqa-008-atropa-belladonna.md",
+        "bench-tqa-009-as-you-like-it.md",
+        "bench-tqa-010-nguyen-tan-dung.md",
+        "bench-tqa-011-opera-house.md",
+        "bench-tqa-012-teatro-san-cassiano.md",
+        "bench-tqa-013-louis-sullivan.md",
+        "bench-tqa-014-la-marseillaise.md",
+        "bench-tqa-015-gingivitis.md",
+        "bench-tqa-016-cactus.md",
+        "bench-tqa-017-opuntia.md",
+        "bench-tqa-018-academy-award-for-best-picture.md",
+        "bench-tqa-019-the-fat-controller.md",
+        "bench-tqa-020-maputo.md",
+        "bench-tqa-021-mozambique.md",
+        "bench-tqa-022-ashmolean-museum.md",
+        "bench-tqa-023-stephen-joseph-theatre.md",
+        "bench-tqa-024-j-r-r-tolkien.md",
+        "bench-tqa-025-the-walt-disney-company.md",
+        "bench-tqa-026-fairy-tale.md",
+        "bench-tqa-027-assassination-of-abraham-lincoln.md",
+        "bench-tqa-028-musical-instrument.md",
+        "bench-tqa-029-christian-friedrich-ludwig-buschmann.md",
+        "bench-tqa-030-pool-cue-sports.md",
+        "bench-tqa-031-jimi-hendrix.md",
+        "bench-tqa-032-mexico.md",
+        "bench-tqa-033-simon-garfunkel.md",
+        "bench-tqa-034-petrol-engine.md",
+        "bench-tqa-035-pennsylvania-dutch.md",
+        "bench-tqa-036-german-language.md",
+        "bench-tqa-037-amish.md",
+        "bench-tqa-038-giallo.md",
+        "bench-tqa-039-color-motion-picture-film.md",
+        "bench-tqa-040-miss-world.md",
+        "bench-tqa-041-united-states-constitution.md",
+        "bench-tqa-042-the-federalist-papers.md",
+        "bench-tqa-043-president-of-the-united-states.md",
+        "bench-tqa-044-commander-in-chief.md",
+        "bench-tqa-045-war-of-1812.md",
+        "bench-tqa-046-nicholas-lyndhurst.md",
+        "bench-tqa-047-goodnight-sweetheart-tv-series.md",
+        "bench-tqa-048-list-of-goodnight-sweetheart-characters.md",
+        "bench-tqa-049-nick-faldo.md",
+        "bench-tqa-050-the-open-championship.md",
+        "bench-tqa-051-masters-tournament.md",
+        "bench-tqa-052-white-spirit.md",
+        "bench-tqa-053-list-of-dialling-codes-in-germany.md",
+        "bench-tqa-054-joseph-gallieni.md",
+        "bench-tqa-055-joseph-joffre.md",
+        "bench-tqa-056-alexander-von-kluck.md",
+        "bench-tqa-057-german-empire.md",
+        "bench-tqa-058-world-war-i.md",
+        "bench-tqa-059-first-battle-of-the-marne.md",
+        "bench-tqa-060-simon-bolivar.md",
+        "bench-tqa-061-nymph.md",
+        "bench-tqa-062-heracles.md",
+        "bench-tqa-063-david-copperfield.md",
+        "bench-tqa-064-wilkins-micawber.md"
+      ],
+      "questions": [
+        {
+          "id": "tq1",
+          "question": "What colour cat is a Russian Blue?",
+          "reference": "Grey / Greyer / Greyishness / Grayly",
+          "gold_files": [
+            "bench-tqa-001-russian-blue.md"
+          ],
+          "answerable": true,
+          "qtype": "lookup",
+          "note": "TriviaQA rc.wikipedia val — evidence page(s): Russian Blue"
+        },
+        {
+          "id": "tq2",
+          "question": "Vijay Singh, a US Masters champion, comes from where?",
+          "reference": "Fiji / Fiji Islands / Pacific/Fiji / Fidji",
+          "gold_files": [
+            "bench-tqa-002-vijay-singh.md"
+          ],
+          "answerable": true,
+          "qtype": "lookup",
+          "note": "TriviaQA rc.wikipedia val — evidence page(s): Vijay Singh"
+        },
+        {
+          "id": "tq3",
+          "question": "What is the name of the backing band for noted bluesman Stevie Ray Vaughan?",
+          "reference": "Double Trouble / Double Trouble (disambiguation) / Double Trouble (album) / Double trouble",
+          "gold_files": [
+            "bench-tqa-003-backup-band.md",
+            "bench-tqa-004-stevie-ray-vaughan.md"
+          ],
+          "answerable": true,
+          "qtype": "lookup",
+          "note": "TriviaQA rc.wikipedia val — evidence page(s): Backup band, Stevie Ray Vaughan"
+        },
+        {
+          "id": "tq4",
+          "question": "Who was the first Olympic heavyweight boxing gold medallist to become world professional heavyweight boxing champion?",
+          "reference": "(Joe) FRAZIER / Joe Speedo Frazier / Joe Fraser / Joe Frazier",
+          "gold_files": [
+            "bench-tqa-005-boxing.md"
+          ],
+          "answerable": true,
+          "qtype": "lookup",
+          "note": "TriviaQA rc.wikipedia val — evidence page(s): Boxing"
+        },
+        {
+          "id": "tq5",
+          "question": "Which British city is served by Eastleigh airport?",
+          "reference": "Southampton / Southhampton, England / Sotonian / Southhampton",
+          "gold_files": [
+            "bench-tqa-006-moi-air-base.md",
+            "bench-tqa-007-southampton.md"
+          ],
+          "answerable": true,
+          "qtype": "lookup",
+          "note": "TriviaQA rc.wikipedia val — evidence page(s): Moi Air Base, Southampton"
+        },
+        {
+          "id": "tq6",
+          "question": "The plant Atropa Belladonna is better known as what?",
+          "reference": "Deadly Nightshade / Belladonna alkaloids / Atropa belladona / Atropa belladonna",
+          "gold_files": [
+            "bench-tqa-008-atropa-belladonna.md"
+          ],
+          "answerable": true,
+          "qtype": "lookup",
+          "note": "TriviaQA rc.wikipedia val — evidence page(s): Atropa belladonna"
+        },
+        {
+          "id": "tq7",
+          "question": "\"What kind of character is \"\"Touchstone\"\", who appears in Shakespeare's \"\"As You Like It\"\"?\"",
+          "reference": "Clown / Clownish / Auguste clown / Clown suit",
+          "gold_files": [
+            "bench-tqa-009-as-you-like-it.md"
+          ],
+          "answerable": true,
+          "qtype": "lookup",
+          "note": "TriviaQA rc.wikipedia val — evidence page(s): As You Like It"
+        },
+        {
+          "id": "tq8",
+          "question": "Nguyen Tan Dung became Prime Minister of which country in June 2006?",
+          "reference": "Vietnam / Độc lập - tự do - hạnh phúc / Cộng Hòa Xã Hội Chủ Nghĩa Việt Nam / 越南社會主義共和國",
+          "gold_files": [
+            "bench-tqa-010-nguyen-tan-dung.md"
+          ],
+          "answerable": true,
+          "qtype": "lookup",
+          "note": "TriviaQA rc.wikipedia val — evidence page(s): Nguyễn Tấn Dũng"
+        },
+        {
+          "id": "tq9",
+          "question": "Opened in 1637, in which city was the first public opera house?",
+          "reference": "Venice / Sestiere (Venice) / Venedig / Districts of Venice",
+          "gold_files": [
+            "bench-tqa-011-opera-house.md",
+            "bench-tqa-012-teatro-san-cassiano.md"
+          ],
+          "answerable": true,
+          "qtype": "lookup",
+          "note": "TriviaQA rc.wikipedia val — evidence page(s): Opera house, Teatro San Cassiano"
+        },
+        {
+          "id": "tq10",
+          "question": "According to famous American architect Louis Henri Sullivan, known as the father of skyscrapers, \"form follows what\"?",
+          "reference": "Function / Function definition / Functions / Function (disambiguation)",
+          "gold_files": [
+            "bench-tqa-013-louis-sullivan.md"
+          ],
+          "answerable": true,
+          "qtype": "lookup",
+          "note": "TriviaQA rc.wikipedia val — evidence page(s): Louis Sullivan"
+        },
+        {
+          "id": "tq11",
+          "question": "Which national anthem was originally called the 'War Song for the Rhine Army'?",
+          "reference": "MARSELLAISE",
+          "gold_files": [
+            "bench-tqa-014-la-marseillaise.md"
+          ],
+          "answerable": true,
+          "qtype": "lookup",
+          "note": "TriviaQA rc.wikipedia val — evidence page(s): La Marseillaise"
+        },
+        {
+          "id": "tq12",
+          "question": "Gingivitis affects which part of the body",
+          "reference": "Gums / Gumline / Gingiva / Gingival",
+          "gold_files": [
+            "bench-tqa-015-gingivitis.md"
+          ],
+          "answerable": true,
+          "qtype": "lookup",
+          "note": "TriviaQA rc.wikipedia val — evidence page(s): Gingivitis"
+        },
+        {
+          "id": "tq13",
+          "question": "Which is the only cactus fruit that is widely eaten?",
+          "reference": "PRICKLY PEAR / Prickly Pear / Prickly pear (disambiguation) / Prickly-pear cactus",
+          "gold_files": [
+            "bench-tqa-016-cactus.md",
+            "bench-tqa-017-opuntia.md"
+          ],
+          "answerable": true,
+          "qtype": "lookup",
+          "note": "TriviaQA rc.wikipedia val — evidence page(s): Cactus, Opuntia"
+        },
+        {
+          "id": "tq14",
+          "question": "What is the only sequel to win an Academy Award for Best Picture?",
+          "reference": "The Godfather Part II / The Godfather Part 2 / The Godfather: Part II / Don Francesco Ciccio",
+          "gold_files": [
+            "bench-tqa-018-academy-award-for-best-picture.md"
+          ],
+          "answerable": true,
+          "qtype": "lookup",
+          "note": "TriviaQA rc.wikipedia val — evidence page(s): Academy Award for Best Picture"
+        },
+        {
+          "id": "tq15",
+          "question": "In children's TV by what name is Sir Topham Hatt better known",
+          "reference": "The Fat Controller / Sir Topham Hatt's Car / Sir Topham Hatt / Mrs Hatt",
+          "gold_files": [
+            "bench-tqa-019-the-fat-controller.md"
+          ],
+          "answerable": true,
+          "qtype": "lookup",
+          "note": "TriviaQA rc.wikipedia val — evidence page(s): The Fat Controller"
+        },
+        {
+          "id": "tq16",
+          "question": "What was the previous name of the city of Maputo?",
+          "reference": "LOURENCO MARQUES / Maputo, Mozambique / Laurenço Marques / Lorenzo marques",
+          "gold_files": [
+            "bench-tqa-020-maputo.md",
+            "bench-tqa-021-mozambique.md"
+          ],
+          "answerable": true,
+          "qtype": "lookup",
+          "note": "TriviaQA rc.wikipedia val — evidence page(s): Maputo, Mozambique"
+        }
+      ]
+    },
+    {
+      "id": "wiki2",
+      "name": "2WikiMultiHopQA (validation sample)",
+      "category": "Multi-hop QA over structured + text evidence (public benchmark)",
+      "description": "16 seeded-sample questions from the 2WikiMultiHopQA validation split (7 compositional / 4 comparison / 3 bridge-comparison / 2 inference, matching the split's type distribution). Corpus = union of every question's 10-paragraph context (incl. Wikidata triple sentences), deduplicated by title.",
+      "stresses": "Multi-hop reasoning that mixes textual and structured (subject | relation | object) evidence — the standard second multi-hop reference after HotpotQA (Ho et al. 2020).",
+      "docs": [
+        "bench-w2-001-abhishek-saxena.md",
+        "bench-w2-002-al-christy.md",
+        "bench-w2-003-charles-bruffy.md",
+        "bench-w2-004-george-h-clay.md",
+        "bench-w2-005-kansas-city-kitty.md",
+        "bench-w2-006-ben-palmer.md",
+        "bench-w2-007-ralph-ince.md",
+        "bench-w2-008-ilus-w-davis.md",
+        "bench-w2-009-side-street-angel.md",
+        "bench-w2-010-del-lord.md",
+        "bench-w2-011-layaka-ndwandwe.md",
+        "bench-w2-012-ludwig-von-westphalen.md",
+        "bench-w2-013-lomvula-mndzebele.md",
+        "bench-w2-014-tsandzile-ndwandwe.md",
+        "bench-w2-015-peter-burroughs.md",
+        "bench-w2-016-john-adams-merchant.md",
+        "bench-w2-017-sobhuza-i.md",
+        "bench-w2-018-barthold-a-butenschn-sr.md",
+        "bench-w2-019-ogawa-mataji.md",
+        "bench-w2-020-guduza-dlamini.md",
+        "bench-w2-021-asi-no-hay-cama-que-aguante.md",
+        "bench-w2-022-operation-leopard.md",
+        "bench-w2-023-don-t-be-weak-with-life.md",
+        "bench-w2-024-no-hay-pan.md",
+        "bench-w2-025-kevin-of-the-north.md",
+        "bench-w2-026-yangsu-tegin.md",
+        "bench-w2-027-beaulieu-sur-loire.md",
+        "bench-w2-028-apa-qaghan.md",
+        "bench-w2-029-bumin-qaghan.md",
+        "bench-w2-030-motherland-disambiguation.md",
+        "bench-w2-031-place-of-birth.md",
+        "bench-w2-032-sennedjem.md",
+        "bench-w2-033-muqan-qaghan.md",
+        "bench-w2-034-alan-mckenzie.md",
+        "bench-w2-035-frank-wildhorn.md",
+        "bench-w2-036-sheena-shahabadi.md",
+        "bench-w2-037-mordechai-rotenberg.md",
+        "bench-w2-038-alexander-aris.md",
+        "bench-w2-039-christopher-shinn.md",
+        "bench-w2-040-jonathan-woodhouse.md",
+        "bench-w2-041-dave-grossman-game-developer.md",
+        "bench-w2-042-aung-san-suu-kyi.md",
+        "bench-w2-043-olav-aaraas.md",
+        "bench-w2-044-jesse-e-hobson.md",
+        "bench-w2-045-no-sin-on-the-alpine-pastures-1974-film.md",
+        "bench-w2-046-no-sin-on-the-alpine-pastures-1950-film.md",
+        "bench-w2-047-franz-antel.md",
+        "bench-w2-048-brian-kennedy-gallery-director.md",
+        "bench-w2-049-no-sin-on-the-alpine-pastures-1915-film.md",
+        "bench-w2-050-sam-aryeetey.md",
+        "bench-w2-051-the-zone-2017-film.md",
+        "bench-w2-052-short-trips-time-signature.md",
+        "bench-w2-053-short-trips-dalek-empire.md",
+        "bench-w2-054-david-ji.md",
+        "bench-w2-055-short-trips-the-history-of-christmas.md",
+        "bench-w2-056-julien-mitchell.md",
+        "bench-w2-057-julien-guerrier.md",
+        "bench-w2-058-alex-marquez.md",
+        "bench-w2-059-short-trips-how-the-doctor-changed-my-life.md",
+        "bench-w2-060-marc-pajot.md",
+        "bench-w2-061-byun-jung-il.md",
+        "bench-w2-062-milos-zlicic.md",
+        "bench-w2-063-kim-il-woo-actor-born-1953.md",
+        "bench-w2-064-jung-il-woo-athlete.md",
+        "bench-w2-065-andrea-grendene.md",
+        "bench-w2-066-jung-il-woo.md",
+        "bench-w2-067-jang-jung-il.md",
+        "bench-w2-068-alexandru-cristea.md",
+        "bench-w2-069-alexander-courage.md",
+        "bench-w2-070-karl-wilhelm-conductor.md",
+        "bench-w2-071-diane-warren.md",
+        "bench-w2-072-walter-robinson-composer.md",
+        "bench-w2-073-petrus-de-domarto.md",
+        "bench-w2-074-pydimarri-venkata-subba-rao.md",
+        "bench-w2-075-inescapable-song.md",
+        "bench-w2-076-alonso-mudarra.md",
+        "bench-w2-077-michelangelo-faggioli.md",
+        "bench-w2-078-cross-country-cruise.md",
+        "bench-w2-079-adib-kheir.md",
+        "bench-w2-080-edward-buzzell.md",
+        "bench-w2-081-heather-d-gibson.md",
+        "bench-w2-082-maria-teresa-grand-duchess-of-luxembourg.md",
+        "bench-w2-083-marie-louise-coidavid.md",
+        "bench-w2-084-princess-auguste-of-bavaria-18751964.md",
+        "bench-w2-085-gertrude-of-bavaria.md",
+        "bench-w2-086-mehdi-abrishamchi.md",
+        "bench-w2-087-sophia-magdalena-of-denmark.md",
+        "bench-w2-088-bapu-film-director.md",
+        "bench-w2-089-father-of-the-bride-part-ii.md",
+        "bench-w2-090-ellen-ternan.md",
+        "bench-w2-091-nelly-o-brien.md",
+        "bench-w2-092-elliot-silverstein.md",
+        "bench-w2-093-sri-ramanjaneya-yuddham.md",
+        "bench-w2-094-philipp-karner.md",
+        "bench-w2-095-nelly-the-bride-without-a-husband.md",
+        "bench-w2-096-frederic-zelnik.md",
+        "bench-w2-097-w-augustus-barratt.md",
+        "bench-w2-098-kazimierz-kutz.md",
+        "bench-w2-099-patrick-ryan-author-and-journalist.md",
+        "bench-w2-100-mohsen-eslamzadeh.md",
+        "bench-w2-101-how-i-won-the-war.md",
+        "bench-w2-102-salt-of-the-black-earth.md",
+        "bench-w2-103-richard-lester.md",
+        "bench-w2-104-maria-thins.md",
+        "bench-w2-105-vera-miletic.md",
+        "bench-w2-106-marian-shields-robinson.md",
+        "bench-w2-107-baroness-gosta-von-dem-bussche-haddenhausen.md",
+        "bench-w2-108-doria-ragland.md",
+        "bench-w2-109-myeongjong-of-joseon.md",
+        "bench-w2-110-queen-insun.md",
+        "bench-w2-111-priscilla-pointer.md",
+        "bench-w2-112-ebba-eriksdotter-vasa.md",
+        "bench-w2-113-eldon-howard.md",
+        "bench-w2-114-lewis-seiler.md",
+        "bench-w2-115-the-smiling-ghost.md",
+        "bench-w2-116-s-n-mathur.md",
+        "bench-w2-117-joe-ghost.md",
+        "bench-w2-118-grey-ghost-musician.md",
+        "bench-w2-119-william-i-of-wurttemberg.md",
+        "bench-w2-120-princess-catherine-of-wurttemberg.md",
+        "bench-w2-121-prince-frederick-of-wurttemberg.md",
+        "bench-w2-122-prince-edward-duke-of-york-and-albany.md",
+        "bench-w2-123-princess-augusta-of-wurttemberg.md",
+        "bench-w2-124-princess-augusta-of-bavaria.md",
+        "bench-w2-125-louis-frederick-duke-of-wurttemberg-montbeliard.md",
+        "bench-w2-126-duke-carl-alexander-of-wurttemberg.md",
+        "bench-w2-127-augusta-of-saxe-weimar-eisenach.md",
+        "bench-w2-128-frederick-ii-eugene-duke-of-wurttemberg.md",
+        "bench-w2-129-huc-mazelet-luquiens.md",
+        "bench-w2-130-gina-fulton.md",
+        "bench-w2-131-john-stapleton.md",
+        "bench-w2-132-martin-stapleton.md"
+      ],
+      "questions": [
+        {
+          "id": "w21",
+          "question": "Which film has the director who died earlier, Kansas City Kitty or Side Street Angel?",
+          "reference": "Side Street Angel",
+          "gold_files": [
+            "bench-w2-005-kansas-city-kitty.md",
+            "bench-w2-009-side-street-angel.md",
+            "bench-w2-010-del-lord.md",
+            "bench-w2-007-ralph-ince.md"
+          ],
+          "answerable": true,
+          "qtype": "multi-hop",
+          "note": "2WikiMultiHopQA val (bridge_comparison) — gold titles: Kansas City Kitty, Side Street Angel, Del Lord, Ralph Ince; structured triples: Kansas City Kitty | director | Del Lord ; Side Street Angel | director | Ralph Ince"
+        },
+        {
+          "id": "w22",
+          "question": "Who is the father-in-law of Tsandzile Ndwandwe?",
+          "reference": "Ndvungunye",
+          "gold_files": [
+            "bench-w2-014-tsandzile-ndwandwe.md",
+            "bench-w2-017-sobhuza-i.md"
+          ],
+          "answerable": true,
+          "qtype": "multi-hop",
+          "note": "2WikiMultiHopQA val (inference) — gold titles: Tsandzile Ndwandwe, Sobhuza I; structured triples: Tsandzile Ndwandwe | spouse | Sobhuza I ; Sobhuza I | father | Ndvungunye"
+        },
+        {
+          "id": "w23",
+          "question": "Which film came out earlier, Kevin Of The North or No Hay Pan?",
+          "reference": "Kevin Of The North",
+          "gold_files": [
+            "bench-w2-025-kevin-of-the-north.md",
+            "bench-w2-024-no-hay-pan.md"
+          ],
+          "answerable": true,
+          "qtype": "multi-hop",
+          "note": "2WikiMultiHopQA val (comparison) — gold titles: Kevin of the North, No Hay Pan; structured triples: Kevin of the North | publication date | 2001 ; No Hay Pan | publication date | 2012"
+        },
+        {
+          "id": "w24",
+          "question": "Where was the place of death of Muqan Qaghan's father?",
+          "reference": "Turkic Khaganate",
+          "gold_files": [
+            "bench-w2-033-muqan-qaghan.md",
+            "bench-w2-029-bumin-qaghan.md"
+          ],
+          "answerable": true,
+          "qtype": "multi-hop",
+          "note": "2WikiMultiHopQA val (compositional) — gold titles: Muqan Qaghan, Bumin Qaghan; structured triples: Muqan Qaghan | father | Bumin Qaghan ; Bumin Qaghan | place of death | Turkic Khaganate"
+        },
+        {
+          "id": "w25",
+          "question": "Where does Alexander Aris's mother work at?",
+          "reference": "United Nations",
+          "gold_files": [
+            "bench-w2-038-alexander-aris.md",
+            "bench-w2-042-aung-san-suu-kyi.md"
+          ],
+          "answerable": true,
+          "qtype": "multi-hop",
+          "note": "2WikiMultiHopQA val (compositional) — gold titles: Alexander Aris, Aung San Suu Kyi; structured triples: Alexander Aris | mother | Aung San Suu Kyi ; Aung San Suu Kyi | employer | United Nations"
+        },
+        {
+          "id": "w26",
+          "question": "Where did the director of film No Sin On The Alpine Pastures (1950 Film) die?",
+          "reference": "Vienna",
+          "gold_files": [
+            "bench-w2-046-no-sin-on-the-alpine-pastures-1950-film.md",
+            "bench-w2-047-franz-antel.md"
+          ],
+          "answerable": true,
+          "qtype": "multi-hop",
+          "note": "2WikiMultiHopQA val (compositional) — gold titles: No Sin on the Alpine Pastures (1950 film), Franz Antel; structured triples: No Sin on the Alpine Pastures | director | Franz Antel ; Franz Antel | place of death | Vienna"
+        },
+        {
+          "id": "w27",
+          "question": "Were Julien Guerrier and Marc Pajot of the same nationality?",
+          "reference": "yes",
+          "gold_files": [
+            "bench-w2-057-julien-guerrier.md",
+            "bench-w2-060-marc-pajot.md"
+          ],
+          "answerable": true,
+          "qtype": "multi-hop",
+          "note": "2WikiMultiHopQA val (comparison) — gold titles: Julien Guerrier, Marc Pajot; structured triples: Julien Guerrier | country of citizenship | French ; Marc Pajot | country of citizenship | French"
+        },
+        {
+          "id": "w28",
+          "question": "Who is younger, Andrea Grendene or Jung Il-Woo?",
+          "reference": "Jung Il-Woo",
+          "gold_files": [
+            "bench-w2-065-andrea-grendene.md",
+            "bench-w2-066-jung-il-woo.md"
+          ],
+          "answerable": true,
+          "qtype": "multi-hop",
+          "note": "2WikiMultiHopQA val (comparison) — gold titles: Andrea Grendene, Jung Il-woo; structured triples: Andrea Grendene | date of birth | 4 July 1986 ; Jung Il-woo | date of birth | 9 September 1987"
+        },
+        {
+          "id": "w29",
+          "question": "What nationality is the composer of song Inescapable (Song)?",
+          "reference": "American",
+          "gold_files": [
+            "bench-w2-075-inescapable-song.md",
+            "bench-w2-071-diane-warren.md"
+          ],
+          "answerable": true,
+          "qtype": "multi-hop",
+          "note": "2WikiMultiHopQA val (compositional) — gold titles: Inescapable (song), Diane Warren; structured triples: Inescapable | composer | Diane Warren ; Diane Warren | country of citizenship | American"
+        },
+        {
+          "id": "w210",
+          "question": "Who is the spouse of the director of film Cross Country Cruise?",
+          "reference": "Ona Munson",
+          "gold_files": [
+            "bench-w2-078-cross-country-cruise.md",
+            "bench-w2-080-edward-buzzell.md"
+          ],
+          "answerable": true,
+          "qtype": "multi-hop",
+          "note": "2WikiMultiHopQA val (compositional) — gold titles: Cross Country Cruise, Edward Buzzell; structured triples: Cross Country Cruise | director | Edward Buzzell ; Edward Buzzell | spouse | Ona Munson"
+        },
+        {
+          "id": "w211",
+          "question": "Which film has the director who is older than the other, Sri Ramanjaneya Yuddham or Nelly, The Bride Without A Husband?",
+          "reference": "Nelly, The Bride Without A Husband",
+          "gold_files": [
+            "bench-w2-093-sri-ramanjaneya-yuddham.md",
+            "bench-w2-095-nelly-the-bride-without-a-husband.md",
+            "bench-w2-088-bapu-film-director.md",
+            "bench-w2-096-frederic-zelnik.md"
+          ],
+          "answerable": true,
+          "qtype": "multi-hop",
+          "note": "2WikiMultiHopQA val (bridge_comparison) — gold titles: Sri Ramanjaneya Yuddham, Nelly, the Bride Without a Husband, Bapu (film director), Frederic Zelnik; structured triples: Sri Ramanjaneya Yuddham | director | Bapu ; Nelly, the Bride Without a Husband | director | Frederic Zelnik"
+        },
+        {
+          "id": "w212",
+          "question": "Which film has the director born later, Salt Of The Black Earth or How I Won The War?",
+          "reference": "How I Won The War",
+          "gold_files": [
+            "bench-w2-102-salt-of-the-black-earth.md",
+            "bench-w2-101-how-i-won-the-war.md",
+            "bench-w2-098-kazimierz-kutz.md",
+            "bench-w2-103-richard-lester.md"
+          ],
+          "answerable": true,
+          "qtype": "multi-hop",
+          "note": "2WikiMultiHopQA val (bridge_comparison) — gold titles: Salt of the Black Earth, How I Won the War, Kazimierz Kutz, Richard Lester; structured triples: Salt of the Black Earth | director | Kazimierz Kutz ; How I Won the War | director | Richard Lester"
+        },
+        {
+          "id": "w213",
+          "question": "Who is the mother-in-law of Queen Insun?",
+          "reference": "Queen Munjeong",
+          "gold_files": [
+            "bench-w2-110-queen-insun.md",
+            "bench-w2-109-myeongjong-of-joseon.md"
+          ],
+          "answerable": true,
+          "qtype": "multi-hop",
+          "note": "2WikiMultiHopQA val (inference) — gold titles: Queen Insun, Myeongjong of Joseon; structured triples: Queen Insun | spouse | Myeongjong of Joseon ; Myeongjong of Joseon | mother | Queen Munjeong"
+        },
+        {
+          "id": "w214",
+          "question": "Where was the director of film The Smiling Ghost born?",
+          "reference": "New York",
+          "gold_files": [
+            "bench-w2-115-the-smiling-ghost.md",
+            "bench-w2-114-lewis-seiler.md"
+          ],
+          "answerable": true,
+          "qtype": "multi-hop",
+          "note": "2WikiMultiHopQA val (compositional) — gold titles: The Smiling Ghost, Lewis Seiler; structured triples: The Smiling Ghost | director | Lewis Seiler ; Lewis Seiler | place of birth | New York"
+        },
+        {
+          "id": "w215",
+          "question": "Where did Princess Augusta Of Württemberg's father die?",
+          "reference": "Rosenstein Castle",
+          "gold_files": [
+            "bench-w2-123-princess-augusta-of-wurttemberg.md",
+            "bench-w2-119-william-i-of-wurttemberg.md"
+          ],
+          "answerable": true,
+          "qtype": "multi-hop",
+          "note": "2WikiMultiHopQA val (compositional) — gold titles: Princess Augusta of Württemberg, William I of Württemberg; structured triples: Princess Augusta of Württemberg | father | William I of Württemberg ; William I of Württemberg | place of death | Rosenstein Castle"
+        },
+        {
+          "id": "w216",
+          "question": "Who was born earlier, Martin Stapleton or Gina Fulton?",
+          "reference": "Gina Fulton",
+          "gold_files": [
+            "bench-w2-132-martin-stapleton.md",
+            "bench-w2-130-gina-fulton.md"
+          ],
+          "answerable": true,
+          "qtype": "multi-hop",
+          "note": "2WikiMultiHopQA val (comparison) — gold titles: Martin Stapleton, Gina Fulton; structured triples: Martin Stapleton | date of birth | 9 May 1983 ; Gina Fulton | date of birth | 13 February 1971"
+        }
+      ]
+    },
+    {
+      "id": "musique",
+      "name": "MuSiQue-Ans (validation sample)",
+      "category": "Compositional multi-hop QA (public benchmark)",
+      "description": "16 seeded-sample questions from the MuSiQue-Ans validation split (8 two-hop / 5 three-hop / 3 four-hop). Corpus = union of every question's 20-paragraph context, deduplicated by title — distractors are topically related to the question by construction.",
+      "stresses": "Compositional multi-hop reasoning over adversarially-chosen distractors (MuSiQue explicitly filters out shortcuts) — the hardest multi-hop reference in this suite (Trivedi et al. 2022).",
+      "docs": [
+        "bench-mq-001-jam-session-album.md",
+        "bench-mq-002-rebelle-records.md",
+        "bench-mq-003-honey-in-the-lion-s-head.md",
+        "bench-mq-004-study-in-brown.md",
+        "bench-mq-005-jive-records.md",
+        "bench-mq-006-tom-browne-trumpeter.md",
+        "bench-mq-007-gameface.md",
+        "bench-mq-008-face-of-a-fighter.md",
+        "bench-mq-009-emarcy-records.md",
+        "bench-mq-010-santa-monica-california.md",
+        "bench-mq-011-nothing-records.md",
+        "bench-mq-012-brown-and-roach-incorporated.md",
+        "bench-mq-013-sony-music.md",
+        "bench-mq-014-papa-s-got-a-brand-new-bag.md",
+        "bench-mq-015-ace-fu-records.md",
+        "bench-mq-016-bob-shad.md",
+        "bench-mq-017-cargo-records-uk.md",
+        "bench-mq-018-blues-for-we.md",
+        "bench-mq-019-the-right-stuff-records.md",
+        "bench-mq-020-just-be-free.md",
+        "bench-mq-021-red-dragon-2002-film.md",
+        "bench-mq-022-plautus.md",
+        "bench-mq-023-joy-harmon.md",
+        "bench-mq-024-christine-collins-rower.md",
+        "bench-mq-025-clarice-starling.md",
+        "bench-mq-026-five-days-from-home.md",
+        "bench-mq-027-rod-smith-wide-receiver.md",
+        "bench-mq-028-university-of-kansas.md",
+        "bench-mq-029-the-a-team-film.md",
+        "bench-mq-030-tanisha-smith.md",
+        "bench-mq-031-piper-kerman.md",
+        "bench-mq-032-john-hannibal-smith.md",
+        "bench-mq-033-hal-smith-infielder.md",
+        "bench-mq-034-hannibal-tv-series.md",
+        "bench-mq-035-hannibal-leckie-novel.md",
+        "bench-mq-036-ron-smith-wide-receiver.md",
+        "bench-mq-037-tuppy-owen-smith.md",
+        "bench-mq-038-altoona-mountain-citys.md",
+        "bench-mq-039-gaspard-ulliel.md",
+        "bench-mq-040-hannibal-disambiguation.md",
+        "bench-mq-041-adolf-overweg.md",
+        "bench-mq-042-adolf-fischhof.md",
+        "bench-mq-043-gerard-pieter-adolfs.md",
+        "bench-mq-044-geographical-feature.md",
+        "bench-mq-045-capital-punishment-in-the-united-states.md",
+        "bench-mq-046-ngadda-river.md",
+        "bench-mq-047-palus-epidemiarum.md",
+        "bench-mq-048-lacus-excellentiae.md",
+        "bench-mq-049-adolf-gutknecht.md",
+        "bench-mq-050-east-prussia.md",
+        "bench-mq-051-becky-creek-wildlife-management-area.md",
+        "bench-mq-052-nughu.md",
+        "bench-mq-053-arecibo-catena.md",
+        "bench-mq-054-adolf-engler.md",
+        "bench-mq-055-adolf-viii-of-berg.md",
+        "bench-mq-056-reinhold-hanisch.md",
+        "bench-mq-057-paul-louis-halley.md",
+        "bench-mq-058-holderlinturm.md",
+        "bench-mq-059-adolf-ix-of-berg.md",
+        "bench-mq-060-adolf-vii-of-berg.md",
+        "bench-mq-061-universal-pictures.md",
+        "bench-mq-062-walt-disney-world.md",
+        "bench-mq-063-mickey-mouse.md",
+        "bench-mq-064-marvel-comics.md",
+        "bench-mq-065-welcome-to-pooh-corner.md",
+        "bench-mq-066-the-mickey-mouse-club.md",
+        "bench-mq-067-diane-disney-miller.md",
+        "bench-mq-068-zorro-and-son.md",
+        "bench-mq-069-clarabelle-cow.md",
+        "bench-mq-070-building-a-building.md",
+        "bench-mq-071-disney-theatrical-productions.md",
+        "bench-mq-072-mickey-s-revue.md",
+        "bench-mq-073-the-proud-family.md",
+        "bench-mq-074-meet-the-robinsons.md",
+        "bench-mq-075-anna-frozen.md",
+        "bench-mq-076-sport-goofy-in-soccermania.md",
+        "bench-mq-077-disney-parks-experiences-and-products.md",
+        "bench-mq-078-minsk-region.md",
+        "bench-mq-079-randolph-county-illinois.md",
+        "bench-mq-080-bann-na-mohra.md",
+        "bench-mq-081-brantley-york.md",
+        "bench-mq-082-kokkuthoduvai.md",
+        "bench-mq-083-york-upper-canada.md",
+        "bench-mq-084-saulkrasti-municipality.md",
+        "bench-mq-085-wluj.md",
+        "bench-mq-086-springfield-illinois.md",
+        "bench-mq-087-cayman-islands.md",
+        "bench-mq-088-gmina-owicz.md",
+        "bench-mq-089-gmina-pabianice.md",
+        "bench-mq-090-birth-certificate.md",
+        "bench-mq-091-bigoraj-county.md",
+        "bench-mq-092-kiri-territory.md",
+        "bench-mq-093-gmina-gorlice.md",
+        "bench-mq-094-gmina-brzeziny-odz-voivodeship.md",
+        "bench-mq-095-states-of-nigeria.md",
+        "bench-mq-096-darial-pakistan.md",
+        "bench-mq-097-pangi-territory.md",
+        "bench-mq-098-shirley-abicair.md",
+        "bench-mq-099-anno-domini.md",
+        "bench-mq-100-svitrigaila.md",
+        "bench-mq-101-natural-born-citizen-clause.md",
+        "bench-mq-102-australia-day.md",
+        "bench-mq-103-giovanni-cifolelli.md",
+        "bench-mq-104-maureen-payne.md",
+        "bench-mq-105-list-of-dragon-ball-super-episodes.md",
+        "bench-mq-106-streams-of-expression.md",
+        "bench-mq-107-pir-syed-muhammad-binyamin-rizvi.md",
+        "bench-mq-108-la-naissance-d-osiris.md",
+        "bench-mq-109-sue-ryder.md",
+        "bench-mq-110-pak-nam-gi.md",
+        "bench-mq-111-william-shakespeare.md",
+        "bench-mq-112-list-of-soul-eater-episodes.md",
+        "bench-mq-113-conscription-in-australia.md",
+        "bench-mq-114-clara-morris.md",
+        "bench-mq-115-ratata-band.md",
+        "bench-mq-116-yang-meng.md",
+        "bench-mq-117-mauro-scocco.md",
+        "bench-mq-118-if-we.md",
+        "bench-mq-119-mozilla-messaging.md",
+        "bench-mq-120-ibm.md",
+        "bench-mq-121-web-browser.md",
+        "bench-mq-122-yandex-browser.md",
+        "bench-mq-123-mozilla-corporation.md",
+        "bench-mq-124-coc-coc.md",
+        "bench-mq-125-instantbird.md",
+        "bench-mq-126-selenium-software.md",
+        "bench-mq-127-privoxy.md",
+        "bench-mq-128-web-design.md",
+        "bench-mq-129-history-of-the-web-browser.md",
+        "bench-mq-130-youtube.md",
+        "bench-mq-131-internet-channel.md",
+        "bench-mq-132-black-death-in-england.md",
+        "bench-mq-133-violante-titian.md",
+        "bench-mq-134-black-death.md",
+        "bench-mq-135-2010-elazg-earthquake.md",
+        "bench-mq-136-education.md",
+        "bench-mq-137-christian-ackermann.md",
+        "bench-mq-138-peter-strudel.md",
+        "bench-mq-139-clinical-death.md",
+        "bench-mq-140-acral-necrosis.md",
+        "bench-mq-141-the-martyrdom-of-saint-lawrence-titian.md",
+        "bench-mq-142-2013-houphouet-boigny-stampede.md",
+        "bench-mq-143-party-leaders-of-the-united-states-house-of-repr.md",
+        "bench-mq-144-mandate-of-heaven.md",
+        "bench-mq-145-connecticut-senate.md",
+        "bench-mq-146-political-party.md",
+        "bench-mq-147-reformed-political-party.md",
+        "bench-mq-148-2018-wisconsin-gubernatorial-election.md",
+        "bench-mq-149-democratic-party-of-oregon.md",
+        "bench-mq-150-canada.md",
+        "bench-mq-151-party-leaders-of-the-united-states-senate.md",
+        "bench-mq-152-alaska.md",
+        "bench-mq-153-unicode.md",
+        "bench-mq-154-tammany-hall.md",
+        "bench-mq-155-2014-united-states-senate-elections.md",
+        "bench-mq-156-hund-s-rules.md",
+        "bench-mq-157-2018-alaska-gubernatorial-election.md",
+        "bench-mq-158-robert-p-letcher.md",
+        "bench-mq-159-marshall-islands.md",
+        "bench-mq-160-standing-rules-of-the-united-states-senate.md",
+        "bench-mq-161-walter-calverley.md",
+        "bench-mq-162-sir-william-maule.md",
+        "bench-mq-163-john-king-of-england.md",
+        "bench-mq-164-hms-farnham-castle-k413.md",
+        "bench-mq-165-liu-ju.md",
+        "bench-mq-166-john-mitchell-kemble.md",
+        "bench-mq-167-succession-to-the-british-throne.md",
+        "bench-mq-168-eric-penn.md",
+        "bench-mq-169-james-gooderham-worts.md",
+        "bench-mq-170-zhao-jiande.md",
+        "bench-mq-171-roberto-irineu-marinho.md",
+        "bench-mq-172-john-darling-and-son.md",
+        "bench-mq-173-wondosson-kassa.md",
+        "bench-mq-174-pernell-roberts.md",
+        "bench-mq-175-john-petrie.md",
+        "bench-mq-176-raglan-squire.md",
+        "bench-mq-177-john-iii-margrave-of-brandenburg-salzwedel.md",
+        "bench-mq-178-westminster-abbey.md",
+        "bench-mq-179-john-wedgwood-horticulturist.md",
+        "bench-mq-180-the-white-suit.md",
+        "bench-mq-181-belgrade-film.md",
+        "bench-mq-182-cyprus.md",
+        "bench-mq-183-josip-broz-tito.md",
+        "bench-mq-184-greece.md",
+        "bench-mq-185-moldova-at-the-1996-summer-olympics.md",
+        "bench-mq-186-portugal.md",
+        "bench-mq-187-silence-in-dreamland.md",
+        "bench-mq-188-southern-europe.md",
+        "bench-mq-189-serbian-language.md",
+        "bench-mq-190-madagascar.md",
+        "bench-mq-191-catalan-language.md",
+        "bench-mq-192-languages-of-india.md",
+        "bench-mq-193-yugoslavia-at-the-olympics.md",
+        "bench-mq-194-cash-cab-american-game-show.md",
+        "bench-mq-195-list-of-territorial-entities-where-english-is-an.md",
+        "bench-mq-196-isaac-ntiamoah.md",
+        "bench-mq-197-kazakhstan-at-the-olympics.md",
+        "bench-mq-198-the-lost-language-of-cranes.md",
+        "bench-mq-199-list-of-territorial-entities-where-german-is-an.md",
+        "bench-mq-200-lac-pythonga-quebec.md",
+        "bench-mq-201-ngiwal.md",
+        "bench-mq-202-zec-de-la-bessonne.md",
+        "bench-mq-203-paris.md",
+        "bench-mq-204-martin-of-aragon.md",
+        "bench-mq-205-santa-cruz-de-las-flores-tlajomulco-de-zuniga-ja.md",
+        "bench-mq-206-gothic-architecture.md",
+        "bench-mq-207-valencia.md",
+        "bench-mq-208-zec-de-la-riviere-nouvelle.md",
+        "bench-mq-209-almudevar.md",
+        "bench-mq-210-complexe-maisonneuve.md",
+        "bench-mq-211-federalism.md",
+        "bench-mq-212-pola-de-siero.md",
+        "bench-mq-213-palau-guell.md",
+        "bench-mq-214-josep-domenech-i-estapa.md",
+        "bench-mq-215-ile-de-la-cite.md",
+        "bench-mq-216-saint-barthelemy.md",
+        "bench-mq-217-museu-d-art-jaume-morera.md",
+        "bench-mq-218-alcuescar.md",
+        "bench-mq-219-andrey-shumilin.md",
+        "bench-mq-220-russian-soviet-federative-socialist-republic.md",
+        "bench-mq-221-nigerian-naira.md",
+        "bench-mq-222-slavs.md",
+        "bench-mq-223-soviet-union.md",
+        "bench-mq-224-oleg-skripochka.md",
+        "bench-mq-225-tajikistan.md",
+        "bench-mq-226-dissolution-of-the-soviet-union.md",
+        "bench-mq-227-second-united-front.md",
+        "bench-mq-228-molotovribbentrop-pact.md",
+        "bench-mq-229-armenians.md",
+        "bench-mq-230-novgorod-governorate.md",
+        "bench-mq-231-treaty-of-jassy.md",
+        "bench-mq-232-baby-one-more-time-song.md",
+        "bench-mq-233-michael-jackson-s-thriller-music-video.md",
+        "bench-mq-234-troy-baker.md",
+        "bench-mq-235-no-tears-left-to-cry.md",
+        "bench-mq-236-what-makes-you-beautiful.md",
+        "bench-mq-237-formula-one-arcade.md",
+        "bench-mq-238-and-those-we-ve-left-behind.md",
+        "bench-mq-239-far-cry-instincts.md",
+        "bench-mq-240-i-wish-it-would-rain.md",
+        "bench-mq-241-far-cry-video-game.md",
+        "bench-mq-242-david-arnott.md",
+        "bench-mq-243-i-ll-cry-if-i-want-to.md",
+        "bench-mq-244-one-last-time-ariana-grande-song.md",
+        "bench-mq-245-neverland-night-ranger-album.md",
+        "bench-mq-246-far-cry-5.md",
+        "bench-mq-247-tear-in-my-heart.md",
+        "bench-mq-248-hyundai-universe.md",
+        "bench-mq-249-delta-dmd.md",
+        "bench-mq-250-borsodchem.md",
+        "bench-mq-251-clive-a-smith.md",
+        "bench-mq-252-hyundai-global-900.md",
+        "bench-mq-253-amblin-entertainment.md",
+        "bench-mq-254-natalie-turner.md",
+        "bench-mq-255-central-bus-station-thiruvananthapuram.md",
+        "bench-mq-256-the-home-depot.md",
+        "bench-mq-257-philadelphia.md",
+        "bench-mq-258-toronto-coach-terminal.md",
+        "bench-mq-259-miller-brewing-company.md",
+        "bench-mq-260-bristol-commercial-vehicles.md",
+        "bench-mq-261-volvo-museum.md",
+        "bench-mq-262-ssangnim-dong.md",
+        "bench-mq-263-jose-antunes-sobrinho.md",
+        "bench-mq-264-bussen-trafikkselskap.md",
+        "bench-mq-265-temsa.md",
+        "bench-mq-266-stansted-transit.md",
+        "bench-mq-267-aerotech-consumer-aerospace.md",
+        "bench-mq-268-john-kerry.md",
+        "bench-mq-269-southeast-asia.md",
+        "bench-mq-270-zhejiang.md",
+        "bench-mq-271-jefferson-memorial-forest.md",
+        "bench-mq-272-buddhism-by-country.md",
+        "bench-mq-273-east-lake-oregon.md",
+        "bench-mq-274-amazon-rainforest.md",
+        "bench-mq-275-eswatini.md",
+        "bench-mq-276-pruno-cilento.md",
+        "bench-mq-277-fifa-world-cup.md",
+        "bench-mq-278-africa.md",
+        "bench-mq-279-new-caledonia-rain-forests.md",
+        "bench-mq-280-rajasthan.md",
+        "bench-mq-281-chinhai-spiny-newt.md",
+        "bench-mq-282-history-of-mexico-city.md"
+      ],
+      "questions": [
+        {
+          "id": "mq1",
+          "question": "When did the explorer reach the headquarters location of the group Study in Brown's record label is part of?",
+          "reference": "August 3, 1769",
+          "gold_files": [
+            "bench-mq-004-study-in-brown.md",
+            "bench-mq-009-emarcy-records.md",
+            "bench-mq-010-santa-monica-california.md",
+            "bench-mq-019-the-right-stuff-records.md"
+          ],
+          "answerable": true,
+          "qtype": "multi-hop",
+          "note": "MuSiQue-Ans val (4hop) — 4 supporting paragraph(s): Study in Brown, EmArcy Records, Santa Monica, California, The Right Stuff Records; decomposition: Study in Brown >> record label -> What company is #1 part of? -> #2 >> headquarters location -> What date did the explorer reach #3 ?"
+        },
+        {
+          "id": "mq2",
+          "question": "Who is the spouse of the actor who played hannibal smith in the a team?",
+          "reference": "Sherry Boucher",
+          "gold_files": [
+            "bench-mq-026-five-days-from-home.md",
+            "bench-mq-032-john-hannibal-smith.md"
+          ],
+          "answerable": true,
+          "qtype": "multi-hop",
+          "note": "MuSiQue-Ans val (2hop) — 2 supporting paragraph(s): Five Days from Home, John \"Hannibal\" Smith; decomposition: who played hannibal smith in the a team -> #1 >> spouse"
+        },
+        {
+          "id": "mq3",
+          "question": "Adolf Overweg died in what geological area?",
+          "reference": "Chad Basin",
+          "gold_files": [
+            "bench-mq-041-adolf-overweg.md",
+            "bench-mq-046-ngadda-river.md"
+          ],
+          "answerable": true,
+          "qtype": "multi-hop",
+          "note": "MuSiQue-Ans val (2hop) — 2 supporting paragraph(s): Adolf Overweg, Ngadda River; decomposition: Adolf Overweg >> place of death -> #1 >> located on terrain feature"
+        },
+        {
+          "id": "mq4",
+          "question": "What was the old show that was named after a character that Walt Disney created in 1928 called?",
+          "reference": "The Mickey Mouse Club",
+          "gold_files": [
+            "bench-mq-061-universal-pictures.md",
+            "bench-mq-066-the-mickey-mouse-club.md"
+          ],
+          "answerable": true,
+          "qtype": "multi-hop",
+          "note": "MuSiQue-Ans val (2hop) — 2 supporting paragraph(s): Universal Pictures, The Mickey Mouse Club; decomposition: What character did Walt Disney create in 1928? -> what was the old #1 show called"
+        },
+        {
+          "id": "mq5",
+          "question": "When did the town WLUJ is licensed in become capitol of the state where Brantley York was born?",
+          "reference": "1839",
+          "gold_files": [
+            "bench-mq-079-randolph-county-illinois.md",
+            "bench-mq-081-brantley-york.md",
+            "bench-mq-085-wluj.md",
+            "bench-mq-086-springfield-illinois.md"
+          ],
+          "answerable": true,
+          "qtype": "multi-hop",
+          "note": "MuSiQue-Ans val (4hop) — 4 supporting paragraph(s): Randolph County, Illinois, Brantley York, WLUJ, Springfield, Illinois; decomposition: Brantley York >> place of birth -> #1 >> located in the administrative territorial entity -> What town is WLUJ liscensed in? -> when did #3 become the capital of #2"
+        },
+        {
+          "id": "mq6",
+          "question": "What is the date of birth of the person who was part of Ratata?",
+          "reference": "11 September 1962",
+          "gold_files": [
+            "bench-mq-115-ratata-band.md",
+            "bench-mq-117-mauro-scocco.md"
+          ],
+          "answerable": true,
+          "qtype": "multi-hop",
+          "note": "MuSiQue-Ans val (2hop) — 2 supporting paragraph(s): Ratata (band), Mauro Scocco; decomposition: Ratata >> has part -> What is the date of birth for #1 ?"
+        },
+        {
+          "id": "mq7",
+          "question": "What was the resulting browser of the group that owns Mozilla Messaging?",
+          "reference": "Firefox / Firefox web browser / Mozilla Firefox",
+          "gold_files": [
+            "bench-mq-119-mozilla-messaging.md",
+            "bench-mq-121-web-browser.md"
+          ],
+          "answerable": true,
+          "qtype": "multi-hop",
+          "note": "MuSiQue-Ans val (2hop) — 2 supporting paragraph(s): Mozilla Messaging, Web browser; decomposition: Mozilla Messaging >> owned by -> What was the resulting browser for #1 ?"
+        },
+        {
+          "id": "mq8",
+          "question": "How many times did plague occur in the place of death of the creator of Violante?",
+          "reference": "22",
+          "gold_files": [
+            "bench-mq-133-violante-titian.md",
+            "bench-mq-134-black-death.md",
+            "bench-mq-141-the-martyrdom-of-saint-lawrence-titian.md"
+          ],
+          "answerable": true,
+          "qtype": "multi-hop",
+          "note": "MuSiQue-Ans val (3hop) — 3 supporting paragraph(s): Violante (Titian), Black Death, The Martyrdom of Saint Lawrence (Titian); decomposition: Violante >> creator -> #1 >> place of death -> How many times did plague occur in #2 ?"
+        },
+        {
+          "id": "mq9",
+          "question": "When did the party Alaska generally supports take control of the determiner of rules of the US House and US Senate?",
+          "reference": "January 2015",
+          "gold_files": [
+            "bench-mq-152-alaska.md",
+            "bench-mq-155-2014-united-states-senate-elections.md",
+            "bench-mq-160-standing-rules-of-the-united-states-senate.md"
+          ],
+          "answerable": true,
+          "qtype": "multi-hop",
+          "note": "MuSiQue-Ans val (3hop) — 3 supporting paragraph(s): Alaska, 2014 United States Senate elections, Standing Rules of the United States Senate; decomposition: Which political party does Alaska generally support? -> who determines the rules of the us house and us senate -> when did #1 take control of the #2"
+        },
+        {
+          "id": "mq10",
+          "question": "When was John's eldest son crowned?",
+          "reference": "1216",
+          "gold_files": [
+            "bench-mq-163-john-king-of-england.md",
+            "bench-mq-178-westminster-abbey.md"
+          ],
+          "answerable": true,
+          "qtype": "multi-hop",
+          "note": "MuSiQue-Ans val (2hop) — 2 supporting paragraph(s): John, King of England, Westminster Abbey; decomposition: Who was John's eldest son? -> When was #1 crowned?"
+        },
+        {
+          "id": "mq11",
+          "question": "When did the country with a co-official language used in the film titled after the city that is the final resting place of Tito first attend the Olympics games?",
+          "reference": "2016",
+          "gold_files": [
+            "bench-mq-181-belgrade-film.md",
+            "bench-mq-183-josip-broz-tito.md",
+            "bench-mq-189-serbian-language.md",
+            "bench-mq-193-yugoslavia-at-the-olympics.md"
+          ],
+          "answerable": true,
+          "qtype": "multi-hop",
+          "note": "MuSiQue-Ans val (4hop) — 4 supporting paragraph(s): Belgrade (film), Josip Broz Tito, Serbian language, Yugoslavia at the Olympics; decomposition: Where is the final resting place of Tito? -> #1 >> original language of film or TV show -> #2 is the co-official language of what country? -> When did #3 first attend the Olympics games as an independent team?"
+        },
+        {
+          "id": "mq12",
+          "question": "When was the Palau de la Generalitat built, in the place of death of Martin, of the region where Almudévar was located?",
+          "reference": "built in the 15th century / 15th century",
+          "gold_files": [
+            "bench-mq-204-martin-of-aragon.md",
+            "bench-mq-206-gothic-architecture.md",
+            "bench-mq-209-almudevar.md"
+          ],
+          "answerable": true,
+          "qtype": "multi-hop",
+          "note": "MuSiQue-Ans val (3hop) — 3 supporting paragraph(s): Martin of Aragon, Gothic architecture, Almudévar; decomposition: Almudévar >> located in the administrative territorial entity -> Martin of #1 >> place of death -> When was the Palau de la Generalitat in #2 constructed?"
+        },
+        {
+          "id": "mq13",
+          "question": "How long did the pact last between Kravchuk and the person who signed the decree suspending the Communist Party of the Russian SFSR?",
+          "reference": "10-year",
+          "gold_files": [
+            "bench-mq-226-dissolution-of-the-soviet-union.md",
+            "bench-mq-220-russian-soviet-federative-socialist-republic.md"
+          ],
+          "answerable": true,
+          "qtype": "multi-hop",
+          "note": "MuSiQue-Ans val (2hop) — 2 supporting paragraph(s): Dissolution of the Soviet Union, Russian Soviet Federative Socialist Republic; decomposition: Who signed the decree suspending the Communist Party of the Russian SFSR? -> How long lasting was the pact between Kravchuk and #1 ?"
+        },
+        {
+          "id": "mq14",
+          "question": "Who stars alongside the songwriter of \"No Tears Left to Cry\" in the music video for \"one last time\"?",
+          "reference": "Matt Bennett",
+          "gold_files": [
+            "bench-mq-235-no-tears-left-to-cry.md",
+            "bench-mq-244-one-last-time-ariana-grande-song.md"
+          ],
+          "answerable": true,
+          "qtype": "multi-hop",
+          "note": "MuSiQue-Ans val (2hop) — 2 supporting paragraph(s): No Tears Left to Cry, One Last Time (Ariana Grande song); decomposition: who wrote no more tears left to cry -> #1 one last time guy in video"
+        },
+        {
+          "id": "mq15",
+          "question": "Where do greyhound buses leave from the in the city where the headquarters of the production company which produced A Cosmic Christmas is located?",
+          "reference": "Toronto Coach Terminal",
+          "gold_files": [
+            "bench-mq-251-clive-a-smith.md",
+            "bench-mq-254-natalie-turner.md",
+            "bench-mq-258-toronto-coach-terminal.md"
+          ],
+          "answerable": true,
+          "qtype": "multi-hop",
+          "note": "MuSiQue-Ans val (3hop) — 3 supporting paragraph(s): Clive A. Smith, Natalie Turner, Toronto Coach Terminal; decomposition: A Cosmic Christmas >> production company -> #1 >> headquarters location -> where do greyhound buses leave from in #2"
+        },
+        {
+          "id": "mq16",
+          "question": "Widely practiced in the region having the second largest rain-forest in the world, how long ago did this religion arrive in Zhejiang?",
+          "reference": "1,400 years",
+          "gold_files": [
+            "bench-mq-269-southeast-asia.md",
+            "bench-mq-270-zhejiang.md"
+          ],
+          "answerable": true,
+          "qtype": "multi-hop",
+          "note": "MuSiQue-Ans val (3hop) — 2 supporting paragraph(s): Southeast Asia, Southeast Asia, Zhejiang; decomposition: Which region has the 2nd largest rain-forest in the world? -> Which religion is widely practiced in #1 ? -> How long ago did #2 arrive in Zhejiang?"
         }
       ]
     }
