@@ -21,9 +21,8 @@ import re
 import time
 from typing import Any
 
-from openai import OpenAI
-
 from app.config import Settings
+from app.llm.dashscope import build_llm_client
 
 logger = logging.getLogger("jevrag.bench.judge")
 
@@ -72,11 +71,7 @@ def _parse_json(text: str) -> dict | None:
 class BenchJudge:
     def __init__(self, settings: Settings):
         self.settings = settings
-        self.client = OpenAI(
-            base_url=settings.dashscope_base_url,
-            api_key=settings.dashscope_api_key,
-            timeout=120.0,
-        )
+        self.client = build_llm_client(settings, timeout=120.0)
         self.model = settings.bench_judge_model
 
     # ---------------------------------------------------------------- core call

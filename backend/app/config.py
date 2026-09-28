@@ -29,6 +29,16 @@ class Settings(BaseSettings):
     # --- Cloud LLM (System Two) ---
     dashscope_base_url: str = "https://coding-intl.dashscope.aliyuncs.com/v1"
     dashscope_api_key: str = ""
+    # Optional gateway auth file (JSON: baseUrl/apiKey/token, z-ai-web-dev-sdk
+    # style, e.g. /etc/.z-ai-config). When set and readable it OVERRIDES
+    # dashscope_base_url/dashscope_api_key and injects the X-Token / X-Z-AI-From
+    # headers such gateways require. Lets the pipeline run against any
+    # OpenAI-compatible gateway whose credentials live in a file (auto-tracks
+    # token rotation) instead of plaintext .env values.
+    dashscope_auth_config: str = ""
+    # Optional extra headers as a JSON object string (escape hatch for gateways
+    # with ad-hoc header requirements; ignored when dashscope_auth_config is set).
+    dashscope_extra_headers: str = ""
     llm_model_default: str = "qwen3.7-plus"          # the single generator (v2 design)
     # v1 legacy: hybrid used to route hard questions to the reasoning model. The v2
     # pipeline runs ONE generator and spends the saved decision on effort routing /

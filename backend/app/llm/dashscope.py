@@ -6,8 +6,10 @@ Model roles (verified via llm-stats + Alibaba docs, 2026-09-27):
 """
 from __future__ import annotations
 
+import json
 import logging
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, Iterator
 
 from openai import BadRequestError, OpenAI
@@ -15,6 +17,63 @@ from openai import BadRequestError, OpenAI
 from app.config import LLM_PRICES_PER_MTOK, DEFAULT_PRICE, Settings
 
 logger = logging.getLogger("jevrag.dashscope")
+
+
+def _load_gateway_auth(settings: Settings) -> tuple[str, str, dict[str, str]] | None:
+    """Read the optional gateway auth file (z-ai-web-dev-sdk JSON contract:
+    baseUrl / apiKey / token). Returns (base_url, api_key, extra_headers) or
+    None when unset/unreadable — callers then fall back to env-based config."""
+    path = (settings.dashscope_auth_config or "").strip()
+    if not path:
+        return None
+    try:
+        cfg = json.loads(Path(path).expanduser().read_text())
+        base = str(cfg.get("baseUrl") or cfg.get("base_url") or "")
+        key = str(cfg.get("apiKey") or cfg.get("api_key") or "")
+    except (OSError, ValueError) as e:
+        logger.warning("dashscope auth config unreadable (%s): %s", path, e)
+        return None
+    if not base or not key:
+        logger.warning("dashscope auth config missing baseUrl/apiKey: %s", path)
+        return None
+    headers = {"X-Z-AI-From": "Z"}
+    if cfg.get("token"):
+        headers["X-Token"] = str(cfg["token"])
+    logger.info("using gateway auth config %s (extra headers: %s)",
+                path, sorted(k for k in headers))
+    return base, key, headers
+
+
+def build_llm_client(settings: Settings, *, timeout: float = 180.0,
+                     max_retries: int = 6) -> OpenAI:
+    """Construct the OpenAI-compatible client for both generator and judge.
+
+    Precedence: (1) settings.dashscope_auth_config file — overrides base URL /
+    API key and injects gateway headers (X-Token / X-Z-AI-From); (2) plain
+    dashscope_base_url + dashscope_api_key, plus optional JSON extra headers.
+    Retries (default 6, exponential backoff) absorb transient 429s from shared
+    gateways that omit Retry-After headers.
+    """
+    base_url = settings.dashscope_base_url
+    api_key = settings.dashscope_api_key or "missing"
+    default_headers: dict[str, str] | None = None
+
+    gw = _load_gateway_auth(settings)
+    if gw is not None:
+        base_url, api_key, default_headers = gw
+    elif settings.dashscope_extra_headers.strip():
+        try:
+            default_headers = json.loads(settings.dashscope_extra_headers)
+        except ValueError as e:
+            logger.warning("dashscope_extra_headers is not valid JSON: %s", e)
+
+    return OpenAI(
+        base_url=base_url,
+        api_key=api_key,
+        timeout=timeout,
+        max_retries=max_retries,
+        default_headers=default_headers,
+    )
 
 
 @dataclass
@@ -36,11 +95,7 @@ def estimate_cost_usd(model: str, prompt_tokens: int, completion_tokens: int) ->
 class DashscopeLLM:
     def __init__(self, settings: Settings):
         self.settings = settings
-        self.client = OpenAI(
-            base_url=settings.dashscope_base_url,
-            api_key=settings.dashscope_api_key,
-            timeout=180.0,
-        )
+        self.client = build_llm_client(settings)
 
     def stream_answer(
         self,
@@ -166,9 +221,24 @@ class DashscopeLLM:
         return text, usage
 
     def health(self) -> dict[str, Any]:
+        base_url = str(getattr(self.client, "base_url", ""))
         try:
             models = [m.id for m in self.client.models.list().data]
-            return {"ok": True, "models": models, "base_url": self.settings.dashscope_base_url}
-        except Exception as e:  # noqa: BLE001 — health check must never raise
-            logger.error("dashscope health check failed: %s", e)
-            return {"ok": False, "error": str(e), "base_url": self.settings.dashscope_base_url}
+            return {"ok": True, "models": models, "base_url": base_url}
+        except Exception as model_err:  # noqa: BLE001 — fall through to chat probe
+            # Many OpenAI-compatible gateways do not implement GET /models;
+            # probe with a trivial chat completion instead so health reflects
+            # what the pipeline actually needs (generation, not catalog).
+            logger.info("/models unavailable (%s) — health via chat probe", model_err)
+            try:
+                resp = self.client.chat.completions.create(
+                    model=self.settings.llm_model_default,
+                    messages=[{"role": "user", "content": "ping"}],
+                    max_tokens=5,
+                )
+                served = getattr(resp, "model", None) or self.settings.llm_model_default
+                return {"ok": True, "models": [served], "base_url": base_url,
+                        "note": "/models unavailable; verified via chat probe"}
+            except Exception as e:  # noqa: BLE001 — health check must never raise
+                logger.error("dashscope health check failed: %s", e)
+                return {"ok": False, "error": str(e), "base_url": base_url}
