@@ -1,2 +1,13 @@
 skills/
 node_modules/
+
+# --- local state & secrets (Jev-RAG) ---
+backend/.env
+backend/data/
+models/
+vendor/
+logs/
+db/
+.next/
+dev.log
+tool-results/

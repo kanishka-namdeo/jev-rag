@@ -92,7 +92,7 @@ def test_brier():
 
 # ================================================================ scenarios
 def test_scenario_integrity():
-    from app.bench.scenarios import SCENARIOS, doc_path
+    from app.bench.scenarios import INTERNAL_SCENARIOS, PUBLIC_SCENARIOS, SCENARIOS, doc_path
 
     ids = set()
     for s in SCENARIOS:
@@ -100,10 +100,14 @@ def test_scenario_integrity():
         ids.add(s.id)
         assert s.questions, f"scenario {s.id} has no questions"
         assert len(s.docs) >= 3
+        # internal corpora are hand-authored (dense, >500B); public benchmark
+        # corpora contain verbatim Wikipedia articles — legitimate short stubs —
+        # so they only get a near-empty floor.
+        min_bytes = 500 if s in INTERNAL_SCENARIOS else 80
         for doc in s.docs:
             p = doc_path(s.id, doc)
             assert p.exists(), f"missing corpus file {p}"
-            assert p.stat().st_size > 500, f"corpus file too small: {p}"
+            assert p.stat().st_size > min_bytes, f"corpus file too small: {p}"
         qids = set()
         for q in s.questions:
             assert q.id not in qids
@@ -119,11 +123,16 @@ def test_scenario_integrity():
 
 
 def test_scenario_coverage():
-    from app.bench.scenarios import SCENARIOS
+    from app.bench.scenarios import INTERNAL_SCENARIOS, PUBLIC_SCENARIOS, SCENARIOS
 
-    assert len(SCENARIOS) == 6
+    # internal suite is fixed at 6; public benchmarks (when the manifest was built)
+    # append on top — assert both facts explicitly so regressions in either stand out.
+    assert len(INTERNAL_SCENARIOS) == 6
+    assert len(SCENARIOS) == 6 + len(PUBLIC_SCENARIOS)
     total = sum(len(s.questions) for s in SCENARIOS)
-    assert total == 48
+    internal_total = sum(len(s.questions) for s in INTERNAL_SCENARIOS)
+    assert internal_total == 48
+    assert total == 48 + sum(len(s.questions) for s in PUBLIC_SCENARIOS)
     oos = next(s for s in SCENARIOS if s.id == "outofscope")
     assert oos.question_count(False) == 5 and oos.question_count(True) == 3
     multi = next(s for s in SCENARIOS if s.id == "multilingual")
@@ -242,7 +251,11 @@ def test_bench_scenarios_route():
         resp = client.get("/api/bench/scenarios")
         assert resp.status_code == 200
         body = resp.json()
-        assert len(body["scenarios"]) == 6
+        # internal suite is always present; public benchmarks appear when the
+        # manifest was built in this checkout.
+        from app.bench.scenarios import INTERNAL_SCENARIOS, PUBLIC_SCENARIOS
+        assert len(body["scenarios"]) == len(INTERNAL_SCENARIOS) + len(PUBLIC_SCENARIOS)
+        assert {s["id"] for s in body["scenarios"]} >= {s.id for s in INTERNAL_SCENARIOS}
         for s in body["scenarios"]:
             for key in ("id", "name", "category", "doc_count", "question_count",
                         "answerable", "unanswerable"):

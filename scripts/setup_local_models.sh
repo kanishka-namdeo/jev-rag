@@ -30,8 +30,8 @@ if ! command -v g++ >/dev/null 2>&1; then
 fi
 # Bootstrap cmake via pip if absent (lands in /home/z/.venv/bin)
 if ! command -v cmake >/dev/null 2>&1; then
-  log "cmake missing — installing via pip"
-  pip3 install -q cmake ninja && export PATH="/home/z/.venv/bin:$PATH" || log "WARN: pip cmake install failed"
+  log "cmake missing — installing via pip (tencent mirror: pypi.org egress flaky from this sandbox)"
+  pip3 install -q --index-url https://mirrors.cloud.tencent.com/pypi/simple/ cmake ninja && export PATH="/home/z/.venv/bin:$PATH" || log "WARN: pip cmake install failed"
   log "cmake after pip: $(command -v cmake || echo STILL-MISSING)"
 fi
 
@@ -62,15 +62,16 @@ else
 fi
 
 log "=== Phase 3b: patch runtime for reduced llama.cpp context (sandbox memory) ==="
-# The stock runtime hardcodes a 32k llama.cpp context (~900MB KV cache on CPU) which
-# the 4GB sandbox OOM-kills. Our patch makes the context env-tunable via
-# JEV_SCORE_N_CTX (the backend sets 8192 via JEVRAG_JEV_SCORE_N_CTX); input limits
-# scale down so over-budget requests still get the clean 422 budget rejection.
+# Jev-RAG fix: run the patch blocks against an absolute path — this script cd's into
+# $MODELS_DIR for the download/build phases, which broke the original root-relative
+# Path("models/jev-style/...") lookups on fresh setups (patches silently never applied).
+export JEV_PATCH_TARGET="$MODELS_DIR/jev_style_decision_gguf.py"
 python3 - <<'PYEOF'
 import re
 from pathlib import Path
+import os
 
-rt = Path("models/jev-style/jev_style_decision_gguf.py")
+rt = Path(os.environ["JEV_PATCH_TARGET"])
 src = rt.read_text()
 if "Jev-RAG patch" in src:
     print("runtime already patched; skipping")
@@ -114,8 +115,9 @@ log "=== Phase 3c: patch runtime for trimmed sequence/output buffers (sandbox me
 # JEV_SCORE_N_SEQ_MAX / JEV_SCORE_N_OUTPUTS_MAX via JEVRAG_JEV_SCORE_* settings.
 python3 - <<'PYEOF'
 from pathlib import Path
+import os
 
-rt = Path("models/jev-style/jev_style_decision_gguf.py")
+rt = Path(os.environ["JEV_PATCH_TARGET"])
 src = rt.read_text()
 if "JEV_SCORE_N_SEQ_MAX" in src:
     print("runtime already has allocation-trim patch; skipping")

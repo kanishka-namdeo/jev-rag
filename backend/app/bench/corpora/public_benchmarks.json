@@ -1,0 +1,900 @@
+{
+  "generated": "2026-09-28",
+  "provenance": {
+    "squad": {
+      "dataset": "SQuAD v1.1 dev",
+      "url": "https://rajpurkar.github.io/SQuAD-explorer/dataset/dev-v1.1.json",
+      "split_size": 10570,
+      "sample": {
+        "n": 25,
+        "seed": 42,
+        "strategy": "1 question per distinct article"
+      }
+    },
+    "hotpotqa": {
+      "dataset": "HotpotQA dev distractor",
+      "url": "https://huggingface.co/datasets/hotpotqa/hotpot_qa (distractor/validation parquet); original: http://curtis.ml.cmu.edu/datasets/hotpot/",
+      "split_size": 7405,
+      "sample": {
+        "n": 25,
+        "seed": 42,
+        "strategy": "stratified by type: 18 bridge / 7 comparison (dev split is 100% level=hard)",
+        "supporting_facts_verified_in_context": true
+      }
+    }
+  },
+  "scenarios": [
+    {
+      "id": "squad",
+      "name": "SQuAD v1.1 (dev sample)",
+      "category": "Single-hop factoid QA (public benchmark)",
+      "description": "25 seeded-sample questions from the SQuAD v1.1 dev split, one per distinct Wikipedia article. Corpus = the full articles of the sampled questions.",
+      "stresses": "Open-domain-style single-hop retrieval over real Wikipedia prose — the canonical public reference point (Rajpurkar et al. 2016).",
+      "docs": [
+        "bench-squad-01-construction.md",
+        "bench-squad-02-victoria-and-albert-museum.md",
+        "bench-squad-03-american-broadcasting-company.md",
+        "bench-squad-04-huguenot.md",
+        "bench-squad-05-geology.md",
+        "bench-squad-06-victoria-australia.md",
+        "bench-squad-07-private-school.md",
+        "bench-squad-08-chloroplast.md",
+        "bench-squad-09-oxygen.md",
+        "bench-squad-10-nikola-tesla.md",
+        "bench-squad-11-university-of-chicago.md",
+        "bench-squad-12-computational-complexity-theory.md",
+        "bench-squad-13-islamism.md",
+        "bench-squad-14-pharmacy.md",
+        "bench-squad-15-steam-engine.md",
+        "bench-squad-16-economic-inequality.md",
+        "bench-squad-17-civil-disobedience.md",
+        "bench-squad-18-rhine.md",
+        "bench-squad-19-fresno-california.md",
+        "bench-squad-20-harvard-university.md",
+        "bench-squad-21-french-and-indian-war.md",
+        "bench-squad-22-jacksonville-florida.md",
+        "bench-squad-23-yuan-dynasty.md",
+        "bench-squad-24-genghis-khan.md",
+        "bench-squad-25-black-death.md"
+      ],
+      "questions": [
+        {
+          "id": "sq1",
+          "question": "The largest construction projects are known as what?",
+          "reference": "megaprojects",
+          "gold_files": [
+            "bench-squad-01-construction.md"
+          ],
+          "answerable": true,
+          "qtype": "lookup",
+          "note": "SQuAD dev article 'Construction' (gold answer in paragraph 2)"
+        },
+        {
+          "id": "sq2",
+          "question": "How many years does the V&A glass collection cover?",
+          "reference": "4000 / 4000 years",
+          "gold_files": [
+            "bench-squad-02-victoria-and-albert-museum.md"
+          ],
+          "answerable": true,
+          "qtype": "lookup",
+          "note": "SQuAD dev article 'Victoria and Albert Museum' (gold answer in paragraph 35)"
+        },
+        {
+          "id": "sq3",
+          "question": "Who was the President of ABC television in 1976?",
+          "reference": "Fred Pierce",
+          "gold_files": [
+            "bench-squad-03-american-broadcasting-company.md"
+          ],
+          "answerable": true,
+          "qtype": "lookup",
+          "note": "SQuAD dev article 'American Broadcasting Company' (gold answer in paragraph 49)"
+        },
+        {
+          "id": "sq4",
+          "question": "When did this leader publish a French language Bible?",
+          "reference": "1530 / 1523",
+          "gold_files": [
+            "bench-squad-04-huguenot.md"
+          ],
+          "answerable": true,
+          "qtype": "lookup",
+          "note": "SQuAD dev article 'Huguenot' (gold answer in paragraph 36)"
+        },
+        {
+          "id": "sq5",
+          "question": "What types of scientists looks for signs of magnetic reversals in igneous rocks within the drill cores?",
+          "reference": "Magnetic stratigraphers",
+          "gold_files": [
+            "bench-squad-05-geology.md"
+          ],
+          "answerable": true,
+          "qtype": "lookup",
+          "note": "SQuAD dev article 'Geology' (gold answer in paragraph 21)"
+        },
+        {
+          "id": "sq6",
+          "question": "How many dairy cows are there in Australia?",
+          "reference": "3 million",
+          "gold_files": [
+            "bench-squad-06-victoria-australia.md"
+          ],
+          "answerable": true,
+          "qtype": "lookup",
+          "note": "SQuAD dev article 'Victoria (Australia)' (gold answer in paragraph 19)"
+        },
+        {
+          "id": "sq7",
+          "question": "What court case desegregated schools in the United States?",
+          "reference": "Brown v. Board of Education of Topeka",
+          "gold_files": [
+            "bench-squad-07-private-school.md"
+          ],
+          "answerable": true,
+          "qtype": "lookup",
+          "note": "SQuAD dev article 'Private school' (gold answer in paragraph 23)"
+        },
+        {
+          "id": "sq8",
+          "question": "What nationality was Konstantin Mereschkowski?",
+          "reference": "Russian",
+          "gold_files": [
+            "bench-squad-08-chloroplast.md"
+          ],
+          "answerable": true,
+          "qtype": "lookup",
+          "note": "SQuAD dev article 'Chloroplast' (gold answer in paragraph 3)"
+        },
+        {
+          "id": "sq9",
+          "question": "Where does oxygen rank by mass in the planet's biosphere?",
+          "reference": "most abundant / most",
+          "gold_files": [
+            "bench-squad-09-oxygen.md"
+          ],
+          "answerable": true,
+          "qtype": "lookup",
+          "note": "SQuAD dev article 'Oxygen' (gold answer in paragraph 19)"
+        },
+        {
+          "id": "sq10",
+          "question": "What took place in his lab in 1895, causing him to lose thousands of dollars of data and tools?",
+          "reference": "5th Avenue laboratory fire of March 1895 / fire",
+          "gold_files": [
+            "bench-squad-10-nikola-tesla.md"
+          ],
+          "answerable": true,
+          "qtype": "lookup",
+          "note": "SQuAD dev article 'Nikola Tesla' (gold answer in paragraph 30)"
+        },
+        {
+          "id": "sq11",
+          "question": "How many vice presidents are on the Student Board?",
+          "reference": "two",
+          "gold_files": [
+            "bench-squad-11-university-of-chicago.md"
+          ],
+          "answerable": true,
+          "qtype": "lookup",
+          "note": "SQuAD dev article 'University of Chicago' (gold answer in paragraph 25)"
+        },
+        {
+          "id": "sq12",
+          "question": "According to reduction, if X and Y can be solved by the same algorithm then X performs what function in relationship to Y?",
+          "reference": "reduces / X reduces to Y",
+          "gold_files": [
+            "bench-squad-12-computational-complexity-theory.md"
+          ],
+          "answerable": true,
+          "qtype": "lookup",
+          "note": "SQuAD dev article 'Computational complexity theory' (gold answer in paragraph 30)"
+        },
+        {
+          "id": "sq13",
+          "question": "When Iqbal promoted ideas of greater Islamic political unity, what did he encourage ending?",
+          "reference": "nationalist differences",
+          "gold_files": [
+            "bench-squad-13-islamism.md"
+          ],
+          "answerable": true,
+          "qtype": "lookup",
+          "note": "SQuAD dev article 'Islamism' (gold answer in paragraph 11)"
+        },
+        {
+          "id": "sq14",
+          "question": "What is involved in a review of prescribed medications?",
+          "reference": "an evaluation of the appropriateness of the drug therapy / evaluation of the appropriateness of the drug therapy",
+          "gold_files": [
+            "bench-squad-14-pharmacy.md"
+          ],
+          "answerable": true,
+          "qtype": "lookup",
+          "note": "SQuAD dev article 'Pharmacy' (gold answer in paragraph 12)"
+        },
+        {
+          "id": "sq15",
+          "question": "What components raise steam temperature above its saturated vapor point?",
+          "reference": "superheaters",
+          "gold_files": [
+            "bench-squad-15-steam-engine.md"
+          ],
+          "answerable": true,
+          "qtype": "lookup",
+          "note": "SQuAD dev article 'Steam engine' (gold answer in paragraph 43)"
+        },
+        {
+          "id": "sq16",
+          "question": "What happens when a person's capabilities aer lowered, as it relates to their income?",
+          "reference": "deprived of earning as much / deprived of earning as much income / deprived of earning as much income as they would otherwise",
+          "gold_files": [
+            "bench-squad-16-economic-inequality.md"
+          ],
+          "answerable": true,
+          "qtype": "lookup",
+          "note": "SQuAD dev article 'Economic inequality' (gold answer in paragraph 44)"
+        },
+        {
+          "id": "sq17",
+          "question": "Going to jail accomplished what goal of civil disobedience?",
+          "reference": "reminding their countrymen of injustice",
+          "gold_files": [
+            "bench-squad-17-civil-disobedience.md"
+          ],
+          "answerable": true,
+          "qtype": "lookup",
+          "note": "SQuAD dev article 'Civil disobedience' (gold answer in paragraph 20)"
+        },
+        {
+          "id": "sq18",
+          "question": "What do the Waal and the Nederrijn-Lek discharge throguh?",
+          "reference": "Meuse estuary",
+          "gold_files": [
+            "bench-squad-18-rhine.md"
+          ],
+          "answerable": true,
+          "qtype": "lookup",
+          "note": "SQuAD dev article 'Rhine' (gold answer in paragraph 35)"
+        },
+        {
+          "id": "sq19",
+          "question": "Which is one of the park features located in North Fresno?",
+          "reference": "Shinzen Japanese Gardens",
+          "gold_files": [
+            "bench-squad-19-fresno-california.md"
+          ],
+          "answerable": true,
+          "qtype": "lookup",
+          "note": "SQuAD dev article 'Fresno, California' (gold answer in paragraph 6)"
+        },
+        {
+          "id": "sq20",
+          "question": "What are some proposals to connect campuses?",
+          "reference": "new and enlarged bridges, a shuttle service and/or a tram. / new and enlarged bridges, a shuttle service and/or a tram",
+          "gold_files": [
+            "bench-squad-20-harvard-university.md"
+          ],
+          "answerable": true,
+          "qtype": "lookup",
+          "note": "SQuAD dev article 'Harvard University' (gold answer in paragraph 13)"
+        },
+        {
+          "id": "sq21",
+          "question": "What was the significance of victory at Forth Niagara for British?",
+          "reference": "cut off the French frontier forts further to the west and south / successfully cut off the French frontier forts further to the west and south / cut off the French frontier forts / successfully cut off the French frontier forts",
+          "gold_files": [
+            "bench-squad-21-french-and-indian-war.md"
+          ],
+          "answerable": true,
+          "qtype": "lookup",
+          "note": "SQuAD dev article 'French and Indian War' (gold answer in paragraph 41)"
+        },
+        {
+          "id": "sq22",
+          "question": "What drove residents to quieter suburban housing?",
+          "reference": "highways / construction of highways / The construction of highways",
+          "gold_files": [
+            "bench-squad-22-jacksonville-florida.md"
+          ],
+          "answerable": true,
+          "qtype": "lookup",
+          "note": "SQuAD dev article 'Jacksonville, Florida' (gold answer in paragraph 11)"
+        },
+        {
+          "id": "sq23",
+          "question": "When was Dali conquered by the Yuan?",
+          "reference": "1253",
+          "gold_files": [
+            "bench-squad-23-yuan-dynasty.md"
+          ],
+          "answerable": true,
+          "qtype": "lookup",
+          "note": "SQuAD dev article 'Yuan dynasty' (gold answer in paragraph 15)"
+        },
+        {
+          "id": "sq24",
+          "question": "Which Mongol conqueror was most celebrated by the Mughal emperors?",
+          "reference": "Timur",
+          "gold_files": [
+            "bench-squad-24-genghis-khan.md"
+          ],
+          "answerable": true,
+          "qtype": "lookup",
+          "note": "SQuAD dev article 'Genghis Khan' (gold answer in paragraph 52)"
+        },
+        {
+          "id": "sq25",
+          "question": "What is thought to have happened to the y. pestis that caused the black death?",
+          "reference": "may no longer exist",
+          "gold_files": [
+            "bench-squad-25-black-death.md"
+          ],
+          "answerable": true,
+          "qtype": "lookup",
+          "note": "SQuAD dev article 'Black Death' (gold answer in paragraph 13)"
+        }
+      ]
+    },
+    {
+      "id": "hotpotqa",
+      "name": "HotpotQA (dev distractor sample)",
+      "category": "Multi-hop factoid QA (public benchmark)",
+      "description": "25 seeded-sample questions from the HotpotQA dev distractor split (18 bridge / 7 comparison; all dev items are level=hard). Corpus = union of every question's 10-paragraph context (gold + distractors), deduplicated by title.",
+      "stresses": "Multi-hop evidence gathering amid hard distractors — the canonical public multi-hop reference (Yang et al. 2018).",
+      "docs": [
+        "bench-hotpot-001-bleschames.md",
+        "bench-hotpot-002-ostrogothic-ravenna.md",
+        "bench-hotpot-003-gothic-war-535554.md",
+        "bench-hotpot-004-council-of-orange-529.md",
+        "bench-hotpot-005-elemund.md",
+        "bench-hotpot-006-ostrogothic-kingdom.md",
+        "bench-hotpot-007-ostrogothic-papacy.md",
+        "bench-hotpot-008-ravenna.md",
+        "bench-hotpot-009-ornella-fiorentini.md",
+        "bench-hotpot-010-list-of-frankish-synods.md",
+        "bench-hotpot-011-bishop-s-house-birmingham.md",
+        "bench-hotpot-012-chelmsford-cathedral.md",
+        "bench-hotpot-013-dean-of-chelmsford.md",
+        "bench-hotpot-014-michael-yorke.md",
+        "bench-hotpot-015-godwin-birchenough.md",
+        "bench-hotpot-016-st-chad-s-college-durham.md",
+        "bench-hotpot-017-st-philip-s-cathedral-birmingham.md",
+        "bench-hotpot-018-dick-herrick.md",
+        "bench-hotpot-019-ellis-gowing.md",
+        "bench-hotpot-020-st-chad-s-cathedral-birmingham.md",
+        "bench-hotpot-021-readings-by-jack-kerouac-on-the-beat-generation.md",
+        "bench-hotpot-022-when-i-was-cool.md",
+        "bench-hotpot-023-the-town-and-the-city.md",
+        "bench-hotpot-024-big-sur-novel.md",
+        "bench-hotpot-025-old-angel-midnight.md",
+        "bench-hotpot-026-jack-kerouac.md",
+        "bench-hotpot-027-visions-of-gerard.md",
+        "bench-hotpot-028-off-the-road.md",
+        "bench-hotpot-029-jack-kerouac-reads-on-the-road.md",
+        "bench-hotpot-030-alexandra-david-neel.md",
+        "bench-hotpot-031-reek-sunday.md",
+        "bench-hotpot-032-kristian-birkeland.md",
+        "bench-hotpot-033-wesley-silcox.md",
+        "bench-hotpot-034-robert-k-yin.md",
+        "bench-hotpot-035-rumford-medal.md",
+        "bench-hotpot-036-simon-poelman.md",
+        "bench-hotpot-037-celina-seghi.md",
+        "bench-hotpot-038-dysosmia.md",
+        "bench-hotpot-039-substorm.md",
+        "bench-hotpot-040-bifurcation-theory.md",
+        "bench-hotpot-041-the-fairies.md",
+        "bench-hotpot-042-monster-force.md",
+        "bench-hotpot-043-magna-home-entertainment.md",
+        "bench-hotpot-044-sterling-entertainment-group.md",
+        "bench-hotpot-045-tottoi.md",
+        "bench-hotpot-046-noel-c-bloom.md",
+        "bench-hotpot-047-celebrity-home-entertainment.md",
+        "bench-hotpot-048-bravestarr.md",
+        "bench-hotpot-049-cops-animated-tv-series.md",
+        "bench-hotpot-050-locke-the-superman.md",
+        "bench-hotpot-051-lulu-belle-madison-white.md",
+        "bench-hotpot-052-daisy-elizabeth-adams-lampkin.md",
+        "bench-hotpot-053-james-weldon-johnson.md",
+        "bench-hotpot-054-w-e-b-du-bois.md",
+        "bench-hotpot-055-ernest-mcbride-sr.md",
+        "bench-hotpot-056-hubert-thomas-delany.md",
+        "bench-hotpot-057-charles-evers.md",
+        "bench-hotpot-058-terry-francois.md",
+        "bench-hotpot-059-grace-nail-johnson.md",
+        "bench-hotpot-060-clement-g-morgan.md",
+        "bench-hotpot-061-list-of-near-parabolic-comets.md",
+        "bench-hotpot-062-kuiper-belt.md",
+        "bench-hotpot-063-jumping-jupiter-scenario.md",
+        "bench-hotpot-064-pioneer-4.md",
+        "bench-hotpot-065-nice-model.md",
+        "bench-hotpot-066-solar-system.md",
+        "bench-hotpot-067-list-of-natural-satellites.md",
+        "bench-hotpot-068-five-planet-nice-model.md",
+        "bench-hotpot-069-heliocentric-orbit.md",
+        "bench-hotpot-070-list-of-hyperbolic-comets.md",
+        "bench-hotpot-071-baby-looney-tunes-eggs-traordinary-adventure.md",
+        "bench-hotpot-072-dancing-in-the-dark-rihanna-song.md",
+        "bench-hotpot-073-the-true-meaning-of-smekday.md",
+        "bench-hotpot-074-crackers-2011-film.md",
+        "bench-hotpot-075-saint-seiya-legend-of-sanctuary.md",
+        "bench-hotpot-076-ravi-jadhav.md",
+        "bench-hotpot-077-home-soundtrack.md",
+        "bench-hotpot-078-home-adventures-with-tip-amp-oh.md",
+        "bench-hotpot-079-orlaith.md",
+        "bench-hotpot-080-home-2015-film.md",
+        "bench-hotpot-081-america-s-incredible-pizza-company.md",
+        "bench-hotpot-082-js-food-plan.md",
+        "bench-hotpot-083-domino-s-pizza-enterprises.md",
+        "bench-hotpot-084-pictou-county-pizza.md",
+        "bench-hotpot-085-john-s-incredible-pizza-company.md",
+        "bench-hotpot-086-topper-s-pizza.md",
+        "bench-hotpot-087-toppers-pizza-american-restaurant.md",
+        "bench-hotpot-088-yellow-cab-pizza.md",
+        "bench-hotpot-089-papa-murphy-s.md",
+        "bench-hotpot-090-mr-jim-s-pizza.md",
+        "bench-hotpot-091-alan-faneca.md",
+        "bench-hotpot-092-2009-new-york-jets-season.md",
+        "bench-hotpot-093-super-bowl-xxxvii.md",
+        "bench-hotpot-094-super-bowl-xlviii.md",
+        "bench-hotpot-095-2007-new-york-giants-season.md",
+        "bench-hotpot-096-super-bowl-xl.md",
+        "bench-hotpot-097-super-bowl-xxvii.md",
+        "bench-hotpot-098-super-bowl-xxviii.md",
+        "bench-hotpot-099-super-bowl-xviii.md",
+        "bench-hotpot-100-jerry-markbreit.md",
+        "bench-hotpot-101-naranjo-de-bulnes.md",
+        "bench-hotpot-102-picos-de-europa-national-park.md",
+        "bench-hotpot-103-tobes.md",
+        "bench-hotpot-104-cunaba.md",
+        "bench-hotpot-105-lake-ercina.md",
+        "bench-hotpot-106-lakes-of-covadonga.md",
+        "bench-hotpot-107-oceno.md",
+        "bench-hotpot-108-trescares.md",
+        "bench-hotpot-109-timanfaya-national-park.md",
+        "bench-hotpot-110-lake-enol.md",
+        "bench-hotpot-111-williams-park.md",
+        "bench-hotpot-112-homestead-extension-of-florida-s-turnpike.md",
+        "bench-hotpot-113-florida-state-road-997.md",
+        "bench-hotpot-114-st-petersburg-florida.md",
+        "bench-hotpot-115-florida-city-florida.md",
+        "bench-hotpot-116-conch-republic.md",
+        "bench-hotpot-117-florida-state-road-9336.md",
+        "bench-hotpot-118-john-constantine-williams-sr.md",
+        "bench-hotpot-119-florida-state-road-366.md",
+        "bench-hotpot-120-florida-s-turnpike.md",
+        "bench-hotpot-121-shudder-to-think.md",
+        "bench-hotpot-122-craig-wedren.md",
+        "bench-hotpot-123-pacifico-band.md",
+        "bench-hotpot-124-fair-band.md",
+        "bench-hotpot-125-list-of-christian-punk-bands.md",
+        "bench-hotpot-126-the-poor-old-lady-la-pobre-viejecita.md",
+        "bench-hotpot-127-90s-on-9.md",
+        "bench-hotpot-128-rose-blossom-punch.md",
+        "bench-hotpot-129-only-a-poor-old-man.md",
+        "bench-hotpot-130-poor-old-lu.md",
+        "bench-hotpot-131-2010-america-east-men-s-lacrosse-tournament.md",
+        "bench-hotpot-132-2014-america-east-men-s-lacrosse-tournament.md",
+        "bench-hotpot-133-2009-america-east-men-s-lacrosse-tournament.md",
+        "bench-hotpot-134-2015-big-east-men-s-lacrosse-tournament.md",
+        "bench-hotpot-135-kenneth-p-lavalle-stadium.md",
+        "bench-hotpot-136-2013-america-east-men-s-lacrosse-tournament.md",
+        "bench-hotpot-137-2015-america-east-men-s-lacrosse-tournament.md",
+        "bench-hotpot-138-2015-big-ten-conference-men-s-lacrosse-tournamen.md",
+        "bench-hotpot-139-2012-america-east-men-s-lacrosse-tournament.md",
+        "bench-hotpot-140-2011-america-east-men-s-lacrosse-tournament.md",
+        "bench-hotpot-141-759th-military-police-battalion.md",
+        "bench-hotpot-142-95th-military-police-battalion.md",
+        "bench-hotpot-143-49th-military-police-brigade-united-states.md",
+        "bench-hotpot-144-8th-military-police-brigade-united-states.md",
+        "bench-hotpot-145-schofield-barracks.md",
+        "bench-hotpot-146-18th-military-police-brigade-united-states.md",
+        "bench-hotpot-147-14th-military-police-brigade.md",
+        "bench-hotpot-148-16th-military-police-brigade-united-states.md",
+        "bench-hotpot-149-720th-military-police-battalion.md",
+        "bench-hotpot-150-709th-military-police-battalion.md",
+        "bench-hotpot-151-boeing-field.md",
+        "bench-hotpot-152-sam-chu-lin.md",
+        "bench-hotpot-153-burbankbob-hope-airport-station.md",
+        "bench-hotpot-154-bob-hope-school.md",
+        "bench-hotpot-155-bob-hope-patriotic-hall.md",
+        "bench-hotpot-156-downtown-burbank-station.md",
+        "bench-hotpot-157-judith-richards-hope.md",
+        "bench-hotpot-158-jetblue-flight-292.md",
+        "bench-hotpot-159-boeing-plant-2.md",
+        "bench-hotpot-160-bob-hope-airport.md",
+        "bench-hotpot-161-p-g-von-donop.md",
+        "bench-hotpot-162-hans-carl-von-carlowitz.md",
+        "bench-hotpot-163-carl-heinrich-von-siemens.md",
+        "bench-hotpot-164-hessian-soldier.md",
+        "bench-hotpot-165-university-of-oldenburg.md",
+        "bench-hotpot-166-battle-of-iron-works-hill.md",
+        "bench-hotpot-167-stanley-brenton-von-donop.md",
+        "bench-hotpot-168-carl-von-effner.md",
+        "bench-hotpot-169-carl-von-donop.md",
+        "bench-hotpot-170-hathayim-marine-provincial-park.md",
+        "bench-hotpot-171-springdale-mall.md",
+        "bench-hotpot-172-the-oaks-thousand-oaks-california.md",
+        "bench-hotpot-173-ballston-common-mall.md",
+        "bench-hotpot-174-springfield-town-center.md",
+        "bench-hotpot-175-northland-mall.md",
+        "bench-hotpot-176-del-monte-center.md",
+        "bench-hotpot-177-park-city-center.md",
+        "bench-hotpot-178-bulgaria-mall.md",
+        "bench-hotpot-179-westland-mall-columbus.md",
+        "bench-hotpot-180-bay-plaza-shopping-center.md",
+        "bench-hotpot-181-brand-new-love-affair-song.md",
+        "bench-hotpot-182-chicago-13.md",
+        "bench-hotpot-183-free-chicago-song.md",
+        "bench-hotpot-184-terry-kath.md",
+        "bench-hotpot-185-25-or-6-to-4.md",
+        "bench-hotpot-186-hot-streets.md",
+        "bench-hotpot-187-david-draiman.md",
+        "bench-hotpot-188-device-metal-band.md",
+        "bench-hotpot-189-prayer-song.md",
+        "bench-hotpot-190-wishing-you-were-here.md",
+        "bench-hotpot-191-treeing-walker-coonhound.md",
+        "bench-hotpot-192-american-foxhound.md",
+        "bench-hotpot-193-list-of-foxhound-packs-of-the-united-kingdom.md",
+        "bench-hotpot-194-english-foxhound.md",
+        "bench-hotpot-195-dumfriesshire-hound.md",
+        "bench-hotpot-196-foxhound.md",
+        "bench-hotpot-197-lowchen.md",
+        "bench-hotpot-198-black-and-tan-virginia-foxhound.md",
+        "bench-hotpot-199-trigg-hound.md",
+        "bench-hotpot-200-international-foxhound-association.md",
+        "bench-hotpot-201-salt-lake-city-intermodal-hub.md",
+        "bench-hotpot-202-murder-on-the-blackpool-express.md",
+        "bench-hotpot-203-famous-tv-series.md",
+        "bench-hotpot-204-sian-gibson.md",
+        "bench-hotpot-205-velo-v.md",
+        "bench-hotpot-206-cradle-to-grave.md",
+        "bench-hotpot-207-beyond-blunderdome.md",
+        "bench-hotpot-208-trollied.md",
+        "bench-hotpot-209-uhaul-car-share.md",
+        "bench-hotpot-210-peter-kay-s-car-share.md",
+        "bench-hotpot-211-pedro-fernandez-de-velasco-2nd-count-of-haro.md",
+        "bench-hotpot-212-lope-diaz-ii-de-haro.md",
+        "bench-hotpot-213-teresa-diaz-ii-de-haro.md",
+        "bench-hotpot-214-christopher-de-haro.md",
+        "bench-hotpot-215-maximilianus-transylvanus.md",
+        "bench-hotpot-216-luis-mendez-de-haro.md",
+        "bench-hotpot-217-victoria-ship.md",
+        "bench-hotpot-218-ferdinand-magellan.md",
+        "bench-hotpot-219-lope-diaz-de-haro-d-1322.md",
+        "bench-hotpot-220-maria-diaz-i-de-haro.md",
+        "bench-hotpot-221-buffalo-bulls-men-s-basketball.md",
+        "bench-hotpot-222-colorado-rockies.md",
+        "bench-hotpot-223-jack-charlton.md",
+        "bench-hotpot-224-jung-yul-kim.md",
+        "bench-hotpot-225-kim-su-hyeon.md",
+        "bench-hotpot-226-2008-canadian-soccer-league-season.md",
+        "bench-hotpot-227-roy-pritchard.md",
+        "bench-hotpot-228-list-of-lost-cast-members.md",
+        "bench-hotpot-229-195152-in-belgian-football.md",
+        "bench-hotpot-230-sun-woo-kim.md",
+        "bench-hotpot-231-quince-orchard-high-school.md",
+        "bench-hotpot-232-james-munyala.md",
+        "bench-hotpot-233-cross-country-running.md",
+        "bench-hotpot-234-great-edinburgh-international-cross-country.md",
+        "bench-hotpot-235-godfrey-siamusiye.md",
+        "bench-hotpot-236-craig-virgin.md",
+        "bench-hotpot-237-lukas-verzbicas.md",
+        "bench-hotpot-238-metro-buckeye-conference.md",
+        "bench-hotpot-239-tim-broe.md",
+        "bench-hotpot-240-2012-african-cross-country-championships.md",
+        "bench-hotpot-241-same-sex-marriage-in-the-united-states.md",
+        "bench-hotpot-242-gin-chow.md",
+        "bench-hotpot-243-grant-commercial-historic-district-grant-iowa.md",
+        "bench-hotpot-244-human-trafficking-in-taiwan.md",
+        "bench-hotpot-245-sea-turtle-migration.md",
+        "bench-hotpot-246-market-share-liability.md",
+        "bench-hotpot-247-capron-v-van-noorden.md",
+        "bench-hotpot-248-barnes-v-yahoo-inc.md",
+        "bench-hotpot-249-lujan-v-g-amp-g-fire-sprinklers-inc.md",
+        "bench-hotpot-250-edith-windsor.md"
+      ],
+      "questions": [
+        {
+          "id": "hp1",
+          "question": "What city was the capital of the Ostrogothic Kingdom and the birth place of Ornella Fiorentini?",
+          "reference": "Ravenna (] , also locally ] ; Romagnol: \"Ravèna\" ) is the capital city of the Province of Ravenna",
+          "gold_files": [
+            "bench-hotpot-009-ornella-fiorentini.md",
+            "bench-hotpot-008-ravenna.md"
+          ],
+          "answerable": true,
+          "qtype": "multi-hop",
+          "note": "HotpotQA dev distractor (bridge, hard) — gold titles: Ornella Fiorentini, Ravenna, Ravenna"
+        },
+        {
+          "id": "hp2",
+          "question": "Which became a Cathedral first St Chad's Cathedral, Birmingham or Chelmsford Cathedral?",
+          "reference": "Metropolitan Cathedral Church and Basilica of Saint Chad",
+          "gold_files": [
+            "bench-hotpot-020-st-chad-s-cathedral-birmingham.md",
+            "bench-hotpot-012-chelmsford-cathedral.md"
+          ],
+          "answerable": true,
+          "qtype": "multi-hop",
+          "note": "HotpotQA dev distractor (comparison, hard) — gold titles: St Chad's Cathedral, Birmingham, St Chad's Cathedral, Birmingham, Chelmsford Cathedral, Chelmsford Cathedral"
+        },
+        {
+          "id": "hp3",
+          "question": "What type of profession does Alexandra David-Néel and Jack Kerouac have in common?",
+          "reference": "writer",
+          "gold_files": [
+            "bench-hotpot-030-alexandra-david-neel.md",
+            "bench-hotpot-026-jack-kerouac.md"
+          ],
+          "answerable": true,
+          "qtype": "multi-hop",
+          "note": "HotpotQA dev distractor (bridge, hard) — gold titles: Alexandra David-Néel, Jack Kerouac"
+        },
+        {
+          "id": "hp4",
+          "question": "Substorm was described in qualitative terms by a scientist nominated for what seven times?",
+          "reference": "Nobel Prize",
+          "gold_files": [
+            "bench-hotpot-039-substorm.md",
+            "bench-hotpot-032-kristian-birkeland.md"
+          ],
+          "answerable": true,
+          "qtype": "multi-hop",
+          "note": "HotpotQA dev distractor (bridge, hard) — gold titles: Substorm, Kristian Birkeland"
+        },
+        {
+          "id": "hp5",
+          "question": "Which American Space Western animated series did Celebrity Home Entertainment released",
+          "reference": "BraveStarr",
+          "gold_files": [
+            "bench-hotpot-047-celebrity-home-entertainment.md",
+            "bench-hotpot-048-bravestarr.md"
+          ],
+          "answerable": true,
+          "qtype": "multi-hop",
+          "note": "HotpotQA dev distractor (bridge, hard) — gold titles: Celebrity Home Entertainment, BraveStarr"
+        },
+        {
+          "id": "hp6",
+          "question": "What is the name of the American author, songwriter, educator, lawyer, diplomat, civil rights activist and husband to Grace Nail Johnson who was the first African American executive secretary of the National Association for the Advancement of Colored People (NAACP)?",
+          "reference": "James Weldon Johnson",
+          "gold_files": [
+            "bench-hotpot-059-grace-nail-johnson.md",
+            "bench-hotpot-053-james-weldon-johnson.md"
+          ],
+          "answerable": true,
+          "qtype": "multi-hop",
+          "note": "HotpotQA dev distractor (bridge, hard) — gold titles: Grace Nail Johnson, James Weldon Johnson, James Weldon Johnson, James Weldon Johnson"
+        },
+        {
+          "id": "hp7",
+          "question": "What did Pioneer 4 fly by before inserting into the type orbit that planets of the Solar System are in around the sun?",
+          "reference": "Moon's surface",
+          "gold_files": [
+            "bench-hotpot-064-pioneer-4.md",
+            "bench-hotpot-069-heliocentric-orbit.md"
+          ],
+          "answerable": true,
+          "qtype": "multi-hop",
+          "note": "HotpotQA dev distractor (bridge, hard) — gold titles: Pioneer 4, Pioneer 4, Heliocentric orbit"
+        },
+        {
+          "id": "hp8",
+          "question": "In regards to the 2015 animation film based on The True Meaning of Smekday, who produced a song that was sung by a Barbadian?",
+          "reference": "Stargate",
+          "gold_files": [
+            "bench-hotpot-072-dancing-in-the-dark-rihanna-song.md",
+            "bench-hotpot-077-home-soundtrack.md"
+          ],
+          "answerable": true,
+          "qtype": "multi-hop",
+          "note": "HotpotQA dev distractor (bridge, hard) — gold titles: Dancing in the Dark (Rihanna song), Dancing in the Dark (Rihanna song), Home (soundtrack)"
+        },
+        {
+          "id": "hp9",
+          "question": "Which pizza shop opened first, Toppers Pizza or America's Incredible Pizza Company?",
+          "reference": "Toppers Pizza",
+          "gold_files": [
+            "bench-hotpot-081-america-s-incredible-pizza-company.md",
+            "bench-hotpot-087-toppers-pizza-american-restaurant.md"
+          ],
+          "answerable": true,
+          "qtype": "multi-hop",
+          "note": "HotpotQA dev distractor (comparison, hard) — gold titles: America's Incredible Pizza Company, America's Incredible Pizza Company, Toppers Pizza (American restaurant), Toppers Pizza (American restaurant)"
+        },
+        {
+          "id": "hp10",
+          "question": "Where was the Super Bowl, that Alan Faneca won, played ?",
+          "reference": "Ford Field in Detroit",
+          "gold_files": [
+            "bench-hotpot-091-alan-faneca.md",
+            "bench-hotpot-096-super-bowl-xl.md"
+          ],
+          "answerable": true,
+          "qtype": "multi-hop",
+          "note": "HotpotQA dev distractor (bridge, hard) — gold titles: Alan Faneca, Super Bowl XL"
+        },
+        {
+          "id": "hp11",
+          "question": "Which park is further south within Spain, Picos de Europa National Park or Timanfaya National Park?",
+          "reference": "Timanfaya National Park",
+          "gold_files": [
+            "bench-hotpot-102-picos-de-europa-national-park.md",
+            "bench-hotpot-109-timanfaya-national-park.md"
+          ],
+          "answerable": true,
+          "qtype": "multi-hop",
+          "note": "HotpotQA dev distractor (comparison, hard) — gold titles: Picos de Europa National Park, Timanfaya National Park"
+        },
+        {
+          "id": "hp12",
+          "question": "John Constantine Williams, Sr was cofounder of a Florida city located in what county?",
+          "reference": "Pinellas County",
+          "gold_files": [
+            "bench-hotpot-118-john-constantine-williams-sr.md",
+            "bench-hotpot-114-st-petersburg-florida.md"
+          ],
+          "answerable": true,
+          "qtype": "multi-hop",
+          "note": "HotpotQA dev distractor (bridge, hard) — gold titles: John Constantine Williams Sr., St. Petersburg, Florida"
+        },
+        {
+          "id": "hp13",
+          "question": "Which of the following bands is considered \"one of the most accomplished and creative Christian bands of the '90s\": Poor Old Lu or Shudder to Think?",
+          "reference": "Poor Old Lu",
+          "gold_files": [
+            "bench-hotpot-130-poor-old-lu.md",
+            "bench-hotpot-121-shudder-to-think.md"
+          ],
+          "answerable": true,
+          "qtype": "multi-hop",
+          "note": "HotpotQA dev distractor (comparison, hard) — gold titles: Poor Old Lu, Poor Old Lu, Shudder to Think"
+        },
+        {
+          "id": "hp14",
+          "question": "In what year did construction begin on the stadium where the 2013 America East Men's Lacrosse Tournament was held?",
+          "reference": "in 2000",
+          "gold_files": [
+            "bench-hotpot-136-2013-america-east-men-s-lacrosse-tournament.md",
+            "bench-hotpot-135-kenneth-p-lavalle-stadium.md"
+          ],
+          "answerable": true,
+          "qtype": "multi-hop",
+          "note": "HotpotQA dev distractor (bridge, hard) — gold titles: 2013 America East Men's Lacrosse Tournament, Kenneth P. LaValle Stadium"
+        },
+        {
+          "id": "hp15",
+          "question": "In which county does the  8th Military Police Brigade  of the United States Army's Barracks located?",
+          "reference": "Honolulu",
+          "gold_files": [
+            "bench-hotpot-144-8th-military-police-brigade-united-states.md",
+            "bench-hotpot-145-schofield-barracks.md"
+          ],
+          "answerable": true,
+          "qtype": "multi-hop",
+          "note": "HotpotQA dev distractor (bridge, hard) — gold titles: 8th Military Police Brigade (United States), Schofield Barracks"
+        },
+        {
+          "id": "hp16",
+          "question": "What type of community does Bob Hope Airport and Boeing Field have in common?",
+          "reference": "public",
+          "gold_files": [
+            "bench-hotpot-160-bob-hope-airport.md",
+            "bench-hotpot-151-boeing-field.md"
+          ],
+          "answerable": true,
+          "qtype": "multi-hop",
+          "note": "HotpotQA dev distractor (comparison, hard) — gold titles: Bob Hope Airport, Boeing Field"
+        },
+        {
+          "id": "hp17",
+          "question": "Carl von Donop was a colonel of which German auxiliaries?",
+          "reference": "Hessians",
+          "gold_files": [
+            "bench-hotpot-169-carl-von-donop.md",
+            "bench-hotpot-164-hessian-soldier.md"
+          ],
+          "answerable": true,
+          "qtype": "multi-hop",
+          "note": "HotpotQA dev distractor (bridge, hard) — gold titles: Carl von Donop, Hessian (soldier)"
+        },
+        {
+          "id": "hp18",
+          "question": "Northland Mall was the first directionally-named shopping center in Columbus, 5 years before which shopping center at the intersection of US-40 and I-270?",
+          "reference": "Westland Mall",
+          "gold_files": [
+            "bench-hotpot-175-northland-mall.md",
+            "bench-hotpot-179-westland-mall-columbus.md"
+          ],
+          "answerable": true,
+          "qtype": "multi-hop",
+          "note": "HotpotQA dev distractor (bridge, hard) — gold titles: Northland Mall, Northland Mall, Westland Mall (Columbus)"
+        },
+        {
+          "id": "hp19",
+          "question": "Who was born first David Draiman or Terry Kath?",
+          "reference": "David Michael Draiman",
+          "gold_files": [
+            "bench-hotpot-187-david-draiman.md",
+            "bench-hotpot-184-terry-kath.md"
+          ],
+          "answerable": true,
+          "qtype": "multi-hop",
+          "note": "HotpotQA dev distractor (comparison, hard) — gold titles: David Draiman, Terry Kath"
+        },
+        {
+          "id": "hp20",
+          "question": "Are both American Foxhound and Löwchen types of Foxhounds?",
+          "reference": "no",
+          "gold_files": [
+            "bench-hotpot-192-american-foxhound.md",
+            "bench-hotpot-197-lowchen.md"
+          ],
+          "answerable": true,
+          "qtype": "multi-hop",
+          "note": "HotpotQA dev distractor (comparison, hard) — gold titles: American Foxhound, Löwchen"
+        },
+        {
+          "id": "hp21",
+          "question": "Sian Gibson co-wrote which British sitcom, set around a supermarket and car share scheme?",
+          "reference": "Peter Kay's Car Share",
+          "gold_files": [
+            "bench-hotpot-204-sian-gibson.md",
+            "bench-hotpot-210-peter-kay-s-car-share.md"
+          ],
+          "answerable": true,
+          "qtype": "multi-hop",
+          "note": "HotpotQA dev distractor (bridge, hard) — gold titles: Sian Gibson, Peter Kay's Car Share"
+        },
+        {
+          "id": "hp22",
+          "question": "Christopher de Haro provided the financial backing to what Portuguese explorer who organised the Spanish expedition to the East Indies from 1519 to 1522?",
+          "reference": "Ferdinand Magellan",
+          "gold_files": [
+            "bench-hotpot-214-christopher-de-haro.md",
+            "bench-hotpot-218-ferdinand-magellan.md"
+          ],
+          "answerable": true,
+          "qtype": "multi-hop",
+          "note": "HotpotQA dev distractor (bridge, hard) — gold titles: Christopher de Haro, Ferdinand Magellan"
+        },
+        {
+          "id": "hp23",
+          "question": "Which of the teams that Sun-woo Kim played on never won a division title?",
+          "reference": "Colorado Rockies",
+          "gold_files": [
+            "bench-hotpot-230-sun-woo-kim.md",
+            "bench-hotpot-222-colorado-rockies.md"
+          ],
+          "answerable": true,
+          "qtype": "multi-hop",
+          "note": "HotpotQA dev distractor (bridge, hard) — gold titles: Sun-woo Kim, Colorado Rockies"
+        },
+        {
+          "id": "hp24",
+          "question": "Where was one of the runners born who almost broke Craig Virgin's Illinois Boys Cross Country record?",
+          "reference": "Kaunas, Lithuania",
+          "gold_files": [
+            "bench-hotpot-236-craig-virgin.md",
+            "bench-hotpot-237-lukas-verzbicas.md"
+          ],
+          "answerable": true,
+          "qtype": "multi-hop",
+          "note": "HotpotQA dev distractor (bridge, hard) — gold titles: Craig Virgin, Lukas Verzbicas"
+        },
+        {
+          "id": "hp25",
+          "question": "Which areas of the United States were still able to deny sames sex marriages after the case in which Edith \"Edie\" Windsor was the main plaintiff?",
+          "reference": "American Samoa, but not on all Native American tribal lands",
+          "gold_files": [
+            "bench-hotpot-250-edith-windsor.md",
+            "bench-hotpot-241-same-sex-marriage-in-the-united-states.md"
+          ],
+          "answerable": true,
+          "qtype": "multi-hop",
+          "note": "HotpotQA dev distractor (bridge, hard) — gold titles: Edith Windsor, Same-sex marriage in the United States"
+        }
+      ]
+    }
+  ]
+}
