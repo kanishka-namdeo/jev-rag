@@ -39,16 +39,17 @@ Everything except the cloud LLM endpoint runs **locally**: embeddings (ONNX CPU)
 
 ## What was achieved
 
-> **v2 update (2026-09-28) — full re-run complete, and it changed the conclusion.** The v2
-> pipeline (effort routing, passage screening battery, corrective retry, best-of-2 selection,
-> citation-level verification — [docs/jev-improvements-research.md](docs/jev-improvements-research.md))
-> was benchmarked on the same 48 questions and **lost to the traditional pipeline: 62.5% vs
-> 83.3% correctness (Wilcoxon p = 0.033, pairwise 4W/24L/20T)**. The regression is attributed
-> mechanistically to the new screening battery's false positives (prompt-injection scores of
-> 0.91–0.98 on ordinary prose dropping gold passages; over-abstention 39.5%). The v1 numbers
-> below are retained because v1 remains the better hybrid configuration on this evidence —
-> the battery ships disabled by default (`JEVRAG_HYBRID_PASSAGE_BATTERY=true` to re-enable).
-> Full analysis: [docs/benchmark-results.md](docs/benchmark-results.md).
+> **Current state (2026-09-28) — three evidence updates, one headline each.**
+> (1) The v2 pipeline initially **lost** to traditional on the internal suite (62.5% vs 83.3%);
+> the regression was attributed to the passage battery's miscalibrated absolute thresholds,
+> which now ship OFF by default. (2) With the battery off, v2 **recovered v1-level numbers**:
+> hybrid 92.7% vs traditional 87.5% within-run (+5.2pp, n.s.), over-abstention back to 4.7%,
+> zero fabrications ([docs/benchmark-results.md](docs/benchmark-results.md)). (3) On **popular
+> public benchmarks** (SQuAD v1.1 + HotpotQA dev-distractor, 50 seeded questions, same audited
+> protocol) the split result bounds the claim: **HotpotQA +18pp (66→84%)**, **SQuAD −12pp
+> (82→70%)**, pooled +3pp n.s. — a multi-hop/distractor specialist whose sufficiency gate
+> needs per-corpus re-calibration for single-hop corpora
+> ([docs/benchmark-public.md](docs/benchmark-public.md)).
 
 The two systems were benchmarked head-to-head on **6 document scenarios × 48 ground-truth
 questions**, both arms under a matched context budget (top-4), scored by an **independent LLM
@@ -83,6 +84,26 @@ position-swapped pairwise verdicts, 8/8 canary self-test).
   report both directions with the same yardstick.
 - Everything is reproducible from the UI: open the **Benchmarks** tab, pick scenarios, run.
   A full run is ~40–100 min on 2 cores for a few cents of endpoint spend.
+
+**Popular public benchmarks** (run `4dc6c46e`, same judge and two-arm protocol, 25 questions
+per dataset, seed-42 samples; full detail in
+[docs/benchmark-public.md](docs/benchmark-public.md)):
+
+| Public benchmark (25 Q each) | Traditional | Hybrid (Jev) | Δ |
+| --- | --- | --- | --- |
+| **HotpotQA dev-distractor (multi-hop)** | 66% | **84%** | **+18pp** |
+| — recall@4 over gold+distractor contexts | 72% | **88%** | +16pp |
+| — pairwise (judge, both orders) | — | **64%** (10W/12T/3L) | — |
+| **SQuAD v1.1 dev (single-hop)** | **82%** | 70% | **−12pp** |
+| — sufficiency-gate false-negative abstentions | — | 2 clear losses (sq5, sq12) | — |
+| Pooled (50 Q) | 74% | 77% | +3pp (n.s.) |
+
+Reading: the hybrid's multi-step retrieval, Jev rerank and corrective retry earn their
+3.3× latency exactly on multi-hop distractor-heavy QA (all five large wins are traditional
+over-abstentions the retry loop recovered); on a clean single-hop corpus the retrieval is
+already saturated and the 0.8B sufficiency gate's absolute threshold converts answerable
+jargon-dense passages into abstentions. The gate (72% accuracy, Brier 0.22 on public data
+vs 82–92% on the internal suite) is the identified re-calibration target.
 
 ## The app
 

@@ -1,0 +1,80 @@
+# Jev-RAG Worklog
+
+Single shared work log for all agents working on this repo. Append-only; each
+section starts with `---`. Newest at top.
+
+---
+Task ID: 10
+Agent: main (Super Z)
+Task: run popular public RAG benchmarks on this setup and compare; update docs
+(user-provided DashScope endpoint: coding-intl.dashscope.aliyuncs.com/v1 with
+qwen3.7-plus / qwen3.6-plus / kimi-k2.5)
+
+Work Log:
+- Probed sandbox after reset: tools alive; git history intact (milestone
+  78ab6ea battery-off ablation already committed); worklog/venv/models/data/.env wiped
+- Restored backend/.env with user's endpoint + v2 shipped defaults (battery OFF,
+  no_retrieval >= 0.9); absolute paths (backend cwd resolution bug: .env.example
+  had repo-relative paths that resolve wrong from backend/)
+- Rebuilt environment: venv via Tencent PyPI mirror (pypi.org egress 503/timeout
+  from sandbox; aliyun mirror stale, tuna 403s wheels — tencent serves both);
+  GGUF + llama.cpp + jev-score rebuilt (HF CDN 4.3MB/s)
+- FIXED setup_local_models.sh CWD bug: patch heredocs used root-relative
+  Path() while script cwd=$MODELS_DIR -> patches silently never applied on
+  fresh setups; now JEV_PATCH_TARGET absolute env var (applied + verified:
+  JEV_SCORE_N_CTX + N_SEQ_MAX/N_OUTPUTS_MAX live in runtime)
+- Verified all three models live on the endpoint (probe_public_gateway.sh:
+  qwen3.7-plus, qwen3.6-plus, kimi-k2.5 + json_object response format OK)
+- Built public benchmark scenarios (backend/scripts/build_public_scenarios.py):
+  SQuAD v1.1 dev (25 Q, 1/article, seed 42, full-article corpus, 817KB) +
+  HotpotQA dev-distractor (25 Q: 18 bridge/7 comparison — dev is 100% level=hard;
+  corpus = union of 10-para contexts dedup by title, 250 docs 146KB; gold = 2
+  supporting titles verified in-context; dedup'd gold lists after finding dupes)
+- scenarios.py: INTERNAL_SCENARIOS + manifest-driven PUBLIC_SCENARIOS loader
+  (provenance baked in); tests updated (35 pass); .gitignore hardened
+  (backend/.env, backend/data/, models/, vendor/, logs/, .next/)
+- Commit c69d8cd pushed: public benchmark integration milestone
+- DISCOVERED sandbox reaper: controller (/app main.py, root) kills ANY
+  tool-call-spawned user process seconds after the call ends (verified with
+  disowned/setsid/pty test processes — all dead <100s); only the root-booted
+  service tree survives. next-server (killed for RAM earlier) was the only
+  surviving user process; ensure-backend route (children of next-server
+  persist) unreachable without it. No watchdog revival; controller API on
+  :12600 exposes only /ping
+- SOLUTION: backend/scripts/bench_resume.py — resumable driver around the
+  AUDITED BenchRunner internals (same _run_question code path: both arms,
+  independent judge, pairwise; same config snapshot; per-question atomic
+  commit; ingestion reuse when docs present). 2-question smoke passed
+- Executed run 4dc6c46e as 10 chained ~8.5-min tool-call windows: 50/50
+  questions, 0 errors, 94.5 min total, RAM stable (~600MB used + jev-score)
+- Analysis (scripts/analyze_bench_run.py + scripts/diagnose_public_bench.py):
+  overall hybrid 77% vs trad 74% (+3pp, McNemar p=1.0, Wilcoxon p=0.426,
+  CI [-8,+14]pp; pairwise 13W/8L/29T 55%, pos-consistency 86%)
+- Exported results (backend/scripts/export_bench_results.py) -> restored
+  benchmark-results.md (export overwrote it — restored from git, new section
+  added), docs/benchmark-public.md (full detail + stats + taxonomy), README
+  refreshed (stale v1-primary blockquote -> current 3-evidence summary +
+  public table), CHANGELOG entry added
+
+Stage Summary:
+- RUN 4dc6c46e COMPLETE: HotpotQA +18pp (66->84, recall@4 +16pp, 64% pairwise,
+  all large wins = trad over-abstentions recovered by retry); SQuAD -12pp
+  (82->70; gate false-negatives sq5 P=0.02/sq12 P=0.19 with gold top-ranked
+  both arms; +2 judge-boundary generation losses); pooled +3pp n.s.; hybrid
+  p50 64s vs 19s, cost LOWER ($0.074 vs $0.089, more concise answers);
+  gate on public data 72% acc/Brier 0.22 vs 82-92% internal — third
+  independent confirmation of the relative-vs-absolute threshold lesson
+- Docs updated: benchmark-results.md (4 runs + verdict extension),
+  benchmark-public.md (new), README, CHANGELOG; committing with this push
+- Ops knowledge: reaper-proof pattern = bench_resume.py chained windows;
+  PyPI via Tencent mirror; HF/GitHub fine
+
+---
+Task ID: 1-9 (pre-reset history, reconstructed from git + docs)
+Agent: prior sessions
+Task: hybrid RAG system, v1/v2 pipelines, benchmark harness, bias audit,
+OOM resilience, v1 run 9d894b6c (+8.4pp), v2 battery-on run 0314ac0a
+(-20.8pp, Wilcoxon p=0.033), battery-off recovery run bf05f585 (+5.2pp n.s.)
+Stage Summary:
+- All documented in docs/benchmark-results.md, docs/benchmark-v2-ablation.md,
+  CHANGELOG.md, git log (ab7daae..78ab6ea)

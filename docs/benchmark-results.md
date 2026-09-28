@@ -1,8 +1,19 @@
 # Benchmark Results — Traditional vs Hybrid (Jev) RAG
 
-Three full runs are documented here:
+Four full runs are documented here — three on the internal 6-scenario suite, one
+on popular public benchmarks:
 
-- **Run `bf05f585` — hybrid v2, battery OFF (current default, primary result)**:
+- **Run `4dc6c46e` — public benchmarks: SQuAD v1.1 + HotpotQA dev-distractor
+  (public-data result)**: 50 questions sampled seed-42 from the canonical public
+  datasets (SQuAD dev, 1 per article; HotpotQA dev distractor, 18 bridge / 7
+  comparison, all level=hard), run through the same audited two-arm protocol.
+  Within-run: **hybrid 77% vs traditional 74% (+3pp, n.s.)**, pairwise 13W/8L/29T
+  (55%) — but the split is the story: **HotpotQA +18pp (66→84%)**, **SQuAD
+  −12pp (82→70%)**. The hybrid wins multi-hop distractor-heavy QA (recall@4
+  +16pp, retry recovers traditional over-abstentions) and loses single-hop via
+  sufficiency-gate false-negative abstentions. Full detail in
+  [`benchmark-public.md`](benchmark-public.md).
+- **Run `bf05f585` — hybrid v2, battery OFF (internal suite; current default, primary internal result)**:
   the seven-slot single-generator pipeline with the per-passage screening battery
   disabled (`JEVRAG_HYBRID_PASSAGE_BATTERY=false`) and `jev_no_retrieval_threshold`
   raised to 0.9 — the shipped, evidence-based defaults. Within-run: **hybrid 92.7%
@@ -16,9 +27,11 @@ Three full runs are documented here:
   rerank, sufficiency gate, answer verification). Hybrid 93.8% vs traditional 85.4%
   (+8.3pp, McNemar p=0.125 — positive trend, underpowered).
 
-All three runs: 48 questions × 2 arms, 6 scenarios, judge kimi-k2.5
+All internal-suite runs: 48 questions × 2 arms, 6 scenarios, judge kimi-k2.5
 (self-test 8/8), generator qwen3.7-plus on the same DashScope endpoint —
-cross-run numbers still carry environment variance (see *Confounds*).
+cross-run numbers still carry environment variance (see *Confounds*). The
+public-benchmark run uses the same protocol and judge (see
+[`benchmark-public.md`](benchmark-public.md)).
 
 ## Verdict (stated plainly)
 
@@ -37,6 +50,15 @@ the same pipeline with one miscalibrated slot lost by 20.8pp. The lesson both
 runs teach together: relative signals (rerank-as-ranker) work with the 0.8B
 stand-in; absolute-threshold gates need per-corpus calibration before they
 ship.
+
+**The public-benchmark run (`4dc6c46e`) generalizes that lesson to canonical
+public data — and bounds it.** On HotpotQA's multi-hop distractor setting the
+hybrid wins big (+18pp, recall@4 +16pp, 64% pairwise); on SQuAD's single-hop
+setting the sufficiency gate abstains on answerable jargon-dense Wikipedia
+passages and the hybrid loses 12pp. Pooled +3pp, n.s. — the hybrid is a
+multi-hop/distractor specialist, not a universal upgrade, and the gate's
+absolute threshold is the first thing to re-calibrate before any single-hop
+deployment.
 
 ## Run `bf05f585` configuration (battery-off ablation)
 

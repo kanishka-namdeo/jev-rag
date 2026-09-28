@@ -4,6 +4,40 @@ Milestone history for Jev-RAG. Each entry links to the commit that delivered it.
 Dates are YYYY-MM-DD (commit date). Format is loosely inspired by
 [Keep a Changelog](https://keepachangelog.com/), grouped by project phase.
 
+## 2026-09-28 — Popular public RAG benchmarks: SQuAD + HotpotQA (split result)
+
+Run `4dc6c46e`: 50 seeded questions (25 SQuAD v1.1 dev — one per article;
+25 HotpotQA dev-distractor — 18 bridge / 7 comparison, all level=hard) through
+the same audited two-arm protocol, judge kimi-k2.5 (self-test 8/8) on the
+user-provided DashScope endpoint (qwen3.7-plus generator, qwen3.6-plus
+best-of-2 candidate, kimi-k2.5 judge — all three verified live):
+
+- **HotpotQA (multi-hop): hybrid 84% vs traditional 66% (+18pp)**, recall@4
+  +16pp (72→88%), pairwise 10W/3L/12T (64%). All five large wins are
+  traditional over-abstentions the corrective-retry loop recovered.
+- **SQuAD (single-hop): hybrid 70% vs traditional 82% (−12pp)** — retrieval
+  saturated for both arms (92% hit@4); the sufficiency gate's absolute
+  threshold abstained on answerable jargon-dense passages (sq5: P=0.02,
+  sq12: P=0.19 with the gold article top-ranked in both arms).
+- **Pooled: +3pp (77% vs 74%), n.s.** (McNemar p=1.0, Wilcoxon p=0.426,
+  bootstrap CI [−8, +14]pp); pairwise 13W/8L/29T (55%). Hybrid p50 64s vs 19s;
+  hybrid cost slightly LOWER ($0.074 vs $0.089 — more concise answers).
+- **Gate calibration on public data: 72% accuracy, Brier 0.22** (internal
+  suite: 82–92%, Brier 0.08–0.16) — the third independent confirmation that
+  the 0.8B decision model works as a relative signal (rerank/retry) and
+  miscalibrates as an absolute gate.
+- **Harness**: `backend/scripts/build_public_scenarios.py` (seed-42,
+  provenance-in-manifest corpus builder), manifest-driven `PUBLIC_SCENARIOS`
+  loader in the scenario registry, updated integrity/coverage tests.
+- **Infrastructure (sandbox reset recovery)**: rebuilt venv via Tencent PyPI
+  mirror (pypi.org egress flaky), re-downloaded + re-patched the Jev runtime
+  (fixed a CWD bug in `setup_local_models.sh` that silently skipped the
+  memory patches on fresh setups), and added
+  `backend/scripts/bench_resume.py` — a resumable per-question-checkpointed
+  driver around the audited runner that survives the sandbox's tool-call
+  process reaper (the 94-minute run was executed as 10 chained 8.5-minute
+  windows with zero lost questions).
+
 ## 2026-09-28 — Battery-off full ablation: v2 recovers v1-level numbers; gateway-auth tooling
 
 The full 6-scenario battery-off ablation (run `bf05f585`, 48Q × 2 arms, judge

@@ -11,3 +11,4 @@ db/
 .next/
 dev.log
 tool-results/
+.zscripts/
