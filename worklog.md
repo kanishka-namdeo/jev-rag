@@ -129,7 +129,8 @@ Work Log:
 - scenarios.py: INTERNAL_SCENARIOS + manifest-driven PUBLIC_SCENARIOS loader
   (provenance baked in); tests updated (35 pass); .gitignore hardened
   (backend/.env, backend/data/, models/, vendor/, logs/, .next/)
-- Commit c69d8cd pushed: public benchmark integration milestone
+- Commit 42e2c7f (was c69d8cd before the 2026-09-29 history scrub) pushed:
+  public benchmark integration milestone
 - DISCOVERED sandbox reaper: controller (/app main.py, root) kills ANY
   tool-call-spawned user process seconds after the call ends (verified with
   disowned/setsid/pty test processes — all dead <100s); only the root-booted
@@ -174,3 +175,32 @@ OOM resilience, v1 run 9d894b6c (+8.4pp), v2 battery-on run 0314ac0a
 Stage Summary:
 - All documented in docs/benchmark-results.md, docs/benchmark-v2-ablation.md,
   CHANGELOG.md, git log (ab7daae..78ab6ea)
+
+---
+Task ID: 10 — history scrub (secrets removal)
+Agent: Super Z (main agent)
+Task: "scrub history to remove the key or something similar" — remove the
+leaked DashScope API key (and any similar secrets) from git history, then
+push the cleaned history to the repo.
+Work Log:
+- Full-history sweep of all 23 commits: the real key lived ONLY in
+  scripts/probe_public_gateway.sh (introduced c69d8cd, scrubbed from HEAD
+  in fb63b82 but still present in pushed blobs); GitHub PAT never entered
+  history; remaining sk-* hits were Tailwind/CSS artifacts inside .next
+  build cache (false positives)
+- Also found ~255-265 .next/dev cache files (binary turbopack SST blobs,
+  machine-specific paths) committed across 6 commits — purged in same pass
+- git-filter-repo --replace-text (key -> REDACTED-DASHSCOPE-KEY) +
+  --path .next --invert-paths: 8 commits rehashed, 78ab6ea and older stable
+- Verified: git log -S / git grep across all revs -> zero hits; .next gone
+  from every commit; HEAD tree byte-identical (943 files); worktree clean
+- Repointed stale commit refs in README.md changelog + this worklog
+- Force-pushed rewritten main to origin
+Stage Summary:
+- History is secret-clean and pushed; MBs of .next SST junk removed
+- Hash map (old -> new): ba18ab2>a4b2542, c69d8cd>42e2c7f, 48b8b31>bb7a8b4,
+  3856726>9d829a6, fcbf003>89f9d1b, c2a1034>f1acea8, fb63b82>aab887a,
+  881882e>24c8116 (78ab6ea and earlier unchanged)
+- ACTION STILL REQUIRED (user): rotate the DashScope key (it lived in
+  pushed history and in chat); consider rotating the GitHub PAT too. Old
+  commit objects may remain reachable on GitHub via direct SHA until GC

@@ -276,9 +276,10 @@ AGENTS.md         DOX framework — binding rules for any AI agent working here
 | 2026-09-28 | [`a1f0461`](https://github.com/kanishka-namdeo/jev-rag/commit/a1f0461) — README, screenshots, license, changelog + fixed empty per-scenario Hit@4/MRR charts |
 | 2026-09-28 | [`08a6db5`](https://github.com/kanishka-namdeo/jev-rag/commit/08a6db5) — research: Jev-style decisions beyond model routing + single-LLM design |
 | 2026-09-28 | [`44323fb`](https://github.com/kanishka-namdeo/jev-rag/commit/44323fb) — **hybrid v2 pipeline**: effort routing, screening battery, corrective retry, best-of-2, citation verification, composite quality |
-| 2026-09-28 | [`c69d8cd`](https://github.com/kanishka-namdeo/jev-rag/commit/c69d8cd) · [`48b8b31`](https://github.com/kanishka-namdeo/jev-rag/commit/48b8b31) — public RAG benchmarks wave 1: SQuAD v1.1 + HotpotQA scenarios, split verdict |
-| 2026-09-28 | [`3856726`](https://github.com/kanishka-namdeo/jev-rag/commit/3856726) · [`fcbf003`](https://github.com/kanishka-namdeo/jev-rag/commit/fcbf003) — public benchmarks wave 2: TriviaQA + 2WikiMultiHopQA + MuSiQue — five-benchmark suite, multi-hop sweep |
-| 2026-09-28 | [`fb63b82`](https://github.com/kanishka-namdeo/jev-rag/commit/fb63b82) — **portability hardening + fresh-system setup guide** ([docs/setup.md](docs/setup.md)): repo-root path anchoring (CWD-independent backend), machine-independent setup scripts, secrets out of the endpoint probe, CI trigger fix |
+| 2026-09-28 | [`42e2c7f`](https://github.com/kanishka-namdeo/jev-rag/commit/42e2c7f) · [`bb7a8b4`](https://github.com/kanishka-namdeo/jev-rag/commit/bb7a8b4) — public RAG benchmarks wave 1: SQuAD v1.1 + HotpotQA scenarios, split verdict |
+| 2026-09-28 | [`9d829a6`](https://github.com/kanishka-namdeo/jev-rag/commit/9d829a6) · [`89f9d1b`](https://github.com/kanishka-namdeo/jev-rag/commit/89f9d1b) — public benchmarks wave 2: TriviaQA + 2WikiMultiHopQA + MuSiQue — five-benchmark suite, multi-hop sweep |
+| 2026-09-28 | [`aab887a`](https://github.com/kanishka-namdeo/jev-rag/commit/aab887a) — **portability hardening + fresh-system setup guide** ([docs/setup.md](docs/setup.md)): repo-root path anchoring (CWD-independent backend), machine-independent setup scripts, secrets out of the endpoint probe, CI trigger fix |
+| 2026-09-29 | history scrub — a leaked DashScope API key replaced and ~1.5k `.next/` build-cache files purged from every commit (git-filter-repo rewrite + force-push); stale commit refs repointed |
 
 ## Credits & key references
 
