@@ -4,6 +4,48 @@ Milestone history for Jev-RAG. Each entry links to the commit that delivered it.
 Dates are YYYY-MM-DD (commit date). Format is loosely inspired by
 [Keep a Changelog](https://keepachangelog.com/), grouped by project phase.
 
+## 2026-09-28 — Public benchmarks wave 2: TriviaQA + 2WikiMultiHopQA + MuSiQue
+
+Run `bcfdd120`: 48 further seeded questions (16 per benchmark) through the same
+audited two-arm protocol and independent judge (kimi-k2.5, self-test 8/8),
+extending the public suite from two to **five canonical benchmarks (98
+questions)**:
+
+- **MuSiQue-Ans val (compositional multi-hop): hybrid 37.5% vs traditional
+  12.5% (+25pp)** — the traditional arm collapses under adversarial
+  topically-related distractors (13/16 abstentions); the hybrid's multistep
+  subquery decomposition lifts recall@4 +13pp (47→60%) and retry converts
+  abstentions into answers.
+- **2WikiMultiHopQA val (structured multi-hop): hybrid 56.2% vs 43.8%
+  (+12.4pp)**, recall@4 +9.4pp — same mechanism as HotpotQA (+18pp, wave 1),
+  now shown on a second multi-hop benchmark with Wikidata-triple evidence.
+- **TriviaQA rc.wikipedia val (single-hop): a dead tie (75.0% vs 75.0%)** —
+  retrieval saturated for both arms (94% recall@4); the decision layer adds
+  latency (3×) and nothing else. The JeV rerank even trades −3.1pp recall on
+  saturated single-hop retrieval.
+- **Pooled wave 2: +12.5pp (56.2% vs 43.8%), n.s.** (McNemar p=0.21, Wilcoxon
+  p=0.35); pairwise 14W/3L/31T (61.5%). Across all five public benchmarks:
+  **+7.6pp (66.8% vs 59.2%)**; multi-hop subset (57 Q) **+18.4pp**, single-hop
+  subset (41 Q) **−7.3pp** — hybrid is a scattered-evidence specialist, two
+  for two on single-hop neutrality/losses.
+- **Gate miscalibration, 4th independent confirmation**: wave-2 gate accuracy
+  52% (Brier 0.38); on multi-hop scenarios 31–37% with mean P(sufficient)
+  0.33–0.37 on fully answerable questions — the gate systematically
+  underestimates sufficiency when evidence spans documents; the retry loop
+  rescues most of it. Hybrid losses are gate false negatives with gold files
+  already top-ranked (mq12 P=0.05, w210 P=0.04, w26 P=0.04).
+- **New corpus builder features** (`build_public_scenarios.py`): three
+  memory-safe pyarrow builders (row-group-cached reads for the 234MB TriviaQA
+  parquet), merge semantics that keep existing scenarios byte-identical when
+  their raw data is absent, near-empty stub filtering (2wiki), hop-class
+  stratification (musique id prefixes), full provenance in the manifest;
+  `pyarrow>=15` pinned in requirements.
+- **Harness hardening**: `bench_resume.py` resume now defaults to the run's
+  stored scenario list (a stale CLI default once contaminated a run with
+  off-plan questions — caught and purged mid-run); new
+  `scripts/analyze_per_scenario.py` for per-scenario summaries;
+  `diagnose_public_bench.py` takes the run id as an argument.
+
 ## 2026-09-28 — Popular public RAG benchmarks: SQuAD + HotpotQA (split result)
 
 Run `4dc6c46e`: 50 seeded questions (25 SQuAD v1.1 dev — one per article;

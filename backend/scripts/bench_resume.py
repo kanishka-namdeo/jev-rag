@@ -190,7 +190,9 @@ async def drive(runner: BenchRunner, run_id: str, scenarios, deadline: float,
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--run-id", default="", help="resume this run (omit to create)")
-    ap.add_argument("--scenarios", default="squad,hotpotqa")
+    ap.add_argument("--scenarios", default="",
+                    help="comma-separated scenario ids; REQUIRED for new runs, "
+                         "defaults to the run's stored scenario_ids when resuming")
     ap.add_argument("--label", default="")
     ap.add_argument("--max-minutes", type=float, default=8.0,
                     help="soft deadline from process start; exits cleanly before it")
@@ -214,11 +216,6 @@ def main() -> None:
     logger.info("models ready in %.1fs (jev: %s)", time.perf_counter() - t0,
                 jev.info().get("model"))
 
-    scenario_ids = [s.strip() for s in args.scenarios.split(",") if s.strip()]
-    unknown = [s for s in scenario_ids if s not in SCENARIO_MAP]
-    if unknown:
-        raise SystemExit(f"FATAL: unknown scenarios: {unknown}")
-
     if args.run_id:
         run_id = args.run_id
         with db_session() as session:
@@ -228,10 +225,19 @@ def main() -> None:
         if run.status == "completed":
             print(json_summary(run_id))
             raise SystemExit(0)
+        # resume defaults to the run's own scenario list (a stale CLI default
+        # here once contaminated a run with off-plan scenarios)
+        scenario_ids = [s.strip() for s in (args.scenarios or ",".join(run.scenario_ids)).split(",") if s.strip()]
     else:
+        if not args.scenarios:
+            raise SystemExit("FATAL: --scenarios is required for new runs")
+        scenario_ids = [s.strip() for s in args.scenarios.split(",") if s.strip()]
         run_id = create_run(runner, scenario_ids, args.label)
         runner._patch_run(run_id, judge_selftest=judge.self_test())
         logger.info("run %s created; judge self-test done", run_id)
+    unknown = [s for s in scenario_ids if s not in SCENARIO_MAP]
+    if unknown:
+        raise SystemExit(f"FATAL: unknown scenarios: {unknown}")
     print(f"RUN_ID={run_id}", flush=True)
 
     scenarios = [SCENARIO_MAP[s] for s in scenario_ids]

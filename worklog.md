@@ -35,8 +35,19 @@ Stage Summary:
 - Public suite now 5 benchmarks / 98 questions: SQuAD 25, HotpotQA 25,
   TriviaQA 16, 2WikiMultiHopQA 16, MuSiQue 16 — single-hop x3, multi-hop x3
   (distractor-style, structured-evidence, compositional-adversarial)
-- Next: two-arm run (triviaqa,wiki2,musique) via bench_resume.py chained
-  windows; analysis; docs; commit
+- RUN bcfdd120 COMPLETE (48/48, 0 errors, ~125 min, 14 chained windows):
+  MuSiQue +25pp (12.5->37.5, recall@4 +13pp, trad collapses with 13/16
+  abstentions), 2Wiki +12.4pp (43.8->56.2, recall@4 +9.4pp), TriviaQA 0pp
+  (75/75 tie — retrieval saturated 94% both arms, hybrid 3x latency for
+  nothing). Pooled +12.5pp n.s.; 5-benchmark pooled +7.6pp; multi-hop subset
+  +18.4pp, single-hop subset -7.3pp. Judge kimi-k2.5 self-test 8/8, pairwise
+  14W/3L/31T (61.5%), pos-consistency 83%.
+- Gate story (4th confirmation): wave-2 accuracy 52%/Brier 0.38; multi-hop
+  scenarios 31-37% acc with mean P 0.33-0.37 on ANSWERABLE questions; hybrid
+  losses = gate false negatives with gold top-ranked (mq12/w210/w26 P=0.03-0.05)
+- Ops: bench_resume resume-default bug fixed (stale CLI default contaminated
+  run with 4 squad questions — purged 8 rows mid-run); docs wave2 +
+  benchmark-results verdict + README table + CHANGELOG updated
 
 ---
 Task ID: 10

@@ -44,12 +44,14 @@ Everything except the cloud LLM endpoint runs **locally**: embeddings (ONNX CPU)
 > the regression was attributed to the passage battery's miscalibrated absolute thresholds,
 > which now ship OFF by default. (2) With the battery off, v2 **recovered v1-level numbers**:
 > hybrid 92.7% vs traditional 87.5% within-run (+5.2pp, n.s.), over-abstention back to 4.7%,
-> zero fabrications ([docs/benchmark-results.md](docs/benchmark-results.md)). (3) On **popular
-> public benchmarks** (SQuAD v1.1 + HotpotQA dev-distractor, 50 seeded questions, same audited
-> protocol) the split result bounds the claim: **HotpotQA +18pp (66→84%)**, **SQuAD −12pp
-> (82→70%)**, pooled +3pp n.s. — a multi-hop/distractor specialist whose sufficiency gate
-> needs per-corpus re-calibration for single-hop corpora
-> ([docs/benchmark-public.md](docs/benchmark-public.md)).
+> zero fabrications ([docs/benchmark-results.md](docs/benchmark-results.md)). (3) Across
+> **five popular public benchmarks** (SQuAD, HotpotQA, TriviaQA, 2WikiMultiHopQA, MuSiQue —
+> 98 seeded questions, same audited protocol) the hybrid wins **every multi-hop benchmark**
+> (+12 to +25pp; pooled multi-hop +18.4pp) and is neutral-to-negative on single-hop with
+> saturated retrieval (TriviaQA 0pp, SQuAD −12pp); pooled +7.6pp — a scattered-evidence
+> specialist whose sufficiency gate needs per-corpus re-calibration for single-hop corpora
+> ([docs/benchmark-public.md](docs/benchmark-public.md),
+> [docs/benchmark-public-wave2.md](docs/benchmark-public-wave2.md)).
 
 The two systems were benchmarked head-to-head on **6 document scenarios × 48 ground-truth
 questions**, both arms under a matched context budget (top-4), scored by an **independent LLM
@@ -85,25 +87,29 @@ position-swapped pairwise verdicts, 8/8 canary self-test).
 - Everything is reproducible from the UI: open the **Benchmarks** tab, pick scenarios, run.
   A full run is ~40–100 min on 2 cores for a few cents of endpoint spend.
 
-**Popular public benchmarks** (run `4dc6c46e`, same judge and two-arm protocol, 25 questions
-per dataset, seed-42 samples; full detail in
-[docs/benchmark-public.md](docs/benchmark-public.md)):
+**Popular public benchmarks** (runs `4dc6c46e` + `bcfdd120`, same judge and two-arm
+protocol, seed-42 samples; full detail in
+[docs/benchmark-public.md](docs/benchmark-public.md) and
+[docs/benchmark-public-wave2.md](docs/benchmark-public-wave2.md)):
 
-| Public benchmark (25 Q each) | Traditional | Hybrid (Jev) | Δ |
-| --- | --- | --- | --- |
-| **HotpotQA dev-distractor (multi-hop)** | 66% | **84%** | **+18pp** |
-| — recall@4 over gold+distractor contexts | 72% | **88%** | +16pp |
-| — pairwise (judge, both orders) | — | **64%** (10W/12T/3L) | — |
-| **SQuAD v1.1 dev (single-hop)** | **82%** | 70% | **−12pp** |
-| — sufficiency-gate false-negative abstentions | — | 2 clear losses (sq5, sq12) | — |
-| Pooled (50 Q) | 74% | 77% | +3pp (n.s.) |
+| Public benchmark | hop style | n | Traditional | Hybrid (Jev) | Δ |
+| --- | --- | --- | --- | --- | --- |
+| **MuSiQue-Ans val** | multi-hop (compositional) | 16 | 12.5% | **37.5%** | **+25pp** |
+| **HotpotQA dev-distractor** | multi-hop (distractor) | 25 | 66% | **84%** | **+18pp** |
+| **2WikiMultiHopQA val** | multi-hop (structured) | 16 | 43.8% | **56.2%** | **+12.4pp** |
+| **TriviaQA rc.wikipedia val** | single-hop (open-domain) | 16 | **75%** | 75% | 0pp |
+| **SQuAD v1.1 dev** | single-hop (article) | 25 | **82%** | 70% | **−12pp** |
+| **Pooled** | | **98** | **59.2%** | **66.8%** | **+7.6pp** |
 
 Reading: the hybrid's multi-step retrieval, Jev rerank and corrective retry earn their
-3.3× latency exactly on multi-hop distractor-heavy QA (all five large wins are traditional
-over-abstentions the retry loop recovered); on a clean single-hop corpus the retrieval is
-already saturated and the 0.8B sufficiency gate's absolute threshold converts answerable
-jargon-dense passages into abstentions. The gate (72% accuracy, Brier 0.22 on public data
-vs 82–92% on the internal suite) is the identified re-calibration target.
+3–5× latency exactly on multi-hop QA where evidence is scattered across documents
+(recall@4 +9 to +16pp; 12 of 14 wave-2 wins are traditional over-abstentions the retry
+loop recovered); on clean single-hop corpora the retrieval is already saturated
+(92–94% recall@4 both arms) and the 0.8B sufficiency gate's absolute threshold converts
+answerable jargon-dense passages into abstentions. The gate (52% accuracy, Brier 0.38 on
+wave-2 public data, 31–37% on its multi-hop scenarios, vs 82–92% on the internal suite)
+remains the identified re-calibration target — now confirmed on public data four times
+independently.
 
 ## The app
 

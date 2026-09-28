@@ -1,9 +1,17 @@
 # Benchmark Results — Traditional vs Hybrid (Jev) RAG
 
-Four full runs are documented here — three on the internal 6-scenario suite, one
+Five full runs are documented here — three on the internal 6-scenario suite, two
 on popular public benchmarks:
 
-- **Run `4dc6c46e` — public benchmarks: SQuAD v1.1 + HotpotQA dev-distractor
+- **Run `bcfdd120` — public benchmarks wave 2: TriviaQA + 2WikiMultiHopQA +
+  MuSiQue (public-data result)**: 48 questions sampled seed-42 from three further
+  canonical public datasets, same audited two-arm protocol and judge. Within-run:
+  **hybrid 56.2% vs traditional 43.8% (+12.5pp, n.s.)** — **MuSiQue +25pp**,
+  **2Wiki +12.4pp**, **TriviaQA 0pp**. Pooled across all five public benchmarks
+  (98 Q): hybrid 66.8% vs traditional 59.2% (**+7.6pp**); multi-hop subset
+  (57 Q) **+18.4pp**, single-hop subset (41 Q) **−7.3pp**. Full detail in
+  [`benchmark-public-wave2.md`](benchmark-public-wave2.md).
+- **Run `4dc6c46e` — public benchmarks wave 1: SQuAD v1.1 + HotpotQA dev-distractor
   (public-data result)**: 50 questions sampled seed-42 from the canonical public
   datasets (SQuAD dev, 1 per article; HotpotQA dev distractor, 18 bridge / 7
   comparison, all level=hard), run through the same audited two-arm protocol.
@@ -29,9 +37,10 @@ on popular public benchmarks:
 
 All internal-suite runs: 48 questions × 2 arms, 6 scenarios, judge kimi-k2.5
 (self-test 8/8), generator qwen3.7-plus on the same DashScope endpoint —
-cross-run numbers still carry environment variance (see *Confounds*). The
-public-benchmark run uses the same protocol and judge (see
-[`benchmark-public.md`](benchmark-public.md)).
+cross-run numbers still carry environment variance (see *Confounds*). Both
+public-benchmark runs use the same protocol and judge (see
+[`benchmark-public.md`](benchmark-public.md) and
+[`benchmark-public-wave2.md`](benchmark-public-wave2.md)).
 
 ## Verdict (stated plainly)
 
@@ -51,14 +60,16 @@ runs teach together: relative signals (rerank-as-ranker) work with the 0.8B
 stand-in; absolute-threshold gates need per-corpus calibration before they
 ship.
 
-**The public-benchmark run (`4dc6c46e`) generalizes that lesson to canonical
-public data — and bounds it.** On HotpotQA's multi-hop distractor setting the
-hybrid wins big (+18pp, recall@4 +16pp, 64% pairwise); on SQuAD's single-hop
-setting the sufficiency gate abstains on answerable jargon-dense Wikipedia
-passages and the hybrid loses 12pp. Pooled +3pp, n.s. — the hybrid is a
-multi-hop/distractor specialist, not a universal upgrade, and the gate's
-absolute threshold is the first thing to re-calibrate before any single-hop
-deployment.
+**The public-benchmark runs (`4dc6c46e`, `bcfdd120`) generalize that lesson to
+canonical public data — and bound it.** Across five public benchmarks (98 seeded
+questions), the hybrid wins every multi-hop benchmark tested — HotpotQA +18pp,
+MuSiQue +25pp, 2Wiki +12.4pp, driven by recall@4 lifts (+9 to +16pp) from
+multistep subquery decomposition and retry-recovered abstentions — and is
+neutral-to-negative on single-hop with saturated retrieval (TriviaQA 0pp, SQuAD
+−12pp, the latter via sufficiency-gate false negatives). Pooled +7.6pp
+(multi-hop subset +18.4pp, single-hop −7.3pp) — the hybrid is a multi-hop /
+scattered-evidence specialist, not a universal upgrade, and the gate's absolute
+threshold is the first thing to re-calibrate before any single-hop deployment.
 
 ## Run `bf05f585` configuration (battery-off ablation)
 

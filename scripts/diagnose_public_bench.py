@@ -9,7 +9,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "backend"))
 import json
 from app.db import BenchResult, db_session, init_db
 
-RUN = "4dc6c46e-a566-4134-ab9d-a59a653564e5"
+RUN = sys.argv[1] if len(sys.argv) > 1 else "4dc6c46e-a566-4134-ab9d-a59a653564e5"
 
 init_db()
 with db_session() as s:
