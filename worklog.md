@@ -236,3 +236,28 @@ Stage Summary:
   contribution/security policies, structured issue+PR flows
 - README validation green; all 16 commit links and doc anchors verified
 - Social preview: image in repo, needs one manual upload by maintainer
+
+---
+Task ID: 1
+Agent: Super Z (main agent)
+Task: Clone and set up https://github.com/kanishka-namdeo/jev-rag.git in the space-z.ai sandbox; configure Dashscope endpoint (coding-intl.dashscope.aliyuncs.com/v1) with qwen3.7-plus / qwen3.6-plus / kimi-k2.5; store GitHub PAT.
+
+Work Log:
+- Cloned repo to /home/z/my-project/jev-rag; validated PAT (owner kanishka-namdeo, push access) and stored it in /home/z/my-project/.git-credentials with repo-local credential.helper (store --file) + user identity; added .git-credentials/download/upload to .gitignore (only tracked change, uncommitted).
+- Created backend/.env from .env.example: JEVRAG_DASHSCOPE_API_KEY set, base URL and all three models already match the repo defaults (qwen3.7-plus default, qwen3.6-plus reasoning, kimi-k2.5 judge).
+- Probe script verified the endpoint: /models lists all three; chat smoke OK for all three; kimi-k2.5 judge JSON mode OK.
+- GGUF download (529,296,864 bytes) kept stalling via the repo script's plain curl; wrote .zscripts/dl_gguf.sh (resumable, --speed-limit stall detection) and completed the download; re-ran scripts/setup_local_models.sh for runtime patches + llama.cpp shallow clone + jev-score build (STATUS: SUCCESS).
+- scripts/setup_backend.sh: backend/.venv created via uv; sanity imports OK (fastapi 0.141.1, chromadb 1.5.9, fastembed 0.8.1, jev_style 0.3.0). bun install: 827 packages.
+- Discovered the sandbox reaps tool-call-spawned processes between calls; ran the platform fullstack init (curl z-cdn.chatglm.cn/fullstack/init-fullstack.sh | bash) which sets up .zscripts/dev.sh (supervised, persistent Next.js dev server on :3000).
+- Moved the whole jev-rag repo (incl. .git, backend, models, vendor, scripts) from /home/z/my-project/jev-rag to /home/z/my-project so the platform dev server serves it; removed the scaffold app (src/public/prisma/db/examples/mini-services); removed leftover build caches.
+- Relocating broke jev-score: build_jev_score.sh bakes an absolute DT_RUNPATH, and its DT_RUNPATH only covers direct NEEDED (libllama), leaving transitive libggml/libggml-cpu unresolved. Fixed by RELINKING build/jev-score with -Wl,--no-as-needed -lllama -lggml -lggml-base -lggml-cpu and -Wl,-rpath,'$ORIGIN/../../../vendor/llama.cpp/build/bin' (position-independent; models/ is gitignored so no tracked file changed). Patch helper kept at .zscripts/patch_jev_score_rpath.py.
+- Started the stack: .zscripts/dev.sh (next dev :3000, persistent) + ensure-backend route self-heals FastAPI on :8000 (detached child of next-server — survives sandbox reaping).
+- Verified in browser (agent-browser): UI renders; system status all green (dashscope ok, jev engine ok 2.73s, embeddings ok); uploaded scripts/test-assets/sample-knowledge.md (3 chunks); Traditional query answered correctly with citation [1] (19.8s, $0.0015); Hybrid · Jev query answered correctly (context 0.91, quality 98%, grounded 96%, 40.4s, $0.0013); trace panel works. Screenshots: download/jev-rag-hybrid-chat.png, download/jev-rag-trace-panel.png.
+- Backend hermetic tests: 35/35 passed in 6.65s. Frontend lint: clean.
+
+Stage Summary:
+- Full stack running in the sandbox: Next.js 16 on :3000 (supervised via .zscripts/dev.sh), FastAPI on :8000 (self-healed via /api/ensure-backend), Caddy :81 gateway (repo Caddyfile matches platform XTransformPort routing).
+- Dashscope endpoint + all three requested models configured and verified working (probe + live chat + judge JSON mode).
+- GitHub PAT stored at /home/z/my-project/.git-credentials (git credential.helper store --file, repo-local); repo history intact at HEAD c05f7f5; only local uncommitted change: .gitignore platform additions.
+- jev-score is now position-independent ($ORIGIN rpath + no-as-needed link); note for fresh installs: a plain rebuild re-bakes an absolute rpath — relink step documented here is the fix if the tree moves post-build.
+- Known sandbox quirks handled: tool-call processes are reaped (use the ensure-backend route / .zscripts/dev.sh instead of manual uvicorn); HuggingFace GGUF downloads stall (use .zscripts/dl_gguf.sh).

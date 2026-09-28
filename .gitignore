@@ -15,3 +15,8 @@ tool-results/
 .env
 __pycache__/
 *.pyc
+
+# --- platform sandbox (space-z.ai) ---
+download/
+upload/
+.git-credentials
