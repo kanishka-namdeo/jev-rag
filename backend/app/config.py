@@ -125,6 +125,14 @@ class Settings(BaseSettings):
     rerank_mode: str = "cross"
     reranker_model: str = "Xenova/ms-marco-MiniLM-L-6-v2"
     reranker_cache_dir: str = ""         # empty: HuggingFace default cache
+    # Escalation gate (the v3 gate inversion — docs/rag-upgrade-2026.md §3.3):
+    # features: calibrated top-1 rerank score vs gate_score_threshold (default)
+    # jev:      pre-v3 absolute sufficiency noul vs jev_sufficiency_threshold
+    #           (testbench arm — literature contradicts it for 0.5B zero-shot)
+    # none:     never escalate (bounder arm)
+    gate_mode: str = "features"
+    gate_score_threshold: float = 0.5    # calibrated on eval data (M8 refits)
+    jev_sufficiency_threshold: float = 0.5  # was hard-coded SUFFICIENCY_THRESHOLD
 
     # --- Hybrid v2 pipeline (single-generator design; docs/jev-improvements-research.md §4) ---
     # With one cloud generator the model-routing slot degenerates into effort routing;

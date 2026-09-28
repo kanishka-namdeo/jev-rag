@@ -260,87 +260,86 @@ class ChatService:
                                self._lite(retrieved), citations, "traditional",
                                extra=self._ctx(req, context_block) or None)
 
-    # ================================================================ hybrid v2
+    # ================================================================ hybrid v3
     async def _run_hybrid(self, req: ChatRequest, conv_id: str, assistant_id: str,
                           history: list[dict]) -> AsyncGenerator[dict, None]:
+        """v3 escalation design (docs/rag-upgrade-2026.md §3.3).
+
+        [1] effort routing (jev, CONCURRENT with retrieval — only decides the
+            chat-vs-doc question; validated P separation 0.76-0.96 vs <=0.17)
+        [2] retrieval (RRF) + cross-encoder rerank — always, cheap
+        [3] GATE (inverted: after retrieval, not before)
+            features (default): top-1 rerank score vs calibrated threshold
+            jev:                pre-v3 absolute sufficiency noul (testbench arm)
+            none:               never escalate (testbench bounder)
+            req.escalate (bench): overrides any gate (never/always/oracle arms)
+        [4] EASY PATH (gate passes): one cloud call -> verify -> done
+        [5] HARD PATH (gate fails): cloud decompose -> per-sub-query retrieval
+            -> rerank -> optional battery -> CRAG corrective retry (cap 1)
+            -> best-of-2 (jev selects — relative judgment) -> verify
+        """
         s = self.settings
         timings: dict[str, float] = {}
         decisions: list[dict] = []
         query = req.message
-        model = s.llm_model_default  # single generator: no model routing in v2
-        extra: dict[str, Any] = {"effort": "single_pass"}
+        model = s.llm_model_default  # single generator
+        extra: dict[str, Any] = {"effort": "single_pass", "path": "easy"}
 
-        # -- [1] effort routing (replaces v1 model routing; ~1.2s) --------------
-        kb_empty = await asyncio.to_thread(self.store.count) == 0
-        effort, eprobs, econf = "single_pass", {}, 0.0
-        if not kb_empty and s.hybrid_effort_routing:
-            yield {"type": "status", "stage": "jev-routing",
-                   "detail": "local Jev-style engine choosing retrieval effort "
-                             "(no_retrieval / single_pass / multi_step)"}
-            effort, eprobs, econf, rec = await asyncio.to_thread(self.jev.effort_routing, query)
-            decisions.append(rec)
-            timings["effort_ms"] = rec["latency_ms"]
-            yield {"type": "decision", "decision": rec}
-            extra["effort"] = effort
-            extra["routing_probabilities"] = {k: round(v, 3) for k, v in eprobs.items()}
+        # -- [1] effort routing, concurrent with first retrieval ----------------
+        # count() is an in-memory Chroma op; it is called once per concurrent
+        # branch (route + retrieve) instead of serially up-front, so the jev
+        # routing call and retrieval genuinely overlap.
+        async def _route():
+            if (await asyncio.to_thread(self.store.count)) == 0 or not s.hybrid_effort_routing:
+                return ("single_pass", {}, 0.0, None)
+            effort, eprobs, econf, rec = await asyncio.to_thread(
+                self.jev.effort_routing, query)
+            return effort, eprobs, econf, rec
 
-            if (effort == "no_retrieval"
-                    and eprobs.get("no_retrieval", 0.0) >= s.jev_no_retrieval_threshold):
-                # Adaptive-RAG class A: skip retrieval entirely (validated fast path —
-                # P(no_retrieval) separates chat 0.76-0.96 from doc questions <=0.17).
-                yield {"type": "routing", "effort": "no_retrieval", "model": model,
-                       "probabilities": {k: round(v, 3) for k, v in eprobs.items()},
-                       "confidence": round(econf, 3)}
-                yield {"type": "sources", "citations": []}
-                yield {"type": "llm_start", "model": model, "system": "hybrid",
-                       "context_sufficiency": None, "direct": True}
-                usage: dict = {}
-                async for evt in self._stream_llm(
-                        model, HYBRID_SYSTEM + HYBRID_DIRECT_SUFFIX,
-                        build_user_message(query, "(no passages — question classified as "
-                                        "not requiring the knowledge base)"), history):
-                    if evt["type"] == "delta":
-                        yield evt
-                    elif evt["type"] == "usage":
-                        usage = evt["usage"]
-                timings["llm_ms"] = usage.get("_llm_ms", 0.0)
-                yield self._done_event(assistant_id, model, usage.get("_content", ""), usage,
-                                       timings, decisions, [], [], "hybrid", None, None,
-                                       extra=self._ctx(req, "(no passages — question "
-                                         "classified as not requiring the knowledge base)",
-                                         {**extra, "effort": "no_retrieval"}))
-                return
+        async def _first_retrieve():
+            if (await asyncio.to_thread(self.store.count)) == 0:
+                return [], 0.0
+            return await asyncio.to_thread(
+                self._retrieve, query, s.top_k_retrieve, req.doc_ids)
+
+        (effort, eprobs, econf, route_rec), (retrieved, retrieval_ms) = \
+            await asyncio.gather(_route(), _first_retrieve())
+        if route_rec is not None:
+            decisions.append(route_rec)
+            timings["effort_ms"] = route_rec["latency_ms"]
+            yield {"type": "decision", "decision": route_rec}
+        timings["retrieval_ms"] = retrieval_ms
+        extra["effort"] = effort
+
+        if (effort == "no_retrieval"
+                and eprobs.get("no_retrieval", 0.0) >= s.jev_no_retrieval_threshold):
+            # Adaptive-RAG class A: skip retrieval entirely (validated fast path)
+            yield {"type": "routing", "effort": "no_retrieval", "model": model,
+                   "probabilities": {k: round(v, 3) for k, v in eprobs.items()},
+                   "confidence": round(econf, 3)}
+            yield {"type": "sources", "citations": []}
+            yield {"type": "llm_start", "model": model, "system": "hybrid",
+                   "context_sufficiency": None, "direct": True}
+            usage: dict = {}
+            async for evt in self._stream_llm(
+                    model, HYBRID_SYSTEM + HYBRID_DIRECT_SUFFIX,
+                    build_user_message(query, "(no passages — question classified as "
+                                    "not requiring the knowledge base)"), history):
+                if evt["type"] == "delta":
+                    yield evt
+                elif evt["type"] == "usage":
+                    usage = evt["usage"]
+            timings["llm_ms"] = usage.get("_llm_ms", 0.0)
+            yield self._done_event(assistant_id, model, usage.get("_content", ""), usage,
+                                   timings, decisions, [], [], "hybrid", None, None,
+                                   extra=self._ctx(req, "(no passages — question "
+                                     "classified as not requiring the knowledge base)",
+                                     {**extra, "effort": "no_retrieval"}))
+            return
+
         yield {"type": "routing", "effort": effort, "model": model,
                "probabilities": {k: round(v, 3) for k, v in eprobs.items()},
                "confidence": round(econf, 3)}
-
-        # -- [2] retrieval: broad, or decomposed for multi_step ------------------
-        retrieved: list[dict] = []
-        sub_queries: list[str] = []
-        if effort == "multi_step" and s.hybrid_multistep and not kb_empty:
-            yield {"type": "status", "stage": "retrieving",
-                   "detail": "decomposing the question into sub-queries (System Two)"}
-            sub_queries, decomp_usage, decomp_ms = await asyncio.to_thread(self._decompose, query)
-            timings["decompose_ms"] = decomp_ms
-            if len(sub_queries) > 1:
-                decisions.append({
-                    "name": "decompose", "label": "Question decomposition (System Two)",
-                    "kind": "plan", "question": "Decompose into 2-4 standalone sub-questions",
-                    "answer": sub_queries, "probabilities": None, "confidence": None,
-                    "latency_ms": decomp_ms, "usage": decomp_usage or None,
-                })
-                yield {"type": "decision", "decision": decisions[-1]}
-        if sub_queries:
-            yield {"type": "status", "stage": "retrieving",
-                   "detail": f"retrieving per sub-query ({len(sub_queries)} queries, "
-                             f"top {s.jev_multistep_subquery_k} each)"}
-            retrieved, timings["retrieval_ms"] = await asyncio.to_thread(
-                self._retrieve_multi, sub_queries, req.doc_ids)
-        elif not kb_empty:
-            yield {"type": "status", "stage": "retrieving",
-                   "detail": f"broad embedding search (top {s.top_k_retrieve})"}
-            retrieved, timings["retrieval_ms"] = await asyncio.to_thread(
-                self._retrieve, query, s.top_k_retrieve, req.doc_ids)
         yield {"type": "retrieval", "retrieved": self._lite(retrieved)}
 
         if not retrieved:
@@ -360,129 +359,186 @@ class ChatService:
                                    extra=self._ctx(req, "(no passages retrieved)", extra))
             return
 
-        # -- [3-5] rerank -> battery -> gate, with one corrective retry ----------
-        search_query = query
-        rewritten_query: str | None = None
-        max_attempts = 2 if s.hybrid_corrective_retry else 1
-        screen: dict[str, Any] | None = None
-        for attempt in range(max_attempts):
-            if attempt == 1:
-                # CRAG corrective loop (capped at 1): rewrite -> re-retrieve -> re-screen
-                yield {"type": "status", "stage": "jev-gating",
-                       "detail": "context insufficient — rewriting the query and retrying retrieval"}
-                rewritten_query, rw_usage, rw_ms = await asyncio.to_thread(self._rewrite_query, query)
-                timings["rewrite_ms"] = rw_ms
-                decisions.append({
-                    "name": "corrective", "label": "Corrective query rewrite (System Two)",
-                    "kind": "rewrite",
-                    "question": "Rewrite the question to improve retrieval (one retry)",
-                    "answer": rewritten_query, "probabilities": None, "confidence": None,
-                    "latency_ms": rw_ms, "usage": rw_usage or None,
-                })
-                yield {"type": "decision", "decision": decisions[-1]}
-                search_query = rewritten_query
+        # -- [2] rerank the first pool --------------------------------------------
+        ranked, rerank_rec = await asyncio.to_thread(self._rerank, query, retrieved)
+        decisions.append(rerank_rec)
+        timings["rerank_ms"] = rerank_rec["latency_ms"]
+        yield {"type": "decision", "decision": rerank_rec}
+        kept = ranked[: s.top_k_use]
+        yield {"type": "rerank", "kept": self._lite(kept)}
+
+        # -- [3] GATE: escalate to the hard path? ---------------------------------
+        gate_p, gate_rec, escalate = await asyncio.to_thread(self._gate, query, kept, req)
+        if gate_rec is not None:
+            decisions.append(gate_rec)
+            timings["gate_ms"] = gate_rec["latency_ms"]
+            yield {"type": "decision", "decision": gate_rec}
+        extra["gate"] = {"mode": s.gate_mode, "p": round(gate_p, 4) if gate_p is not None else None,
+                         "escalated": escalate}
+
+        labeled: list[dict] = []
+        context_block = ""
+        ctx_for_jev = ""
+        conflict: list[dict] = []
+        suf_p = gate_p
+
+        if not escalate:
+            # -- [4] EASY PATH: exactly one cloud call, no local LLM on hot path -
+            extra["path"] = "easy"
+            labeled = self._label(kept)
+            conflict = []
+            context_block = format_context(labeled)
+            ctx_for_jev = self._ctx_for_jev(labeled, s)
+        else:
+            # -- [5] HARD PATH: decompose -> retrieve per sub-query -> gate/retry -
+            extra["path"] = "hard"
+            extra["effort"] = "multi_step"
+            yield {"type": "status", "stage": "escalating",
+                   "detail": "gate flagged low confidence — decomposing the question "
+                             "and retrieving per sub-query"}
+            sub_queries: list[str] = []
+            if s.hybrid_multistep:
+                sub_queries, decomp_usage, decomp_ms = await asyncio.to_thread(self._decompose, query)
+                timings["decompose_ms"] = decomp_ms
+                if len(sub_queries) > 1:
+                    decisions.append({
+                        "name": "decompose", "label": "Question decomposition (System Two)",
+                        "kind": "plan", "question": "Decompose into 2-4 standalone sub-questions",
+                        "answer": sub_queries, "probabilities": None, "confidence": None,
+                        "latency_ms": decomp_ms, "usage": decomp_usage or None,
+                    })
+                    yield {"type": "decision", "decision": decisions[-1]}
+            if len(sub_queries) > 1:
                 retrieved, timings["retrieval_ms"] = await asyncio.to_thread(
-                    self._retrieve, search_query, s.top_k_retrieve, req.doc_ids)
-                yield {"type": "retrieval", "retrieved": self._lite(retrieved)}
-                if not retrieved:
-                    screen = None
+                    self._retrieve_multi, sub_queries, req.doc_ids)
+            else:
+                retrieved, timings["retrieval_ms"] = await asyncio.to_thread(
+                    self._retrieve, query, s.top_k_retrieve, req.doc_ids)
+            yield {"type": "retrieval", "retrieved": self._lite(retrieved)}
+
+            # rerank -> battery -> gate, with one corrective retry
+            search_query = query
+            rewritten_query: str | None = None
+            max_attempts = 2 if s.hybrid_corrective_retry else 1
+            screen: dict[str, Any] | None = None
+            for attempt in range(max_attempts):
+                if attempt == 1:
+                    # CRAG corrective loop (capped at 1): rewrite -> re-retrieve
+                    yield {"type": "status", "stage": "jev-gating",
+                           "detail": "context still insufficient — rewriting the query and retrying retrieval"}
+                    rewritten_query, rw_usage, rw_ms = await asyncio.to_thread(self._rewrite_query, query)
+                    timings["rewrite_ms"] = rw_ms
+                    decisions.append({
+                        "name": "corrective", "label": "Corrective query rewrite (System Two)",
+                        "kind": "rewrite",
+                        "question": "Rewrite the question to improve retrieval (one retry)",
+                        "answer": rewritten_query, "probabilities": None, "confidence": None,
+                        "latency_ms": rw_ms, "usage": rw_usage or None,
+                    })
+                    yield {"type": "decision", "decision": decisions[-1]}
+                    search_query = rewritten_query
+                    retrieved, timings["retrieval_ms"] = await asyncio.to_thread(
+                        self._retrieve, search_query, s.top_k_retrieve, req.doc_ids)
+                    yield {"type": "retrieval", "retrieved": self._lite(retrieved)}
+                    if not retrieved:
+                        screen = None
+                        break
+
+                ranked, rerank_rec = await asyncio.to_thread(
+                    self._rerank, search_query, retrieved)
+                decisions.append(rerank_rec)
+                timings["rerank_ms"] = rerank_rec["latency_ms"]
+                yield {"type": "decision", "decision": rerank_rec}
+
+                kept = ranked[: s.top_k_use]
+                yield {"type": "rerank", "kept": self._lite(kept)}
+
+                include, conflict = kept, []
+                if s.hybrid_passage_battery and kept:
+                    yield {"type": "status", "stage": "jev-screening",
+                           "detail": "screening passages: answer evidence · premise conflicts · prompt injection"}
+                    verdicts, bat_rec = await asyncio.to_thread(
+                        self.jev.screen_passages, search_query, kept, s.jev_rerank_char_limit)
+                    actions, reasons = apply_battery_policy(kept, verdicts, s)
+                    bat_rec["answer"] = {f"passage {i}": f"{actions[i]} — {reasons[i]}"
+                                         for i in sorted(actions)}
+                    decisions.append(bat_rec)
+                    timings["battery_ms"] = bat_rec["latency_ms"]
+                    yield {"type": "decision", "decision": bat_rec}
+                    include = [c for c in kept if actions[c["index"]] == "include"]
+                    conflict = [c for c in kept if actions[c["index"]] == "conflict"]
+
+                labeled = self._label(include + conflict)
+                main, flagged = labeled[: len(include)], labeled[len(include):]
+                context_block = format_context(main) if main else "(no passages retained after screening)"
+                if flagged:
+                    context_block += "\n\n" + format_conflict_block(flagged)
+                ctx_for_jev = self._ctx_for_jev(labeled, s)
+
+                suf_p, gate_rec, _ = await asyncio.to_thread(self._gate, query, kept, req)
+                if gate_rec is not None:
+                    decisions.append(gate_rec)
+                    yield {"type": "decision", "decision": gate_rec}
+                extra["gate"]["p_final"] = round(suf_p, 4) if suf_p is not None else None
+
+                screen = {"labeled": labeled, "main": main, "flagged": flagged,
+                          "context_block": context_block, "ctx_for_jev": ctx_for_jev,
+                          "suf_p": suf_p, "kept": kept}
+                if self._gate_passes(suf_p):
                     break
 
-            ranked, rerank_rec = await asyncio.to_thread(
-                self._rerank, search_query, retrieved)
-            decisions.append(rerank_rec)
-            timings["rerank_ms"] = rerank_rec["latency_ms"]
-            yield {"type": "decision", "decision": rerank_rec}
+            if screen is None:
+                # corrective retry also found nothing: honest no-context answer
+                yield {"type": "sources", "citations": []}
+                yield {"type": "llm_start", "model": model, "system": "hybrid"}
+                usage = {}
+                async for evt in self._stream_llm(model, HYBRID_SYSTEM + HYBRID_INSUFFICIENT_SUFFIX,
+                                                  build_user_message(query, "(no passages retrieved)"), history):
+                    if evt["type"] == "delta":
+                        yield evt
+                    elif evt["type"] == "usage":
+                        usage = evt["usage"]
+                content = usage.get("_content", "")
+                extra["retried"] = True
+                extra["rewritten_query"] = rewritten_query
+                yield self._done_event(assistant_id, model, content, usage, timings, decisions,
+                                       self._lite(retrieved), [], "hybrid", None, None,
+                                       extra=self._ctx(req, "(no passages retrieved)", extra))
+                return
 
-            kept = ranked[: s.top_k_use]
-            yield {"type": "rerank", "kept": self._lite(kept)}
+            labeled = screen["labeled"]
+            context_block = screen["context_block"]
+            ctx_for_jev = screen["ctx_for_jev"]
+            suf_p = screen["suf_p"]
+            conflict = screen["flagged"]
+            extra.update({"retried": rewritten_query is not None,
+                          "rewritten_query": rewritten_query,
+                          "conflict_passages": len(conflict)})
 
-            include, conflict = kept, []
-            if s.hybrid_passage_battery and kept:
-                yield {"type": "status", "stage": "jev-screening",
-                       "detail": "screening passages: answer evidence · premise conflicts · prompt injection"}
-                verdicts, bat_rec = await asyncio.to_thread(
-                    self.jev.screen_passages, search_query, kept, s.jev_rerank_char_limit)
-                actions, reasons = apply_battery_policy(kept, verdicts, s)
-                bat_rec["answer"] = {f"passage {i}": f"{actions[i]} — {reasons[i]}"
-                                     for i in sorted(actions)}
-                decisions.append(bat_rec)
-                timings["battery_ms"] = bat_rec["latency_ms"]
-                yield {"type": "decision", "decision": bat_rec}
-                include = [c for c in kept if actions[c["index"]] == "include"]
-                conflict = [c for c in kept if actions[c["index"]] == "conflict"]
-
-            labeled = self._label(include + conflict)
-            main, flagged = labeled[: len(include)], labeled[len(include):]
-            context_block = format_context(main) if main else "(no passages retained after screening)"
-            if flagged:
-                context_block += "\n\n" + format_conflict_block(flagged)
-            ctx_for_jev = "\n\n".join(
-                f"Passage [{d['chunk_index_label']}] (source: {d['filename']}):\n"
-                f"{d['text'][: s.jev_context_char_limit]}"
-                for d in labeled
-            )
-
-            suf_p, suf_rec = await asyncio.to_thread(self.jev.sufficiency, query, ctx_for_jev)
-            decisions.append(suf_rec)
-            timings["sufficiency_ms"] = suf_rec["latency_ms"]
-            yield {"type": "decision", "decision": suf_rec}
-
-            screen = {"labeled": labeled, "main": main, "flagged": flagged,
-                      "context_block": context_block, "ctx_for_jev": ctx_for_jev,
-                      "suf_p": suf_p, "kept": kept}
-            if suf_p >= SUFFICIENCY_THRESHOLD:
-                break  # sufficient — stop screening
-
-        # screen is None only when the corrective retry's re-retrieval found nothing
-        if screen is None:
-            # corrective retry also found nothing: fall through to the honest no-context answer
-            yield {"type": "sources", "citations": []}
-            yield {"type": "llm_start", "model": model, "system": "hybrid"}
-            usage = {}
-            async for evt in self._stream_llm(model, HYBRID_SYSTEM + HYBRID_INSUFFICIENT_SUFFIX,
-                                              build_user_message(query, "(no passages retrieved)"), history):
-                if evt["type"] == "delta":
-                    yield evt
-                elif evt["type"] == "usage":
-                    usage = evt["usage"]
-            content = usage.get("_content", "")
-            extra["retried"] = True
-            extra["rewritten_query"] = rewritten_query
-            yield self._done_event(assistant_id, model, content, usage, timings, decisions,
-                                   self._lite(retrieved), [], "hybrid", None, None,
-                                   extra=self._ctx(req, "(no passages retrieved)", extra))
-            return
-
-        labeled = screen["labeled"]
-        context_block = screen["context_block"]
-        ctx_for_jev = screen["ctx_for_jev"]
-        suf_p = screen["suf_p"]
         citations = self._citations(labeled)
         yield {"type": "sources", "citations": citations}
-        extra.update({"retried": rewritten_query is not None,
-                      "rewritten_query": rewritten_query,
-                      "conflict_passages": len(screen["flagged"])})
 
-        # -- [6] generation: single model; best-of-2 on the hard path ------------
+        # -- generation: easy path streams; hard path may do best-of-2 ----------
         system = HYBRID_SYSTEM
-        if suf_p < SUFFICIENCY_THRESHOLD:
+        if extra["path"] == "hard" and not self._gate_passes(suf_p):
             system += HYBRID_INSUFFICIENT_SUFFIX
-        if screen["flagged"]:
+        if conflict:
             system += HYBRID_CONFLICT_SUFFIX
         user_msg = build_user_message(query, context_block)
 
-        best_of = s.hybrid_best_of_n and (effort == "multi_step" or suf_p < SUFFICIENCY_THRESHOLD)
-        usage: dict = {}
+        best_of = (s.hybrid_best_of_n and extra["path"] == "hard"
+                   and (not self._gate_passes(suf_p) or effort == "multi_step"))
+        usage = {}
         content = ""
         if best_of:
             # Speculative-RAG-style sampling: two candidates from the SAME generator
-            # (thinking off / thinking on), generated concurrently, then ONE Jev call
-            # picks the winner by calibrated P(grounded) — a relative selector.
+            # (thinking off / thinking on), then ONE Jev call picks the winner by
+            # calibrated P(grounded) — a relative selector.
             yield {"type": "status", "stage": "answering",
                    "detail": "sampling 2 candidates (direct + reasoned) — Jev will select"}
             yield {"type": "llm_start", "model": model, "system": "hybrid",
-                   "context_sufficiency": round(suf_p, 3), "best_of": 2}
+                   "context_sufficiency": round(suf_p, 3) if suf_p is not None else None,
+                   "best_of": 2}
             t0 = time.perf_counter()
             (cand_direct, u_direct), (cand_reasoned, u_reasoned) = await asyncio.gather(
                 asyncio.to_thread(self.llm.complete, model=model, system=system,
@@ -505,13 +561,12 @@ class ChatService:
                                       + u_reasoned.get("completion_tokens", 0)),
             }
             extra["best_of"] = {k: round(v, 3) for k, v in scores.items()}
-            # emit the winner progressively (paragraph chunks keep the typing feel)
             parts = content.split("\n\n")
             for i, part in enumerate(parts):
                 yield {"type": "delta", "content": part + ("\n\n" if i < len(parts) - 1 else "")}
         else:
             yield {"type": "llm_start", "model": model, "system": "hybrid",
-                   "context_sufficiency": round(suf_p, 3)}
+                   "context_sufficiency": round(suf_p, 3) if suf_p is not None else None}
             async for evt in self._stream_llm(model, system, user_msg, history):
                 if evt["type"] == "delta":
                     yield evt
@@ -520,7 +575,7 @@ class ChatService:
             timings["llm_ms"] = usage.get("_llm_ms", 0.0)
             content = usage.get("_content", "")
 
-        # -- [7] citation-level verification + composite quality (ONE call) -----
+        # -- citation verification + composite quality (jev, post-answer) --------
         verification: float | None = None
         quality: float | None = None
         citation_flags: dict[int, dict] | None = None
@@ -575,7 +630,102 @@ class ChatService:
 
         yield self._done_event(assistant_id, model, content, usage, timings, decisions,
                                self._lite(retrieved), citations, "hybrid", verification,
-                               round(suf_p, 3), extra=self._ctx(req, context_block, extra))
+                               round(suf_p, 3) if suf_p is not None else None,
+                               extra=self._ctx(req, context_block, extra))
+
+    # -- v3 gate helpers -----------------------------------------------------
+    def _gate_passes(self, p: float | None) -> bool:
+        """Gate verdict from a gate probability. features mode: the reranker's
+        top-1 calibrated score vs gate_score_threshold; jev mode: the noul
+        sufficiency vs jev_sufficiency_threshold (pre-v3 semantics)."""
+        if p is None:
+            return False
+        if self.settings.gate_mode == "features":
+            return p >= self.settings.gate_score_threshold
+        return p >= self.settings.jev_sufficiency_threshold
+
+    def _gate(self, query: str, kept: list[dict],
+              req: ChatRequest) -> tuple[float | None, dict | None, bool]:
+        """Evaluate the escalation gate. Returns (gate_p, decision record | None,
+        escalate). req.escalate (bench-injected) overrides everything — that is
+        how the never/always/oracle bounder arms run."""
+        s = self.settings
+        t0 = time.perf_counter()
+        if req.escalate is not None:
+            escalate = bool(req.escalate)
+            rec = {
+                "name": "gate", "label": f"Escalation gate (injected: "
+                                         f"{'hard' if escalate else 'easy'} path)",
+                "kind": "score",
+                "question": "bench-injected override (never/always/oracle arm)",
+                "answer": "escalate" if escalate else "easy",
+                "probabilities": None, "confidence": None,
+                "latency_ms": 0.0, "usage": None, "mode": "injected",
+            }
+            return None, rec, escalate
+
+        if s.gate_mode == "none":
+            # never escalate — the bounder arm; record the features it skipped
+            feats = self._gate_features(kept)
+            rec = {
+                "name": "gate", "label": "Escalation gate (disabled — never escalate)",
+                "kind": "score", "question": "none (bounder arm)",
+                "answer": "easy", "probabilities": feats,
+                "confidence": None, "latency_ms": 0.0, "usage": None, "mode": "none",
+            }
+            return feats.get("top1"), rec, False
+
+        if s.gate_mode == "jev":
+            # pre-v3 behaviour: absolute sufficiency noul (testbench arm)
+            ctx = self._ctx_for_jev(self._label(kept), s)
+            p, rec = self.jev.sufficiency(query, ctx)
+            rec["name"] = "gate"
+            rec["label"] = "Escalation gate (jev absolute sufficiency)"
+            rec["mode"] = "jev"
+            return p, rec, not self._gate_passes(p)
+
+        # features (default): calibrated top-1 rerank score + distribution stats
+        feats = self._gate_features(kept)
+        top1 = feats.get("top1")
+        p = top1
+        escalate = not self._gate_passes(p)
+        rec = {
+            "name": "gate", "label": "Escalation gate (score features)",
+            "kind": "score",
+            "question": f"top-1 rerank score vs threshold {s.gate_score_threshold} "
+                        "(+ margin / mean / count-above-floor for the trace)",
+            "answer": "escalate" if escalate else "easy",
+            "probabilities": {k: round(v, 3) if v is not None else None
+                              for k, v in feats.items()},
+            "confidence": None, "latency_ms": round((time.perf_counter() - t0) * 1000, 1),
+            "usage": None, "mode": "features",
+            "threshold": s.gate_score_threshold,
+        }
+        return p, rec, escalate
+
+    def _gate_features(self, kept: list[dict]) -> dict:
+        """Retrieval-grounded score features (R2 research: cheap calibrated
+        signals replace unreliable zero-shot LLM sufficiency judgments)."""
+        if not kept:
+            return {"top1": 0.0, "top2": 0.0, "margin": 0.0, "mean": 0.0, "above_floor": 0}
+        scores = [float(c.get("jev_score", 0.0) or 0.0) for c in kept]
+        floor = self.settings.gate_score_threshold
+        top2 = scores[1] if len(scores) > 1 else 0.0
+        return {
+            "top1": round(scores[0], 4),
+            "top2": round(top2, 4),
+            "margin": round(scores[0] - top2, 4),
+            "mean": round(sum(scores) / len(scores), 4),
+            "above_floor": sum(1 for sc in scores if sc >= floor),
+        }
+
+    @staticmethod
+    def _ctx_for_jev(labeled: list[dict], s: Settings) -> str:
+        return "\n\n".join(
+            f"Passage [{d['chunk_index_label']}] (source: {d['filename']}):\n"
+            f"{d['text'][: s.jev_context_char_limit]}"
+            for d in labeled
+        )
 
     # ================================================================ helpers
     def _rerank(self, query: str, retrieved: list[dict]) -> tuple[list[dict], dict]:

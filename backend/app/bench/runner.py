@@ -112,18 +112,21 @@ class BenchRunner:
                 scenario_ids=scenario_ids,
                 judge_model=self.judge.model,
                 config={
-                    "pipeline": "hybrid-v2",
+                    "pipeline": "hybrid-v3",
                 "orchestrator": "chat-service-shared",
                 "retrieval_mode": self.settings.retrieval_mode,
                 "rerank_mode": self.settings.rerank_mode,
                 "reranker": (self.settings.reranker_model
                              if self.settings.rerank_mode == "cross" else "-"),
+                "gate_mode": self.settings.gate_mode,
+                "gate_score_threshold": self.settings.gate_score_threshold,
+                "jev_sufficiency_threshold": self.settings.jev_sufficiency_threshold,
                     "top_k_retrieve": self.settings.top_k_retrieve,
                     "top_k_use": self.settings.top_k_use,
                     "llm_default": self.settings.llm_model_default,
                     "llm_reasoning": self.settings.llm_model_reasoning,
                     "pairwise": self.settings.bench_pairwise,
-                    "sufficiency_threshold": SUFFICIENCY_THRESHOLD,
+                    "sufficiency_threshold": self.settings.jev_sufficiency_threshold,
                     "effort_routing": self.settings.hybrid_effort_routing,
                     "passage_battery": self.settings.hybrid_passage_battery,
                     "corrective_retry": self.settings.hybrid_corrective_retry,
@@ -464,12 +467,18 @@ class BenchRunner:
                     }
             return out
 
-        # sufficiency-gate accuracy/Brier vs ground-truth answerability (hybrid only)
-        gate = {}
+        # sufficiency-gate accuracy/Brier vs ground-truth answerability (hybrid only).
+        # Threshold semantics follow the run's gate mode: features -> top-1 rerank
+        # score vs gate_score_threshold; jev -> noul vs jev_sufficiency_threshold.
+        gate: dict[str, Any] = {}
         gated = [(r.sufficiency_p, r.answerable) for r in hyb_all if r.sufficiency_p is not None]
         if gated:
-            correct = sum(1 for p, a in gated if (p >= SUFFICIENCY_THRESHOLD) == a)
-            gate = {"n": len(gated),
+            cfg = (run.config if run else None) or {}
+            mode = cfg.get("gate_mode", "features")
+            thr = (cfg.get("gate_score_threshold", 0.5) if mode == "features"
+                   else cfg.get("jev_sufficiency_threshold", SUFFICIENCY_THRESHOLD))
+            correct = sum(1 for p, a in gated if (p >= thr) == a)
+            gate = {"n": len(gated), "mode": mode, "threshold": thr,
                     "accuracy": round(correct / len(gated), 4),
                     "brier": brier([p for p, _ in gated], [a for _, a in gated])}
 

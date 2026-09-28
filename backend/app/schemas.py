@@ -21,6 +21,10 @@ class ChatRequest(BaseModel):
     # needs real exceptions for its engine-retry logic) instead of becoming
     # SSE error events.
     bench: bool = False
+    # Gate override injected by the hypothesis testbench (never/always/oracle
+    # bounder arms): True forces the hard path, False forces the easy path,
+    # None lets the configured gate decide. Never set by the public API.
+    escalate: bool | None = None
 
 
 class Citation(BaseModel):
