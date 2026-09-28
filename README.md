@@ -278,7 +278,7 @@ AGENTS.md         DOX framework — binding rules for any AI agent working here
 | 2026-09-28 | [`44323fb`](https://github.com/kanishka-namdeo/jev-rag/commit/44323fb) — **hybrid v2 pipeline**: effort routing, screening battery, corrective retry, best-of-2, citation verification, composite quality |
 | 2026-09-28 | [`c69d8cd`](https://github.com/kanishka-namdeo/jev-rag/commit/c69d8cd) · [`48b8b31`](https://github.com/kanishka-namdeo/jev-rag/commit/48b8b31) — public RAG benchmarks wave 1: SQuAD v1.1 + HotpotQA scenarios, split verdict |
 | 2026-09-28 | [`3856726`](https://github.com/kanishka-namdeo/jev-rag/commit/3856726) · [`fcbf003`](https://github.com/kanishka-namdeo/jev-rag/commit/fcbf003) — public benchmarks wave 2: TriviaQA + 2WikiMultiHopQA + MuSiQue — five-benchmark suite, multi-hop sweep |
-| 2026-09-28 | this commit — **portability hardening + fresh-system setup guide** ([docs/setup.md](docs/setup.md)): repo-root path anchoring (CWD-independent backend), machine-independent setup scripts, secrets out of the endpoint probe, CI trigger fix |
+| 2026-09-28 | [`fb63b82`](https://github.com/kanishka-namdeo/jev-rag/commit/fb63b82) — **portability hardening + fresh-system setup guide** ([docs/setup.md](docs/setup.md)): repo-root path anchoring (CWD-independent backend), machine-independent setup scripts, secrets out of the endpoint probe, CI trigger fix |
 
 ## Credits & key references
 
