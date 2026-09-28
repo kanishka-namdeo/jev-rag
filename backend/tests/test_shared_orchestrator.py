@@ -159,10 +159,13 @@ class _NoJev:
     pass
 
 
-def _service(llm=None, store=None):
+def _service(llm=None, store=None, **settings_over):
     from app.config import Settings
     from app.rag.pipelines import ChatService
-    return ChatService(Settings(_env_file=None), llm or _FakeLLM(), _NoJev(),
+    # hermetic default: no network reranker (cross mode would download the
+    # ONNX model); individual tests override to exercise specific modes
+    over = {"rerank_mode": "none", **settings_over}
+    return ChatService(Settings(_env_file=None, **over), llm or _FakeLLM(), _NoJev(),
                        _FakeEmbedder(), store or _FakeStore())
 
 

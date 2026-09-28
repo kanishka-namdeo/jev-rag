@@ -118,6 +118,13 @@ class Settings(BaseSettings):
     # embedding) — Anthropic contextual-retrieval evidence: top-20 retrieval
     # failures 5.7% -> 3.7%; nearly free for titled corpora.
     contextual_prefix: bool = True
+    # Rerank slot (applies to BOTH pipelines — the 2026 baseline reranks):
+    # cross: ONNX cross-encoder (default; calibrated P(relevant), CPU-fast)
+    # jev:   local jev noul rerank (pre-v3 behaviour, testbench arm)
+    # none:  passthrough (testbench arm — isolates rerank contribution)
+    rerank_mode: str = "cross"
+    reranker_model: str = "Xenova/ms-marco-MiniLM-L-6-v2"
+    reranker_cache_dir: str = ""         # empty: HuggingFace default cache
 
     # --- Hybrid v2 pipeline (single-generator design; docs/jev-improvements-research.md §4) ---
     # With one cloud generator the model-routing slot degenerates into effort routing;

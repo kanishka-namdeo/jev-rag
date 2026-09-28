@@ -35,6 +35,7 @@ from app.config import Settings
 from app.db import Conversation, Message, db_session, new_id
 from app.llm.dashscope import DashscopeLLM, estimate_cost_usd
 from app.llm.jev_engine import JevEngine, JevEngineUnavailable
+from app.rag.crossenc import CrossEncoderReranker
 from app.rag.prompts import (
     DECOMPOSE_SYSTEM,
     HYBRID_CONFLICT_SUFFIX,
@@ -167,6 +168,12 @@ class ChatService:
         # v3 retrieval: BM25 ‖ dense + RRF fusion (settings.retrieval_mode
         # switches it back to pure dense — the pre-v3 fallback arm).
         self.search = HybridSearch(settings, embedder, store)
+        # v3 rerank slot: cross-encoder by default; jev noul and passthrough
+        # remain as testbench arms (settings.rerank_mode).
+        self.reranker = CrossEncoderReranker(
+            model_name=settings.reranker_model,
+            cache_dir=(settings.reranker_cache_dir or None),
+        )
 
     # ================================================================ public entry
     async def run(self, req: ChatRequest) -> AsyncGenerator[dict, None]:
@@ -208,15 +215,29 @@ class ChatService:
     # ================================================================ traditional
     async def _run_traditional(self, req: ChatRequest, conv_id: str, assistant_id: str,
                                history: list[dict]) -> AsyncGenerator[dict, None]:
+        """v3 baseline (docs/rag-upgrade-2026.md §3.2): the 2026-standard RAG
+        pipeline — RRF retrieval (top_k_retrieve candidates) -> rerank ->
+        top_k_use passages -> ONE cloud call. No local LLM anywhere."""
         timings: dict[str, float] = {}
         decisions: list[dict] = []
         retrieved: list[dict] = []
 
         yield {"type": "status", "stage": "retrieving",
-               "detail": f"embedding similarity search (top {self.settings.top_k_use})"}
+               "detail": f"hybrid retrieval, {self.settings.top_k_retrieve} candidates"}
         retrieved, timings["retrieval_ms"] = await asyncio.to_thread(
-            self._retrieve, req.message, self.settings.top_k_use, req.doc_ids)
+            self._retrieve, req.message, self.settings.top_k_retrieve, req.doc_ids)
         yield {"type": "retrieval", "retrieved": self._lite(retrieved)}
+
+        # v3: rerank in BOTH arms — same candidate budget, same kept budget
+        if retrieved:
+            ranked, rerank_rec = await asyncio.to_thread(
+                self._rerank, req.message, retrieved)
+            decisions.append(rerank_rec)
+            timings["rerank_ms"] = rerank_rec["latency_ms"]
+            yield {"type": "decision", "decision": rerank_rec}
+            kept = ranked[: self.settings.top_k_use]
+            yield {"type": "rerank", "kept": self._lite(kept)}
+            retrieved = kept
 
         labeled = self._label(retrieved)
         citations = self._citations(labeled)
@@ -368,7 +389,7 @@ class ChatService:
                     break
 
             ranked, rerank_rec = await asyncio.to_thread(
-                self.jev.rerank_chunks, search_query, retrieved, s.jev_rerank_char_limit)
+                self._rerank, search_query, retrieved)
             decisions.append(rerank_rec)
             timings["rerank_ms"] = rerank_rec["latency_ms"]
             yield {"type": "decision", "decision": rerank_rec}
@@ -557,6 +578,70 @@ class ChatService:
                                round(suf_p, 3), extra=self._ctx(req, context_block, extra))
 
     # ================================================================ helpers
+    def _rerank(self, query: str, retrieved: list[dict]) -> tuple[list[dict], dict]:
+        """Rerank the candidate pool; dispatches on settings.rerank_mode.
+
+        cross: ONNX cross-encoder P(relevant) per (query, passage) — the 2026
+               default (docs/rag-upgrade-2026.md §2.3); falls back to jev if the
+               model fails to load (fresh offline machine) — recorded in the
+               decision so runs stay interpretable.
+        jev:   local jev noul rerank (pre-v3 behaviour; testbench arm).
+        none:  passthrough (testbench arm isolating the rerank contribution).
+
+        All modes return (ranked chunks, decision record); cross/jev write the
+        calibrated relevance into `jev_score` (consumed by the battery policy,
+        citations and the trace panel) and `ce_score` for cross.
+        """
+        s = self.settings
+        mode = s.rerank_mode
+        t0 = time.perf_counter()
+        if mode == "cross":
+            scores: list[float] | None = None
+            if self.reranker.load():
+                scores = self.reranker.score_pairs(
+                    query, [c.get("text", "")[: s.jev_rerank_char_limit]
+                            for c in retrieved])
+            if scores is None or len(scores) != len(retrieved):
+                logger.warning("cross-encoder rerank unavailable (load/score failed) — "
+                               "falling back to jev rerank")
+                ranked, rec = self.jev.rerank_chunks(
+                    query, retrieved, s.jev_rerank_char_limit)
+                rec["label"] = f"{rec['label']} [FALLBACK: cross-encoder failed to load]"
+                return ranked, rec
+            scored = list(zip(retrieved, scores))
+            scored.sort(key=lambda p: p[1], reverse=True)
+            ranked = []
+            for c, sc in scored:
+                c = dict(c)
+                c["jev_score"] = round(sc, 4)
+                c["ce_score"] = round(sc, 4)
+                ranked.append(c)
+            elapsed = round((time.perf_counter() - t0) * 1000, 1)
+            rec = {
+                "name": "rerank", "label": "Cross-encoder rerank (calibrated relevance)",
+                "kind": "score",
+                "question": "P(this passage is relevant to the question) per candidate",
+                "answer": {f"passage {c['index']}": round(sc, 3)
+                           for c, sc in scored[: s.top_k_use]},
+                "probabilities": {f"[{c['index']}]": round(sc, 3) for c, sc in scored},
+                "confidence": None, "latency_ms": elapsed, "usage": None,
+                "engine": "cross-encoder", "model": s.reranker_model,
+            }
+            return ranked, rec
+        if mode == "jev":
+            return self.jev.rerank_chunks(query, retrieved, s.jev_rerank_char_limit)
+        # none: passthrough — the no-rerank testbench arm
+        elapsed = round((time.perf_counter() - t0) * 1000, 1)
+        rec = {
+            "name": "rerank", "label": "Rerank disabled (passthrough arm)",
+            "kind": "score", "question": "none — candidates keep retrieval order",
+            "answer": {f"passage {c['index']}": c.get("rrf_score", c.get("similarity"))
+                       for c in retrieved[: s.top_k_use]},
+            "probabilities": None, "confidence": None,
+            "latency_ms": elapsed, "usage": None, "engine": "none",
+        }
+        return list(retrieved), rec
+
     def _retrieve(self, query: str, k: int,
                   doc_ids: list[str] | None = None) -> tuple[list[dict], float]:
         t0 = time.perf_counter()

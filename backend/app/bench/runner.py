@@ -7,8 +7,8 @@ Fairness protocol (docs/benchmarking.md):
   (pipelines.ChatService.run with bench=True): there is exactly ONE pipeline
   implementation in the codebase, so arm parity is structural, not maintained
   by hand (this replaced the pre-v3 hand-mirrored `_arm_*` methods).
-- Matched final context budget: traditional retrieves top_k_use=4 directly;
-  hybrid retrieves top_k_retrieve=10, reranks, keeps top_k_use=4.
+- Matched final context budget: BOTH arms retrieve top_k_retrieve=10 RRF
+  candidates, rerank (same slot, same budget), and keep top_k_use=4.
 - The judge model is independent of both arms' generators (no self-preference bias).
 - Hybrid additionally records pre-rerank metrics -> rerank lift, and its sufficiency
   gate probability -> gate accuracy/Brier vs ground-truth answerability.
@@ -114,6 +114,10 @@ class BenchRunner:
                 config={
                     "pipeline": "hybrid-v2",
                 "orchestrator": "chat-service-shared",
+                "retrieval_mode": self.settings.retrieval_mode,
+                "rerank_mode": self.settings.rerank_mode,
+                "reranker": (self.settings.reranker_model
+                             if self.settings.rerank_mode == "cross" else "-"),
                     "top_k_retrieve": self.settings.top_k_retrieve,
                     "top_k_use": self.settings.top_k_use,
                     "llm_default": self.settings.llm_model_default,
