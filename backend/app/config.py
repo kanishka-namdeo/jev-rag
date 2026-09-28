@@ -48,6 +48,13 @@ class Settings(BaseSettings):
     disable_llm_thinking: bool = True                # strip chain-of-thought from answers
     llm_temperature: float = 0.3
     llm_max_tokens: int = 2000
+    # Minimum seconds between LLM HTTP attempts (initial + retries), enforced by
+    # a shared pacer across generator and judge clients. Burst-sensitive shared
+    # gateways (429 without Retry-After) need this to avoid retry death-spirals;
+    # 0 disables pacing (fine for generous endpoints like DashScope proper).
+    # Measured safe floor for the sandbox internal gateway: 1.5s (8/8 judge-sized
+    # calls sustained; sub-1.5s bursts trigger 429 cascades).
+    llm_min_request_interval: float = 0.0
 
     # --- Local Jev-style decision engine (System One) ---
     jev_model_dir: str = "./models/jev-style"

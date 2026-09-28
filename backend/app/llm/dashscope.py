@@ -8,15 +8,63 @@ from __future__ import annotations
 
 import json
 import logging
+import threading
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Iterator
 
+import httpx
 from openai import BadRequestError, OpenAI
 
 from app.config import LLM_PRICES_PER_MTOK, DEFAULT_PRICE, Settings
 
 logger = logging.getLogger("jevrag.dashscope")
+
+
+class _RequestPacer:
+    """Thread-safe minimum-interval throttle, applied as an httpx request hook.
+
+    Burst-sensitive gateways (429 without Retry-After) can death-spiral when SDK
+    retries arrive faster than the rate-limit window refills: each retry counts
+    as a new request and keeps the window saturated. Pacing EVERY HTTP attempt
+    (initial calls and retries alike) at a floor interval keeps sustained
+    traffic under the limit; requests that already arrive slower than the
+    interval pass through without extra delay.
+    """
+
+    def __init__(self, min_interval: float):
+        self.min_interval = max(0.0, min_interval)
+        self._lock = threading.Lock()
+        self._next_slot = 0.0  # monotonic timestamp of the next free slot
+
+    def hook(self, request: httpx.Request) -> None:  # noqa: ARG002 (signature fixed by httpx)
+        if self.min_interval <= 0:
+            return
+        with self._lock:
+            now = time.monotonic()
+            slot = max(now, self._next_slot)
+            self._next_slot = slot + self.min_interval
+            wait = slot - now
+        if wait > 0:
+            time.sleep(wait)
+
+
+_PACER: _RequestPacer | None = None
+_HTTP_CLIENT: httpx.Client | None = None
+_CLIENT_LOCK = threading.Lock()
+
+
+def _shared_http_client(min_interval: float) -> httpx.Client:
+    """One httpx.Client (connection pool + pacer hook) shared by ALL LLM clients
+    built in this process, so generator and judge traffic pace together."""
+    global _PACER, _HTTP_CLIENT
+    with _CLIENT_LOCK:
+        if _PACER is None:
+            _PACER = _RequestPacer(min_interval)
+        if _HTTP_CLIENT is None:
+            _HTTP_CLIENT = httpx.Client(event_hooks={"request": [_PACER.hook]})
+    return _HTTP_CLIENT
 
 
 def _load_gateway_auth(settings: Settings) -> tuple[str, str, dict[str, str]] | None:
@@ -73,6 +121,7 @@ def build_llm_client(settings: Settings, *, timeout: float = 180.0,
         timeout=timeout,
         max_retries=max_retries,
         default_headers=default_headers,
+        http_client=_shared_http_client(settings.llm_min_request_interval),
     )
 
 
