@@ -67,6 +67,8 @@ def main() -> int:
     parser.add_argument("--out", default="")
     parser.add_argument("--resume", action="store_true",
                         help="load --out and only evaluate missing (scenario, arm) pairs")
+    parser.add_argument("--aggregate-only", action="store_true",
+                        help="never evaluate: recompute aggregates/stats/report from stored rows")
     args = parser.parse_args()
 
     scenario_ids = [s.strip() for s in args.scenarios.split(",") if s.strip()]
@@ -119,7 +121,7 @@ def main() -> int:
     # resume support: keep prior per-question rows; re-evaluate only missing
     # (scenario, arm) pairs. Aggregates + stats are always recomputed fresh.
     prior: dict = {}
-    if args.resume and out_path.exists():
+    if (args.resume or args.aggregate_only) and out_path.exists():
         try:
             prior = json.loads(out_path.read_text())
             logger.info("resumed %s: %d arm(s) with data", out_path, len(prior.get("arms", {})))
@@ -130,18 +132,26 @@ def main() -> int:
                               "k_retrieve": K_RETRIEVE, "k_use": K_USE, "rrf_k": RRF_K,
                               "resumed_from": str(out_path) if prior else None,
                               "generated_at": time.strftime("%Y-%m-%dT%H:%M:%S")}}
-    # drop arms/scenarios the user removed from this invocation
-    for arm in list(results["arms"]):
-        if arm not in arms:
-            del results["arms"][arm]
+    # NOTE: arms NOT requested in this invocation keep their stored data
+    # (subset runs extend, never shrink, the accumulated results).
     gate_scores: list[float] = []
     gate_labels: list[int] = []
+    bge_lex = None
 
     for sid in scenario_ids:
         scenario = SCENARIO_MAP.get(sid)
         if scenario is None:
             print(f"unknown scenario {sid}", file=sys.stderr)
             return 2
+        # aggregate-only mode: collect gate calibration rows, never re-evaluate
+        if args.aggregate_only:
+            for q in scenario.questions:
+                row = (results["arms"].get("rrf-cross", {})
+                       .get("per_scenario", {}).get(sid, {}).get("per_question", {}).get(q.id))
+                if row and "gate_top1" in row:
+                    gate_scores.append(row["gate_top1"])
+                    gate_labels.append(row["gate_label"])
+            continue
         # skip scenarios whose every requested arm already has data
         missing_arms = [a for a in arms
                         if not _has_all_questions(results, a, sid, scenario)]
@@ -155,15 +165,22 @@ def main() -> int:
             continue
         doc_ids = _reset_scenario(ingestor, scenario)
         lex = _build_lexical(store, doc_ids)
+        bge_doc_ids: list[str] | None = None
         if bge_store is not None and any(a == "bge-cross" for a in missing_arms):
-            _reset_scenario(Ingestor(settings, bge_embedder, bge_store), scenario)
-            bge_lex = _build_lexical(bge_store, doc_ids)
+            bge_doc_ids = _reset_bge(bge_store, bge_embedder, scenario, settings)
+            bge_lex = _build_lexical(bge_store, bge_doc_ids)
+
+        def _save():
+            out_path.parent.mkdir(parents=True, exist_ok=True)
+            out_path.write_text(json.dumps(results, indent=2))
 
         for arm in missing_arms:
             per_q = results["arms"].setdefault(arm, {"per_scenario": {}})
-            arm_rows = per_q["per_scenario"].setdefault(sid, {"per_question": prior.get(
-                "arms", {}).get(arm, {}).get("per_scenario", {}).get(sid, {}).get(
-                "per_question", {})})
+            scenario_row = per_q["per_scenario"].setdefault(sid, {"per_question": {}})
+            prior_rows = (prior.get("arms", {}).get(arm, {})
+                          .get("per_scenario", {}).get(sid, {}).get("per_question", {}))
+            scenario_row["per_question"].update(prior_rows)
+            arm_rows = scenario_row["per_question"]
 
             for q in scenario.questions:
                 if q.id in arm_rows:  # already evaluated (resume)
@@ -173,7 +190,7 @@ def main() -> int:
                         gate_labels.append(row["gate_label"])
                     continue
                 cands = _retrieve_arm(arm, q.question, doc_ids, store, embedder, lex,
-                                      bge_store, bge_embedder, bge_lex)
+                                      bge_store, bge_embedder, bge_lex, bge_doc_ids)
                 kept = _rerank_arm(arm, q.question, cands, reranker, jev, settings)
                 kept = kept[:K_USE]
                 files = _top_files(kept)
@@ -188,9 +205,9 @@ def main() -> int:
                     gate_scores.append(top1)
                     gate_labels.append(label)
                 arm_rows[q.id] = row
-            qs = arm_rows
-            agg = _aggregate([v["metrics"] for v in qs.values()])
-            results["arms"][arm]["per_scenario"][sid].update(agg)
+            agg = _aggregate([v["metrics"] for v in arm_rows.values()])
+            scenario_row.update(agg)
+            _save()  # incremental: window timeouts never lose completed work
             logger.info("[%s/%s] recall4=%.3f hit1=%.3f", arm, sid, agg["recall4"], agg["hit1"])
 
     # pooled aggregates + paired stats vs the v3 default (rrf-cross)
@@ -275,6 +292,34 @@ def _reset_scenario(ingestor: Ingestor, scenario) -> list[str]:
     return doc_ids
 
 
+def _reset_bge(bge_store: VectorStore, bge_embedder: Embedder, scenario,
+               settings) -> list[str]:
+    """Ingest the scenario corpus into the bge eval collection WITHOUT touching
+    the shared documents table (the main-store reset owns those rows). Chunks
+    are deleted by filename metadata; doc ids are deterministic per scenario
+    so repeated resets are idempotent."""
+    from app.rag.ingestion import Ingestor
+    from app.db import db_session  # noqa: F401 — bge path never writes Document rows
+
+    tmp_ing = Ingestor(settings, bge_embedder, bge_store)  # reuses extract/_split
+    bge_store._ensure()
+    for filename in scenario.docs:
+        bge_store._collection.delete(where={"filename": filename})
+    doc_ids: list[str] = []
+    for filename in scenario.docs:
+        path = doc_path(scenario.id, filename)
+        text = tmp_ing._extract_text(path).strip()
+        if not text:
+            raise RuntimeError(f"no text extracted for {filename}")
+        chunks = tmp_ing._split(text, filename)
+        embeddings = bge_embedder.embed_documents(chunks)
+        doc_id = f"bge-{scenario.id}-{len(doc_ids)}"
+        bge_store.add_chunks(doc_id, filename, chunks, embeddings)
+        doc_ids.append(doc_id)
+    logger.info("bge eval corpus ready: %s (%d docs)", scenario.id, len(doc_ids))
+    return doc_ids
+
+
 def _build_lexical(store: VectorStore, doc_ids: list[str]) -> LexicalIndex:
     lex = LexicalIndex(k1=1.5, b=0.75)
     lex.build(store.all_chunks(doc_ids))
@@ -282,12 +327,14 @@ def _build_lexical(store: VectorStore, doc_ids: list[str]) -> LexicalIndex:
 
 
 def _retrieve_arm(arm, query, doc_ids, store, embedder, lex,
-                  bge_store=None, bge_embedder=None, bge_lex=None) -> list[dict]:
+                  bge_store=None, bge_embedder=None, bge_lex=None,
+                  bge_doc_ids=None) -> list[dict]:
     """Candidate pool (K_RETRIEVE) per arm; returns list[dict]."""
     if arm == "dense" or arm == "dense-cross":
         return _chunks_to_dicts(store.query(embedder.embed_query(query), K_RETRIEVE, doc_ids=doc_ids))
     if arm == "bge-cross":
-        return _chunks_to_dicts(bge_store.query(bge_embedder.embed_query(query), K_RETRIEVE, doc_ids=doc_ids))
+        return _chunks_to_dicts(bge_store.query(bge_embedder.embed_query(query), K_RETRIEVE,
+                                                doc_ids=bge_doc_ids or doc_ids))
     if arm == "bm25":
         out = []
         for cid, _score in lex.query(query, top_n=K_RETRIEVE):

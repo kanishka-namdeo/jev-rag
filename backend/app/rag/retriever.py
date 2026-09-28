@@ -83,11 +83,19 @@ class Embedder:
 
     def embed_query(self, text: str) -> list[float]:
         self._ensure()
-        return list(next(iter(self._model.embed([text], batch_size=1))))
+        vec = next(iter(self._model.embed([text], batch_size=1)))
+        # tolist(): pure python floats — chromadb 1.5.9's validator rejects
+        # np.float32 scalars nested in plain lists (bge models return them)
+        return [float(x) for x in vec]
 
     def embed_documents(self, texts: list[str]) -> list[list[float]]:
         self._ensure()
-        return [list(v) for v in self._model.embed(texts, batch_size=16)]
+        out: list[list[float]] = []
+        for v in self._model.embed(texts, batch_size=16):
+            # tolist(): pure python floats — chromadb 1.5.9's validator rejects
+            # np.float32 scalars nested in plain lists (bge models return them)
+            out.append([float(x) for x in v])
+        return out
 
     def info(self) -> dict:
         return {
