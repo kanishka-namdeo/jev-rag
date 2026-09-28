@@ -1,32 +1,88 @@
 # Benchmark Results — Traditional vs Hybrid (Jev) RAG
 
-Two full runs are documented here:
+Three full runs are documented here:
 
-- **Run `0314ac0a` — hybrid v2 (current)**: the seven-slot single-generator pipeline
-  (effort routing, decomposed multi-retrieval, Jev rerank, per-passage screening
-  battery, sufficiency gate + corrective retry, best-of-2, citation verification).
-  All slots enabled at production defaults. **This is the primary result.**
+- **Run `bf05f585` — hybrid v2, battery OFF (current default, primary result)**:
+  the seven-slot single-generator pipeline with the per-passage screening battery
+  disabled (`JEVRAG_HYBRID_PASSAGE_BATTERY=false`) and `jev_no_retrieval_threshold`
+  raised to 0.9 — the shipped, evidence-based defaults. Within-run: **hybrid 92.7%
+  vs traditional 87.5% (+5.2pp, n.s.)**, pairwise 9W/3L/36T. Full attribution
+  story in [`benchmark-v2-ablation.md`](benchmark-v2-ablation.md).
+- **Run `0314ac0a` — hybrid v2, all slots ON (archived)**: the seven-slot pipeline
+  with the passage battery enabled. Showed the battery's absolute thresholds are
+  miscalibrated for the 0.8B decision model: hybrid 62.5% vs traditional 83.3%
+  (−20.8pp, Wilcoxon p=0.033). Kept as the motivating negative result.
 - **Run `9d894b6c` — hybrid v1 (archived)**: the four-slot pipeline (broad retrieval,
-  rerank, sufficiency gate, answer verification). Kept at the bottom for the v1→v2
-  comparison; cross-run numbers carry environment variance (see *Confounds*).
+  rerank, sufficiency gate, answer verification). Hybrid 93.8% vs traditional 85.4%
+  (+8.3pp, McNemar p=0.125 — positive trend, underpowered).
+
+All three runs: 48 questions × 2 arms, 6 scenarios, judge kimi-k2.5
+(self-test 8/8), generator qwen3.7-plus on the same DashScope endpoint —
+cross-run numbers still carry environment variance (see *Confounds*).
 
 ## Verdict (stated plainly)
 
-**Hybrid v2 lost to traditional on this benchmark — correctness 62.5% vs 83.3%
-(−20.8pp), Wilcoxon p = 0.033, pairwise 4W/24L/20T (29.2% win rate).** The regression
-is concentrated in v2's *new* safety screens: the per-passage battery's
-prompt-injection noul fired on ordinary earnings/technical prose at 0.91–0.98
-(threshold 0.9), dropping gold passages from the context; "no evidence" drops emptied
-the context entirely on near-duplicate KB questions; and conflict-blocked passages
-pushed the generator into unnecessary abstention. Over-abstention on answerable
-questions jumped from 14% (traditional) / 2.3% (v1 hybrid) to **39.5%**.
+**With the battery off (the shipped default), hybrid v2 beats traditional
+within-run by +5.2pp mean correctness (92.7% vs 87.5%) — a directionally
+consistent but statistically underpowered advantage (McNemar p=0.375, Wilcoxon
+p=0.222, bootstrap CI [−3.1, +14.6] includes 0).** It recovers v1-level hybrid
+numbers in 4/6 scenarios exactly or better (finance 100%, policy 100%,
+distractor 87.5%, outofscope 87.5%) and most of the gap in the other two
+(techdocs 87.5% vs v1's 100%; multilingual 93.75% vs 100%). Faithfulness 100%,
+over-abstention 4.7% (v1: 2.3%; battery-on: 39.5%), zero fabrications.
 
-The v1 result (hybrid +8.3pp over traditional, concentrated in distractor-heavy
-scenarios) was not reproduced by v2 — v2 hybrid scored 31.3pp below v1 hybrid
-(cross-run comparison, see *Confounds*). Within this run, under identical conditions,
-the traditional arm was better.
+The honest label is the same one v1 earned: **positive trend, not established
+at n=48.** The battery-ON run (`0314ac0a`) remains the cautionary counterweight:
+the same pipeline with one miscalibrated slot lost by 20.8pp. The lesson both
+runs teach together: relative signals (rerank-as-ranker) work with the 0.8B
+stand-in; absolute-threshold gates need per-corpus calibration before they
+ship.
 
-## Run `0314ac0a` configuration
+## Run `bf05f585` configuration (battery-off ablation)
+
+- 48 questions × 2 systems · 6 scenarios · 0 errors · 75.0 min
+- Judge kimi-k2.5 (independent model family from both arms' qwen3.7-plus generator;
+  self-test 8/8 = 100%)
+- top_k retrieve/use = 10/4 (matched final context budget); sufficiency threshold 0.5
+- v2 slots: effort_routing ✓ · passage_battery **✗ (off — the ablation variable)** ·
+  corrective_retry ✓ · best_of_n ✓ · citation_verify ✓ · no_retrieval ≥ 0.9
+- Same endpoint, model ids, and judge as runs `0314ac0a` and `9d894b6c`
+
+### Headline (all scenarios pooled, run `bf05f585`)
+
+| metric | traditional | hybrid v2 (battery off) | Δ (hybrid − trad) |
+|---|---|---|---|
+| correctness (judge) | 87.5% | 92.7% | **+5.2pp** |
+| correctness (binary @0.5) | 87.5% | 93.75% | +6.25pp (McNemar p=0.375) |
+| faithfulness (judge) | 100.0% | 100.0% | ±0 |
+| hit@4 | 100% | 95.4% | −4.7pp |
+| MRR@10 | 0.855 | 0.802 | −0.052 |
+| nDCG@10 | 0.890 | 0.838 | −0.052 |
+| over-abstention (answerable) | 9.3% | 4.7% | −4.7pp |
+| fabrication (unanswerable) | 0% | 0% | ±0 |
+| latency p50 | 16.7s | 58.3s | +41.6s (3.5×) |
+| latency p95 | 29.0s | 135.6s | +106.6s |
+| cost / query | $0.0015 | $0.0017 | +$0.0002 |
+| pairwise win rate | — | 56.3% (W9/T36/L3, pos-consistency 91.7%) | — |
+
+Statistics (`scripts/analyze_bench_run.py`): McNemar exact p=0.375 (1 trad-only /
+4 hybrid-only binary wins); Wilcoxon p=0.222 (rank-biserial +0.52, 6 nonzero
+diffs of 48); paired bootstrap 95% CI of Δcorrectness [−0.031, +0.146].
+Verbosity probe: Spearman(len, correctness) −0.36 trad / −0.25 hybrid.
+
+Reading: retrieval metrics now show the reranker's true residual failure mode —
+without the battery's re-injection path, 2 questions have gold demoted below
+top-4 (hit@4 95.4%) — while correctness, abstention, and faithfulness all favor
+the hybrid. The 4 hybrid binary wins are all traditional over-abstentions the
+retry loop recovered (d4, f3, f6, p3); the 3 pairwise losses are 2 rerank
+demotions + 1 judge-noise abstention flip (o5). See
+[`benchmark-v2-ablation.md`](benchmark-v2-ablation.md) for the full taxonomy.
+
+---
+
+## Run `0314ac0a` (archived: battery ON — the motivating negative result)
+
+### Run `0314ac0a` configuration
 
 - 48 questions × 2 systems · 6 scenarios · 0 errors · 98.1 min
 - Judge kimi-k2.5 (independent model family from both arms' qwen3.7-plus generator;
@@ -37,7 +93,7 @@ the traditional arm was better.
 - Engine memory-trimmed for this run (jev-score seq2/out32; bit-identical decisions,
   306 MB saved — see `scripts/verify_jev_runtime_parity.py`)
 
-## Statistical analysis (paired, within-run — the controlled comparison)
+## Statistical analysis (run `0314ac0a`, paired, within-run)
 
 Computed by `scripts/analyze_bench_run.py` (Dietterich 1998; Demšar 2006):
 
@@ -54,7 +110,7 @@ is borderline (p=0.052) — with n=48 and 22 discordant pairs the study is under
 for effects of this size. The direction is unambiguous; the exact magnitude is
 uncertain (Δcorrectness 95% CI spans −0.40 to −0.02).
 
-## Headline (all scenarios pooled)
+## Headline (all scenarios pooled — run `0314ac0a`)
 
 | metric | traditional | hybrid v2 | Δ (hybrid − trad) |
 |---|---|---|---|
@@ -97,7 +153,7 @@ see the fabrication discussion below for why this cut both ways).
 
 ## Hybrid-only intelligence
 
-| metric | v2 (this run) | v1 (archived run) |
+| metric | battery-ON run (`0314ac0a`) | v1 (archived run) |
 |---|---|---|
 | Jev rerank lift — nDCG@10 | **−0.245** | −0.042 |
 | sufficiency gate accuracy | 82.2% (Brier 0.164, n=45) | 91.7% (Brier 0.077, n=48) |
@@ -171,23 +227,19 @@ slot (jev-in-the-pipeline §4: gates showed no net gain).
 **What still works.** The reranker as a *relative* signal, the sufficiency gate's
 direction (82% accuracy even on battery-depleted contexts), citation verification
 (63 verdicts, sensible), and honest behavior when context is genuinely absent.
-v1 — rerank + gate orchestration only — remains the better hybrid configuration on
-this evidence.
+*(Written at the time; the battery-off re-run below supersedes the "v1 remains
+better" conclusion — v2 with the battery off matches v1-level performance.)*
 
-**Recommended remediation (knob-level, all shipped):**
-- disable the battery by default (`JEVRAG_HYBRID_PASSAGE_BATTERY=false`) or raise
-  `JEVRAG_JEV_INJECTION_DROP_THRESHOLD` to ≥ 0.99 (observed false positives reach
-  0.98, so 0.99 retains only near-certain catches — at which point honest
-  discrimination is unproven and off is the evidence-backed choice);
-- raise `JEVRAG_JEV_NO_RETRIEVAL_THRESHOLD` from 0.5 to ≥ 0.9, or restrict the
-  fast path to conversational patterns;
-- keep effort routing, corrective retry, and citation verification (no measured
-  harm; retry loop cost is real but bounded).
-
-An ablation re-run of the finance scenario with the battery disabled is documented
-in `docs/benchmark-v2-ablation.md` (run `e98907aa`) — hybrid correctness recovered
-50% → 100% with the battery off, attributing the entire finance regression to the
-battery's false positives.
+**Interim remediation (shipped after this run, validated by the battery-off
+re-run):** disable the battery by default (`JEVRAG_HYBRID_PASSAGE_BATTERY=false`);
+raise `JEVRAG_JEV_NO_RETRIEVAL_THRESHOLD` from 0.5 to 0.9; keep effort routing,
+corrective retry, and citation verification. The full 6-scenario re-run with these
+defaults — run `bf05f585`, see the top of this document — confirms the
+remediation: hybrid 92.7% vs traditional 87.5% within-run, v1-level numbers
+recovered in 4/6 scenarios exactly or better, over-abstention back to 4.7%,
+fabrication eliminated, fast-path misroute gone. The finance-only ablation that
+first isolated the mechanism (run `e98907aa`, hybrid 50% → 100%) is documented
+in `docs/benchmark-v2-ablation.md`.
 
 ## Per-scenario results (run `0314ac0a`)
 

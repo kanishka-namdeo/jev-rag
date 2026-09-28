@@ -4,6 +4,39 @@ Milestone history for Jev-RAG. Each entry links to the commit that delivered it.
 Dates are YYYY-MM-DD (commit date). Format is loosely inspired by
 [Keep a Changelog](https://keepachangelog.com/), grouped by project phase.
 
+## 2026-09-28 — Battery-off full ablation: v2 recovers v1-level numbers; gateway-auth tooling
+
+The full 6-scenario battery-off ablation (run `bf05f585`, 48Q × 2 arms, judge
+kimi-k2.5 self-test 8/8, same endpoint/models as all prior runs) **answers the
+attribution question at scale**:
+
+- **Within-run: hybrid v2 (battery off) 92.7% vs traditional 87.5% (+5.2pp,
+  n.s. — McNemar p=0.375, Wilcoxon p=0.222, bootstrap CI [−3.1, +14.6])**.
+  Pairwise 9W/3L/36T (56.3% win rate, position consistency 91.7%).
+- **v1-level recovery: 4/6 scenarios exactly or better** (finance 100%, policy
+  100% — exceeds v1's 87.5%, distractor 87.5%, outofscope 87.5%); techdocs
+  87.5% and multilingual 93.75% recover most of the gap. Faithfulness 100%;
+  over-abstention 39.5% → **4.7%** (v1: 2.3%); fabrications 0.
+- **Fast-path remediation validated**: the o6 fabrication from run `0314ac0a`
+  is gone with `jev_no_retrieval_threshold=0.9`; all 8 outofscope questions
+  now score 1.0 (proper abstention on unanswerable, corpus-grounded answers on
+  answerable).
+- **Remaining loss taxonomy (3 pairwise losses)**: 2 rerank demotions (gold
+  below top-4; hit@4 95.4% vs 100% — the battery had been masking this), 1
+  judge-noise abstention flip (o5, both arms abstained identically).
+- **Infrastructure**: after a sandbox reset wiped the DashScope key, added
+  OpenAI-compatible gateway auth support (`JEVRAG_DASHSCOPE_AUTH_CONFIG` +
+  `X-Token`/`X-Z-AI-From` headers, `build_llm_client()` shared by generator and
+  judge) and a shared request pacer (`JEVRAG_LLM_MIN_REQUEST_INTERVAL`) that
+  stops 429 retry death-spirals on burst-limited shared gateways. Full
+  environment rebuilt from git (venv, GGUF, jev-score); DashScope key later
+  restored by the user, keeping all three full runs on one endpoint/model/judge
+  stack.
+- Docs rewritten: `docs/benchmark-v2-ablation.md` (full-scale attribution study,
+  superseding the finance-only preliminary), `docs/benchmark-results.md`
+  (three-run structure: battery-off primary, battery-ON archived negative
+  result, v1 archived).
+
 ## 2026-09-28 — v2 full benchmark: objective evaluation, memory hardening, evidence-based defaults
 
 The full v2 re-run (48 questions × 2 arms, run `0314ac0a`) **changed the conclusion**,
