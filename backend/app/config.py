@@ -99,13 +99,25 @@ class Settings(BaseSettings):
     data_dir: str = "./backend/data"
 
     # --- Retrieval / pipeline knobs ---
-    top_k_retrieve: int = 10            # candidates pulled from Chroma for hybrid rerank
+    top_k_retrieve: int = 10            # candidates pulled for rerank (hybrid pool)
     top_k_use: int = 4                  # passages actually given to the LLM
     chunk_size: int = 900               # characters
     chunk_overlap: int = 140
     jev_rerank_char_limit: int = 400    # per-chunk truncation inside Jev states (latency control)
     jev_context_char_limit: int = 1600  # context block truncation for sufficiency/verify states
     hybrid_verify_answers: bool = True  # post-answer groundedness check (Jev Noul)
+
+    # --- v3 retrieval stack (docs/rag-upgrade-2026.md §3.1) ---
+    # hybrid_rrf: BM25 ‖ dense fused with reciprocal-rank fusion (2026 default);
+    # dense: pre-v3 behaviour (embedding search only) — kept as a fallback arm.
+    retrieval_mode: str = "hybrid_rrf"
+    bm25_k1: float = 1.5                # Okapi BM25 term-frequency saturation
+    bm25_b: float = 0.75                # Okapi BM25 length normalization
+    rrf_k: int = 60                     # reciprocal-rank fusion constant
+    # contextual prefixes ("doc title | section" prepended to each chunk before
+    # embedding) — Anthropic contextual-retrieval evidence: top-20 retrieval
+    # failures 5.7% -> 3.7%; nearly free for titled corpora.
+    contextual_prefix: bool = True
 
     # --- Hybrid v2 pipeline (single-generator design; docs/jev-improvements-research.md §4) ---
     # With one cloud generator the model-routing slot degenerates into effort routing;

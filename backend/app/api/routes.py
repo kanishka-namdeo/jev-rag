@@ -237,6 +237,7 @@ async def system_status(request: Request):
         "dashscope": llm_health,
         "jev": state.jev.info(),
         "embeddings": state.embedder.info(),
+        "retrieval": state.chat_service.search.info(),
         "vector_store": state.store.info(),
         "documents": {"total": doc_count, "ready": ready_count, "conversations": conv_count},
         "config": {
@@ -245,5 +246,7 @@ async def system_status(request: Request):
             "embed_model": state.settings.embed_model,
             "top_k_retrieve": state.settings.top_k_retrieve,
             "top_k_use": state.settings.top_k_use,
+            "retrieval_mode": state.settings.retrieval_mode,
+            "contextual_prefix": state.settings.contextual_prefix,
         },
     }

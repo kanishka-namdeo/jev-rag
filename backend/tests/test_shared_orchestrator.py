@@ -119,6 +119,13 @@ class _FakeEmbedder:
 class _FakeStore:
     def __init__(self, empty: bool = False):
         self.empty = empty
+        self.revision = 0
+
+    def get_chunks_by_ids(self, ids):
+        return []
+
+    def all_chunks(self, doc_ids=None):
+        return []
 
     def query(self, embedding, k, doc_ids=None):
         from app.rag.retriever import RetrievedChunk

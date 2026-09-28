@@ -1,4 +1,12 @@
-"""Document ingestion: parse (markitdown) -> chunk (langchain splitters) -> embed -> index."""
+"""Document ingestion: parse (markitdown) -> chunk (structure-aware, contextual
+prefixes) -> embed -> index.
+
+v3 chunking (docs/rag-upgrade-2026.md §3.1): chunks carry a contextual prefix
+("doc title | section heading") — Anthropic's contextual-retrieval evidence
+(top-20 retrieval failures 5.7% -> 3.7% with prefixes) at the cost of one
+string concat at index time. Falls back to plain recursive splitting when
+contextual_prefix is disabled.
+"""
 from __future__ import annotations
 
 import logging
@@ -50,7 +58,7 @@ class Ingestor:
             text = text.strip()
             if not text:
                 raise IngestionError("no extractable text found in the file")
-            chunks = self._split(text)
+            chunks = self._split(text, filename)
             embeddings = self.embedder.embed_documents(chunks)
             self.store.add_chunks(doc.id, filename, chunks, embeddings)
             doc.chunk_count = len(chunks)
@@ -67,15 +75,20 @@ class Ingestor:
         result = self._markitdown().convert(str(path))
         return result.text_content or ""
 
-    def _split(self, text: str) -> list[str]:
-        from langchain_text_splitters import RecursiveCharacterTextSplitter
+    def _split(self, text: str, filename: str = "") -> list[str]:
+        if self.settings.contextual_prefix:
+            from app.rag.chunking import split_structure_aware
 
-        splitter = RecursiveCharacterTextSplitter(
-            chunk_size=self.settings.chunk_size,
-            chunk_overlap=self.settings.chunk_overlap,
-            separators=["\n\n\n", "\n\n", "\n", ". ", "? ", "! ", "。", "！", "？", "; ", ", ", " ", ""],
-        )
-        return splitter.split_text(text)
+            specs = split_structure_aware(
+                text, title=filename or Path("document").stem,
+                chunk_size=self.settings.chunk_size,
+                overlap=self.settings.chunk_overlap)
+            return [spec.text for spec in specs]
+
+        from app.rag.chunking import split_plain
+
+        return split_plain(text, chunk_size=self.settings.chunk_size,
+                           overlap=self.settings.chunk_overlap)
 
     def delete_document(self, session: Session, doc_id: str) -> bool:
         doc = session.get(Document, doc_id)

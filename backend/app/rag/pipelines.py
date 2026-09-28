@@ -47,7 +47,7 @@ from app.rag.prompts import (
     format_conflict_block,
     format_context,
 )
-from app.rag.retriever import Embedder, RetrievedChunk, VectorStore
+from app.rag.retriever import Embedder, HybridSearch, RetrievedChunk, VectorStore
 from app.schemas import ChatRequest
 
 logger = logging.getLogger("jevrag.pipelines")
@@ -164,6 +164,9 @@ class ChatService:
         self.jev = jev
         self.embedder = embedder
         self.store = store
+        # v3 retrieval: BM25 ‖ dense + RRF fusion (settings.retrieval_mode
+        # switches it back to pure dense — the pre-v3 fallback arm).
+        self.search = HybridSearch(settings, embedder, store)
 
     # ================================================================ public entry
     async def run(self, req: ChatRequest) -> AsyncGenerator[dict, None]:
@@ -557,8 +560,7 @@ class ChatService:
     def _retrieve(self, query: str, k: int,
                   doc_ids: list[str] | None = None) -> tuple[list[dict], float]:
         t0 = time.perf_counter()
-        embedding = self.embedder.embed_query(query)
-        chunks: list[RetrievedChunk] = self.store.query(embedding, k, doc_ids=doc_ids)
+        chunks: list[RetrievedChunk] = self.search.retrieve(query, k, doc_ids=doc_ids)
         ms = (time.perf_counter() - t0) * 1000
         out: list[dict] = []
         for i, c in enumerate(chunks):
@@ -578,13 +580,16 @@ class ChatService:
         t0 = time.perf_counter()
         seen: dict[str, dict] = {}
         for sq in sub_queries:
-            embedding = self.embedder.embed_query(sq)
-            for c in self.store.query(embedding, self.settings.jev_multistep_subquery_k,
-                                      doc_ids=doc_ids):
+            for c in self.search.retrieve(sq, self.settings.jev_multistep_subquery_k,
+                                          doc_ids=doc_ids):
                 d = c.as_dict()
                 if d["chunk_id"] not in seen:
                     seen[d["chunk_id"]] = d
-        pool = sorted(seen.values(), key=lambda d: d.get("similarity", 0.0), reverse=True)
+        # pool order: fused RRF score in hybrid_rrf mode (covers lexical-only
+        # hits), dense cosine similarity in dense mode — consistent within a mode
+        pool = sorted(seen.values(),
+                      key=lambda d: d["rrf_score"] if d.get("rrf_score") is not None
+                      else d.get("similarity", 0.0), reverse=True)
         pool = pool[: self.settings.jev_multistep_max_pool]
         for i, d in enumerate(pool):
             d["retrieval_rank"] = i + 1
