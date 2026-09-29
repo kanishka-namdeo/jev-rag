@@ -34,8 +34,12 @@
 - `benchmark-public.md` + `benchmark-public-wave2.md` — the two public-benchmark run
   reports (SQuAD/HotpotQA wave 1; TriviaQA/2Wiki/MuSiQue wave 2) with statistics and
   loss taxonomy; regenerated curated sections after each public run
-- `assets/img/` — README banner + UI screenshots. Regenerable from the live app (live-browser
-  capture, not mocks); refresh after any UI change that alters what the README shows
+- `assets/img/` — README banner + UI screenshots + generated architecture visualizations.
+  Regenerable from the live app (live-browser capture, not mocks); refresh after any UI change
+  that alters what the README shows. Generated images (AI-produced, not live-browser):
+  `v3-architecture-v2.png` (v3 pipeline diagram), `escalation-gate-v2.png` (score-feature gate),
+  `v3-results-chart.png` (benchmark comparison). Keep these in sync with the README sections
+  they illustrate; regenerate when the architecture or numbers change
 
 ## Local Contracts
 
