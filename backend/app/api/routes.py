@@ -247,6 +247,8 @@ async def system_status(request: Request):
             "top_k_retrieve": state.settings.top_k_retrieve,
             "top_k_use": state.settings.top_k_use,
             "retrieval_mode": state.settings.retrieval_mode,
+            "rerank_mode": state.settings.rerank_mode,
+            "gate_mode": state.settings.gate_mode,
             "contextual_prefix": state.settings.contextual_prefix,
         },
     }

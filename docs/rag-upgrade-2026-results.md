@@ -1,0 +1,104 @@
+# v3 Upgrade Results: Headline Benchmark + H-GATE Ablation
+
+> Objective record of the Layer-2 runs. Every number carries n, the paired
+> statistic, and the CI. Run IDs refer to `bench_runs` in the local DB.
+> Design + hypotheses: docs/rag-upgrade-2026.md, docs/testbench-design.md.
+> Layer-1 (retrieval) results: docs/testbench-results-layer1.md.
+
+## Headline run — upgraded traditional vs upgraded hybrid (v3, both)
+
+Run `16814bd5` (label "v3-upgrade-headline"), 2026-09-28/29, 98 questions, 5
+public scenarios, 16 chained resumable windows, **0 errors**. Both arms run the
+v3 stack (RRF retrieval + cross-encoder rerank + contextual-prefix chunking);
+the A/B isolates the jev-augmented layer (escalation gate → decompose → CRAG
+retry → best-of-2 → citation verification).
+
+| | traditional v3 | hybrid v3 | delta |
+|---|---|---|---|
+| correctness (judge, kimi-k2.5) | 0.617 | **0.668** | +5.1pp, CI [−0.5, +10.7], McNemar b/c = 9/2, p = 0.065 |
+| faithfulness | 0.991 | 0.987 | −0.4pp |
+| answered / abstained | 63 / 35 | 73 / 25 | over-abstention 35.7% → 25.5% |
+| latency p50 | 19.9 s | 40.9 s | 2.06× (was 3× in v2) |
+| cost | $0.165 | **$0.148** | hybrid still cheaper |
+| pairwise (kimi-k2.5, pos-swap) | — | 14W/4L/80T, 55.1% win rate, consistency 84% | |
+
+### Pre-declared subsets
+
+| subset | trad | hybrid | delta | paired stats |
+|---|---|---|---|---|
+| **single-hop** (squad+triviaqa, n=41) | 0.805 | **0.902** | **+9.8pp, CI [+2.4, +19.5], Wilcoxon p = 0.048 — significant** | McNemar 5/0 |
+| multi-hop (hotpot+wiki2+musique, n=57) | 0.482 | 0.500 | +1.8pp, CI [−5.3, +8.8], p = 0.69 | n.s. |
+| squad (n=25) | 0.840 | 0.940 | +10.0pp | |
+| triviaqa (n=16) | 0.750 | 0.844 | +9.4pp | |
+| hotpotqa (n=25) | 0.800 | 0.780 | −2.0pp | n.s. |
+| wiki2 (n=16) | 0.281 | 0.281 | 0.0pp | |
+| musique (n=16) | 0.188 | 0.281 | +9.4pp, n.s. | |
+
+### Interpretation (objective)
+
+1. **The v2 single-hop regression is fixed and inverted**: −7.3pp (v2) →
+   **+9.8pp significant** (v3). The gate inversion did exactly what the
+   literature predicted: with retrieval deciding sufficiency implicitly, the
+   hybrid no longer false-negatives easy questions; instead it answers MORE
+   than the baseline (over-abstention 35.7% → 25.5%) and gets those answers
+   right (verification + retry recover borderline cases).
+2. **The multi-hop edge compressed to +1.8pp (n.s.)** — not because the hybrid
+   got worse at multi-hop (musique 0.19→0.28, wiki2 flat), but because the
+   *traditional arm got much better* (hotpot 0.66→0.80 vs v2 numbers, musique
+   0.125→0.19, retrieval recall up across the board — see Layer-1). The
+   upgraded baseline lifted the floor; the jev-augmented layer's residual
+   multi-hop value on top of a 2026 baseline is ~nil at n=57. This is the
+   honest headline: **the modern baseline ate most of the v2 multi-hop win.**
+3. **Gate behavior (features mode, θ=0.5)**: escalated 10/98 (10.2%), accuracy
+   vs answerability 0.898, Brier 0.103 — versus the v2 jev gate's 72% acc /
+   0.38 Brier on the same public suite (run bcfdd120). Of the 10 escalated
+   questions, 6 were answered CORRECTLY after escalation (recovered), 4
+   abstained (MuSiQue questions whose gold was never retrieved — honest
+   failures, not gate errors: the gate was right that something was wrong).
+4. **wiki2 remains the failure case for both arms** (0.28): Layer-1 shows the
+   cross-encoder over-scoring "relevant-looking" passages there (gold-in-top4
+   0.50 while top-1 score passes 1.00). Structural-evidence questions need
+   better retrieval, not more gating.
+
+## H-GATE ablation (Layer-2 testbench, stratified subset)
+
+Run `6b58fc40` (label "h-gate subset"), 20 questions (4 per scenario) × 3 arms,
+all through the shared orchestrator, 0 errors. n=20 is underpowered by design
+(power note in testbench-design.md) — read as direction, not proof.
+
+| arm | corr | 95% CI | abstain | escalation | p50 latency | cost | Δacc vs base |
+|---|---|---|---|---|---|---|---|
+| **base (features gate, θ=0.5)** | **0.70** | [0.48, 0.85] | 5 | 15% | 41 s | $0.029 | — |
+| gate-none (never escalate) | 0.65 | [0.43, 0.82] | 5 | 0% | 41 s | $0.033 | −5pp, CI [−15, 0], p = 1.0 |
+| always-hard (always escalate) | 0.60 | [0.39, 0.78] | 7 | 100% | **106 s** | $0.037 | −10pp, CI [−30, +10], p = 0.63 |
+
+Subsets: single-hop (n=8) base **0.875** vs gate-none 0.75 vs always-hard
+0.625; multi-hop (n=12) identical 0.583 across arms. Per-question
+disagreements (5): the features gate recovered sq1 (base 1.0 / gate-none 0.0);
+always-hard flipped 3 questions the other way (sq4, tq3, mq3) and added 2
+abstentions + 2.6× latency.
+
+**Conclusion (H-GATE, directional):** the score-feature gate sits at the best
+operating point of the three; never-escalating loses recoverable questions;
+always-escalating loses different ones and pays 2.6× latency. The oracle-gate
+ceiling arm and the jev-gate arm are wired and ready (run_testbench.py) but
+not yet run at this subset size — the full pre-declared matrix
+(docs/testbench-design.md) remains executable as-is.
+
+## Cost of the whole M9 session
+
+~$0.45 of Dashscope API (headline $0.31 both arms + judge, testbench $0.10),
+~4.7 h of chained sandbox windows, zero lost questions (resumable drivers).
+
+## What this means for jev-like models (interim synthesis)
+
+- Post-answer citation verification + best-of-2 selection (relative judgments):
+  retained; the hybrid's single-hop win runs through them.
+- Absolute sufficiency gating pre-retrieval: removed in v3, and every
+  measurement since agrees (gate accuracy 0.898 vs 0.72, Brier 0.10 vs 0.38,
+  single-hop −7.3pp → +9.8pp).
+- Pointwise reranking: replaced by the cross-encoder (Layer-1: jev rerank is
+  the weakest reranker, −3.5pp vs no rerank).
+- The escalating hard path still pays for itself overall (pooled +5.1pp at
+  LOWER cost than the baseline), but its value is now concentrated in
+  recovery/abstention behavior rather than raw multi-hop accuracy.

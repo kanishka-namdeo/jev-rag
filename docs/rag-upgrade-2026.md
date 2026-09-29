@@ -1,6 +1,7 @@
 # RAG Upgrade 2026: Research Synthesis, Pipeline Redesign & Jev Re-Evaluation
 
-> Status: DESIGN OF RECORD (research phase complete; implementation in progress)
+> Status: IMPLEMENTED + MEASURED. Results: docs/rag-upgrade-2026-results.md
+> (headline run 16814bd5) and docs/testbench-results-layer1.md (Layer-1)
 > Method: three parallel research agents — (R1) 2025–2026 trending RAG practice survey,
 > (R2) small-model placement literature + hypothesis-testbench methodology, (A1) full
 > codebase audit. Sources cited inline; project-internal evidence from
