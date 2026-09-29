@@ -152,7 +152,19 @@ def main() -> int:
                 return 2
             run.status = "running"
             run.progress_stage = "resumed"
+            _cfg = dict(run.config or {})
             session.commit()
+        # resume-contract: when --arms/--scenarios are left at their CLI defaults,
+        # adopt the RUN's recorded sets instead — a bare `--resume RUN_ID` must
+        # never silently widen/narrow the experiment (same contract as the
+        # bench_resume.py fix in the wave-2 worklog). Explicit flags always win.
+        recorded = _cfg.get("arms")
+        if recorded and "base,gate-none,gate-jev,always-hard,oracle-gate" == args.arms:
+            arms = [a for a in recorded if a in ARM_OVERRIDES]
+        recorded_scn = _cfg.get("scenarios")
+        if (recorded_scn and isinstance(recorded_scn, list)
+                and "squad,hotpotqa,triviaqa,wiki2,musique" == args.scenarios):
+            scenario_ids = [s for s in recorded_scn if s in SCENARIO_MAP]
     else:
         with db_session() as session:
             run_id = new_id()
