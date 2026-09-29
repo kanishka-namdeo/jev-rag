@@ -299,14 +299,34 @@ class BenchRunner:
 
     # ================================================================ scenario reset
     def _reset_scenario(self, scenario: BenchScenario) -> list[str]:
-        """Delete any previous copies of this scenario's docs, re-ingest fresh."""
+        """Delete any previous copies of this scenario's docs, re-ingest fresh.
+
+        Chained-window fast path: when every doc of the scenario is already
+        ingested and ready (single copy per filename), reuse it as-is. Ingestion
+        is deterministic and 'ready' is committed only AFTER the vector-store
+        upsert, so a ready doc implies a complete chunk set; a window killed
+        mid-ingestion leaves status 'processing', which falls back to the full
+        reset below (self-healing). This avoids re-embedding whole corpora at
+        every window restart (~1 min for 25 docs, ~8+ min for musique's 282).
+        """
         from app.db import Document
+        expected = {d: 0 for d in scenario.docs}
+        with db_session() as session:
+            existing = session.execute(
+                select(Document).where(Document.filename.in_(list(expected)))).scalars().all()
+        by_name: dict[str, list[Document]] = {}
+        for doc in existing:
+            by_name.setdefault(doc.filename, []).append(doc)
+        if all(len(by_name.get(d, [])) == 1 and by_name[d][0].status == "ready"
+               for d in scenario.docs):
+            logger.info("scenario '%s' already ingested (%d docs) — skipping re-ingest",
+                        scenario.id, len(scenario.docs))
+            return [by_name[d][0].id for d in scenario.docs]
+
         doc_ids: list[str] = []
         with db_session() as session:
             for filename in scenario.docs:
-                existing = session.execute(
-                    select(Document).where(Document.filename == filename)).scalars().all()
-                for doc in existing:
+                for doc in by_name.get(filename, []):
                     self.ingestor.delete_document(session, doc.id)
             session.commit()
             for filename in scenario.docs:
