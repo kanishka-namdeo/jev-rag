@@ -43,13 +43,20 @@ hybrid runs **cheaper** than the baseline ($0.148 vs $0.165 per 98-question suit
 
 ## ✨ What makes it different
 
-| | **Traditional RAG** | **Hybrid RAG (Jev-style)** |
+**Both pipelines share the 2026-standard retrieval stack** (BM25 ‖ dense + RRF fusion, cross-encoder rerank, contextual-prefix chunking). The hybrid adds a Jev-augmented agentic layer **only on questions that need it**:
+
+| | **Traditional RAG (v3 baseline)** | **Hybrid RAG (v3)** |
 | --- | --- | --- |
-| Retrieval | embedding top-4 straight to the LLM | broad top-10 + **local Jev-style rerank** (calibrated P(relevant) per passage) |
-| Quality gate | — | **sufficiency gate**: P(context actually answers the question) |
-| Verification | — | **groundedness check** on the final answer, shown as a live badge |
-| Trace | retrieval + LLM stats | every decision with probabilities, latencies, tokens, cost |
-| Pick it when | you need speed (≈1.5 s) | you need accuracy + abstention discipline (≈30 s on 2 CPU cores) |
+| **Retrieval** | BM25 ‖ dense + RRF fusion → cross-encoder rerank → top-4 | Same |
+| **Escalation gate** | — | **Score-feature gate**: easy questions (high rerank confidence) skip the heavy path |
+| **Hard path (when gate fails)** | — | Sub-query decomposition → per-subquery retrieval → CRAG retry → **Jev best-of-2** selection |
+| **Verification** | — | **Jev citation verification** on final answer, shown as groundedness badge |
+| **Jev decisions** | — | 3 calls on hard path (effort routing, best-of-2, citations) — **NOT** 7 slots |
+| **Latency (p50)** | ~20 s | ~41 s on public benchmarks (2.06×) |
+| **Cost** | $0.165 / 98 questions | **$0.148 / 98 questions** (cheaper) |
+| **Pick it when** | You need the modern baseline with minimal latency | You want extra guardrails on single-hop, recovery on hard questions, and citation verification |
+
+**Key insight from v3 research:** A ~0.5B decision model cannot make reliable *absolute* judgments (sufficiency, relevance thresholds). The v3 design uses Jev only for **relative judgments** (best-of-2 selection, citation verification, chat-vs-doc routing) and delegates the hard sufficiency decision to **calibrated retrieval scores**.
 
 Everything except the cloud LLM endpoint runs **locally**: embeddings (ONNX CPU),
 vector store (ChromaDB embedded), the Jev-style decision model (0.53 GB GGUF on
@@ -64,8 +71,9 @@ never generates text). This project uses its open-source, locally-runnable equiv
 [Jev-Style-0.8B-Decision-v3](https://huggingface.co/chaoliangUNSW/Jev-Style-0.8B-Decision-v3-GGUF)
 (Apache-2.0) via the [jev-style](https://github.com/lawrence3699/jev-style) package,
 with a custom llama.cpp scorer. The cloud "System Two" is an OpenAI-compatible
-Dashscope endpoint. The full rationale — including the decision-prompt patterns that
-were measured to work — is in [docs/hybrid-design.md](docs/hybrid-design.md).
+Dashscope endpoint.
+
+**What changed in v3:** The v2 pipeline used Jev for 7 decision slots, including absolute sufficiency gating. The v3 research showed this caused a single-hop regression (−7.3pp). The current design limits Jev to relative judgments where small models perform well, and uses cross-encoder scores for the escalation gate. Full rationale: [docs/rag-upgrade-2026.md](docs/rag-upgrade-2026.md).
 
 </details>
 
@@ -110,43 +118,62 @@ flowchart TB
     U["💬 question"] --> FUSE["hybrid retrieval · BM25 ‖ dense<br/>reciprocal-rank fusion"]
     V --> FUSE
     BM --> FUSE
-    FUSE -- "top-10 candidates" --> CE["🔀 cross-encoder rerank<br/>ONNX · calibrated P(relevant) → top-4"]
+    FUSE -- "top-10 candidates" --> CE["🔀 cross-encoder rerank<br/>ONNX · calibrated scores → top-4"]
 
-    subgraph T["Traditional pipeline (2026 baseline)"]
+    subgraph T["Traditional v3 (2026 baseline)"]
         CE -- "top-4" --> TL["☁️ cloud LLM · qwen3.7-plus<br/>cited answer streams back"]
     end
 
-    subgraph H["Hybrid pipeline · Jev-style System One (v3)"]
-        CE --> GATE["🚦 escalation gate<br/>top-1 rerank score ≥ θ? (calibrated)"]
-        GATE -- "pass (easy path)" --> HL["☁️ one cloud call<br/>cited answer"]
-        GATE -- "fail (hard path)" --> DEC["cloud decompose → per-sub-query retrieval<br/>→ Jev screening battery → CRAG retry → best-of-2 (Jev selects)"]
+    subgraph H["Hybrid v3 (Jev-augmented)"]
+        CE --> GATE["🚦 escalation gate<br/>score-features (top-1, margin, mean)"]
+        GATE -- "easy path: score ≥ θ" --> HL["☁️ one cloud call<br/>cited answer"]
+        GATE -- "hard path: score < θ" --> DEC["cloud decompose → per-sub-query RRF<br/>→ CRAG retry (1) → best-of-2 candidates<br/>→ Jev selects (relative)"]
         DEC --> HL
-        HL --> JV["🧠 Jev citation verification<br/>P(answer supported by sources) → badge + composite quality"]
+        HL --> JV["🧠 Jev citation verification<br/>P(supported) per [n] → badge"]
     end
 
     TL --> OUT["streamed answer + trace"]
     JV --> OUT
 ```
 
+### v3 Architecture Changes
+
+| Component | v2 (2026-09-28) | v3 (2026-09-29) | Why |
+| --- | --- | --- | --- |
+| **Sufficiency gate** | Jev noul (absolute P) | **Removed** → score-feature escalation gate | 0.8B model cannot make reliable absolute sufficiency judgments; gate inversion fixes single-hop regression |
+| **Rerank** | Jev noul per passage | **Cross-encoder** (ONNX, 149M) | 10× faster, better calibrated; Jev rerank optional (testbench arm) |
+| **Retrieval** | Dense only | **BM25 ‖ dense + RRF** | Rescues lexical/entity lookups; standard 2026 practice |
+| **Jev decisions** | 7 slots (effort, rerank, battery, sufficiency, selection, citations, quality) | **3 slots** (effort routing, best-of-2, citations) | Heavy stages only on hard path; relative judgments only |
+| **Passage battery** | 3 nouls/passage | **OFF by default** | Miscalibrated absolute thresholds caused −20.8pp regression |
+| **Latency ratio** | ~3× | **~2×** | Hard path runs less often; cross-encoder faster than Jev rerank |
+
+### How the escalation gate works
+
+The gate decides whether a question needs the expensive hard path **after** cheap retrieval, not before:
+
+1. **Retrieve + rerank** → cross-encoder scores for top-10 candidates
+2. **Score-feature gate** checks: top-1 score, top1−top2 margin, top-k mean, count-above-floor
+3. **Threshold θ calibrated** on labeled eval data (gold-in-top-4) using Youden J
+4. **Easy path** (score ≥ θ): one LLM call, Jev verifies citations → done
+5. **Hard path** (score < θ): decomposition, multi-step retrieval, CRAG retry, best-of-2 selection, verification
+
+This is the Adaptive-RAG pattern without the pre-retrieval router — the retrieval scores themselves answer the "is this easy?" question.
+
 | Component | Where | What |
 | --- | --- | --- |
 | Retrieval | 🖥️ local | BM25 ‖ dense (fastembed ONNX) + RRF fusion, cross-encoder rerank (ONNX) |
-| Jev-style decision model | 🖥️ local | 0.53 GB GGUF on llama.cpp (`jev-score`) — routing, best-of-2 selection, verification |
+| Jev-style decision model | 🖥️ local | 0.53 GB GGUF on llama.cpp (`jev-score`) — effort routing, best-of-2, citation verification |
 | Storage | 🖥️ local | SQLite (documents, conversations, traces, bench runs) |
 | Frontend + backend | 🖥️ local | Next.js 16 + FastAPI |
 | Generation (System Two) | ☁️ endpoint | OpenAI-compatible Dashscope: `qwen3.7-plus` |
 
 Wire protocol: [docs/api.md](docs/api.md) · full architecture:
-[docs/architecture.md](docs/architecture.md) · design rationale:
-[docs/hybrid-design.md](docs/hybrid-design.md).
+[docs/architecture.md](docs/architecture.md) · v3 design rationale:
+[docs/rag-upgrade-2026.md](docs/rag-upgrade-2026.md).
 
 ## 📊 Results, with receipts
 
-**v3 upgrade (2026-09-29)** — both pipelines were upgraded to the 2026-standard
-retrieval stack (BM25 ‖ dense + RRF fusion, cross-encoder rerank, contextual-prefix
-chunking), so the comparison isolates what the Jev-augmented layer adds **on top of
-a modern baseline**. Run `16814bd5`: 98 questions, 5 public benchmarks, 0 errors,
-16 resumable windows, independent judge (`kimi-k2.5`), same matched context budget:
+**v3 headline (2026-09-29)** — both pipelines upgraded to 2026-standard retrieval, isolating what the Jev-augmented layer adds on top of a modern baseline. Run `16814bd5`: 98 questions, 5 public benchmarks, independent judge (`kimi-k2.5`), matched context budget:
 
 | v3 headline (98 public questions) | Traditional v3 | Hybrid v3 | Δ |
 | --- | --- | --- | --- |
@@ -154,111 +181,81 @@ a modern baseline**. Run `16814bd5`: 98 questions, 5 public benchmarks, 0 errors
 | **Single-hop subset (n=41)** | 80.5% | **90.2%** | **+9.8pp · CI [+2.4, +19.5] · Wilcoxon p = 0.048 ✓** |
 | Multi-hop subset (n=57) | 48.2% | 50.0% | +1.8pp · n.s. |
 | Over-abstention (answerable Q) | 35.7% | **25.5%** | −10.2pp |
-| Latency p50 | 19.9 s | 40.9 s | 2.06× (was 3×) |
-| Cost per suite | $0.165 | **$0.148** | hybrid is cheaper |
+| Latency p50 | 19.9 s | 40.9 s | 2.06× (was 3× in v2) |
+| Cost per suite | $0.165 | **$0.148** | hybrid cheaper |
 
-> The honest reading: the v2 single-hop regression (−7.3pp) is **fixed and inverted**
-> — the gate inversion (decide sufficiency AFTER cheap retrieval, from calibrated
-> rerank scores, not by asking a 0.5B model for absolute judgments) did what the
-> calibration literature predicted. The v2 multi-hop edge compressed to noise
-> **because the upgraded baseline got that good** — the modern retrieval stack ate
-> most of the win. The hybrid still wins pooled, answers more, abstains less,
-> and costs less. Full statistics, gate behavior and the per-scenario table:
-> [docs/rag-upgrade-2026-results.md](docs/rag-upgrade-2026-results.md).
+### What these numbers mean
 
-<details>
-<summary><b>Historical: v2 numbers (pre-upgrade, same protocol)</b></summary>
+1. **The v2 single-hop regression is fixed and inverted.** The gate inversion (decide sufficiency AFTER retrieval, from calibrated scores, not by asking a 0.5B model for absolute judgments) did what the calibration literature predicted. Single-hop questions that the v2 gate falsely rejected now pass the easy path and get answered correctly.
 
-Six document scenarios × 48 ground-truth questions, both arms under a matched
-context budget, scored by an **independent LLM judge** (`kimi-k2.5` — a different
-model family than either generator, JSON-only, temperature 0, position-swapped
-pairwise verdicts, 8/8 canary self-test).
+2. **The multi-hop edge compressed because the baseline got that good.** The upgraded retrieval (RRF + cross-encoder) lifted the traditional arm's multi-hop performance (Hotpot 0.66→0.80, MuSiQue 0.125→0.19). The modern baseline ate most of the v2 multi-hop win. The hybrid still wins pooled, answers more, abstains less, and costs less.
 
-| Headline metric (48 Q, pooled) | Traditional | Hybrid (Jev) | Δ |
-| --- | --- | --- | --- |
-| **Correctness (judge)** | 85.4% | **93.8%** | **+8.4pp** |
-| Earnings-distractor scenario | 75% | **100%** | **+25pp** |
-| Over-abstention on answerable Q | 14% | **2.3%** | −11.7pp |
-| Fabrication rate (unanswerable Q) | 0% | 0% | = |
-| Latency p50 | 1.5 s | 30.5 s | +29 s ⚠️ |
+3. **The escalation gate works as intended.** 10/98 questions escalated (10.2%), gate accuracy vs answerability 0.898, Brier 0.103 (vs v2 jev gate's 0.72 acc / 0.38 Brier). Of the 10 escalated, 6 answered correctly after hard-path recovery, 4 abstained honestly (gold never retrieved).
 
-Across **five popular public benchmarks** (SQuAD, HotpotQA, TriviaQA, 2WikiMultiHopQA,
-MuSiQue — 98 seeded questions, same audited protocol), the hybrid wins **every
-multi-hop benchmark** and is neutral-to-negative on single-hop with saturated
-retrieval — reported in both directions:
-
-| Public benchmark | hop style | n | Traditional | Hybrid (Jev) | Δ |
-| --- | --- | --- | --- | --- | --- |
-| **MuSiQue-Ans val** | multi-hop | 16 | 12.5% | **37.5%** | **+25pp** |
-| **HotpotQA dev-distractor** | multi-hop | 25 | 66% | **84%** | **+18pp** |
-| **2WikiMultiHopQA val** | multi-hop | 16 | 43.8% | **56.2%** | **+12.4pp** |
-| **TriviaQA rc.wikipedia val** | single-hop | 16 | **75%** | 75% | 0pp |
-| **SQuAD v1.1 dev** | single-hop | 25 | **82%** | 70% | **−12pp** |
-| **Pooled** | | **98** | **59.2%** | **66.8%** | **+7.6pp** |
+Full statistics and per-scenario table: [docs/rag-upgrade-2026-results.md](docs/rag-upgrade-2026-results.md).
 
 <details>
-<summary><b>How to read these numbers (the honest version)</b></summary>
+<summary><b>Historical: v2 numbers (pre-upgrade)</b></summary>
 
-- The hybrid's biggest wins are exactly where naive RAG fails: **near-identical
-  distractor documents** (two earnings reports with matching numbers — 75% → 100%)
-  and **not answering when it shouldn't** (over-abstention 14% → 2.3%, zero
-  fabrications).
-- **Statistical honesty**: the v1 internal run gives McNemar p = 0.125, Wilcoxon
-  p = 0.046 (bootstrap CI +0.02…+0.17) — a positive trend, underpowered at n = 48,
-  not an established win. The v2 regression was significant on two of three tests.
-  Both directions get the same yardstick.
-- The v2 pipeline initially **lost** to traditional (62.5% vs 83.3%); the regression
-  was attributed to the passage battery's miscalibrated absolute thresholds — it now
-  ships OFF by default, and v2 recovered v1-level numbers (92.7% vs 87.5% within-run,
-  +5.2pp n.s., over-abstention 4.7%, zero fabrications).
-- On public data: multi-hop wins come from multi-step retrieval, Jev rerank and
-  corrective retry (recall@4 +9 to +16pp; 12 of 14 wave-2 wins are traditional
-  over-abstentions the retry loop recovered). On clean single-hop corpora the
-  retrieval is already saturated and the 0.8B sufficiency gate's absolute threshold
-  converts answerable jargon-dense passages into abstentions — the identified
-  re-calibration target, confirmed independently four times.
-- The honest tradeoff is **latency**: three local Jev decision calls add ~29 s on
-  2 CPU cores; the hybrid's cost was actually **lower** on public runs (more concise
-  answers). Tuning knobs are documented in [docs/hybrid-design.md](docs/hybrid-design.md).
-- Everything is reproducible from the UI: open the **Benchmarks** tab, pick
-  scenarios, run.
+The v2 pipeline measured a **single-hop regression** (−7.3pp on public data) caused by the absolute sufficiency gate. The full story is in [docs/benchmark-results.md](docs/benchmark-results.md); key runs:
 
-Full detail: [docs/benchmark-results.md](docs/benchmark-results.md) ·
-[docs/benchmark-public.md](docs/benchmark-public.md) ·
-[docs/benchmark-public-wave2.md](docs/benchmark-public-wave2.md) ·
-methodology: [docs/benchmarking.md](docs/benchmarking.md).
+| Run | Traditional | Hybrid v2 | Δ | Notes |
+| --- | --- | --- | --- | --- |
+| `bf05f585` (battery off) | 87.5% | 92.7% | +5.2pp (n.s.) | Shipped v2 default |
+| `0314ac0a` (battery on) | 83.3% | 62.5% | **−20.8pp** | Battery's absolute thresholds miscalibrated |
+| Public wave 1 + 2 | 59.2% | 66.8% | +7.6pp | Multi-hop +18.4pp, single-hop **−7.3pp** |
+
+The v3 upgrade fixed the single-hop regression by removing the absolute gate. Multi-hop wins from v2 were absorbed by the upgraded baseline.
+
+Methodology: independent LLM judge (`kimi-k2.5`), position-swapped pairwise, 8/8 canary self-test — [docs/benchmarking.md](docs/benchmarking.md).
 
 </details>
+
+<details>
+<summary><b>Historical: v1 numbers</b></summary>
+
+Six document scenarios × 48 ground-truth questions:
+
+| Headline (48 Q, pooled) | Traditional | Hybrid v1 | Δ |
+| --- | --- | --- | --- |
+| Correctness (judge) | 85.4% | **93.8%** | +8.4pp |
+| Over-abstention | 14% | **2.3%** | −11.7pp |
+| Fabrications | 0% | 0% | = |
+| Latency p50 | 1.5 s | 30.5 s | +29 s |
+
+The v1 design (4 slots: rerank, sufficiency, routing, verification) worked well on the internal suite but the public benchmarks exposed the single-hop issue in v2.
+
 </details>
 
 ## ⚙️ Configuration
 
-Everything lives in `backend/.env` (`cp backend/.env.example backend/.env`). The
-four you'll actually touch:
+Everything lives in `backend/.env` (`cp backend/.env.example backend/.env`). Key variables:
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
 | `JEVRAG_DASHSCOPE_API_KEY` | — | your key (never commit) |
 | `JEVRAG_DASHSCOPE_BASE_URL` | `https://coding-intl.dashscope.aliyuncs.com/v1` | any OpenAI-compatible `/v1` endpoint |
 | `JEVRAG_LLM_MODEL_DEFAULT` | `qwen3.7-plus` | the single System Two generator |
-| `JEVRAG_HYBRID_VERIFY_ANSWERS` | `true` | post-answer groundedness check (off = faster) |
+| `JEVRAG_HYBRID_VERIFY_ANSWERS` | `true` | Jev citation verification (off = faster) |
+| `JEVRAG_HYBRID_BEST_OF_N` | `true` | Jev best-of-2 selection on hard path |
+| `JEVRAG_HYBRID_PASSAGE_BATTERY` | **`false`** | screening battery (OFF by default after v2 regression) |
 
 <details>
 <summary><b>All configuration variables</b></summary>
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
-| `JEVRAG_LLM_MODEL_REASONING` | `qwen3.6-plus` | v1 reasoning route (kept for price continuity) |
+| `JEVRAG_LLM_MODEL_REASONING` | `qwen3.6-plus` | optional override for best-of-2 candidate B |
 | `JEVRAG_JEV_MODEL_DIR` | `./models/jev-style` | Jev-Style GGUF folder |
 | `JEVRAG_JEV_QUANT` | `Q4_K_M` | GGUF quantization |
 | `JEVRAG_JEV_SCORER` | `./models/jev-style/build/jev-score` | scorer binary |
-| `JEVRAG_EMBED_MODEL` | `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` | fastembed model (must be in its supported list) |
-| `JEVRAG_TOP_K_RETRIEVE` / `JEVRAG_TOP_K_USE` | `10` / `4` | candidates for rerank / passages given to the LLM |
-| `JEVRAG_HYBRID_*` / `JEVRAG_JEV_*` (v2) | see `.env.example` | per-slot switches + thresholds (effort routing, battery, corrective retry, best-of-2, citation verify) |
+| `JEVRAG_EMBED_MODEL` | `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` | fastembed model |
+| `JEVRAG_TOP_K_RETRIEVE` / `JEVRAG_TOP_K_USE` | `10` / `4` | candidates for rerank / passages to LLM |
+| `JEVRAG_JEV_NO_RETRIEVAL_THRESHOLD` | `0.9` | effort routing fast-path threshold |
+| `JEVRAG_JEV_CITATION_CONFIDENCE` | `0.8` | citation auto-accept confidence |
+| `JEVRAG_HYBRID_*` / `JEVRAG_JEV_*` | see `.env.example` | v2 legacy slots (battery, thresholds) |
 
-Latency knobs for the hybrid: fewer Jev decisions (disable verification), smaller
-`JEVRAG_TOP_K_RETRIEVE`, or a larger-context scorer build — see
-[docs/hybrid-design.md](docs/hybrid-design.md).
+Latency knobs: disable verification (`HYBRID_VERIFY_ANSWERS=false`), reduce `TOP_K_RETRIEVE`, or increase `JEV_SCORE_N_CTX` — see [docs/hybrid-design.md](docs/hybrid-design.md).
 
 </details>
 
@@ -291,18 +288,18 @@ backend/          FastAPI app — pipelines, Jev engine, ingestion, storage, ben
   app/llm/        Dashscope client + local Jev-style engine
 src/              Next.js frontend — chat, trace panel, documents, benchmarks dashboard, store
 scripts/          setup / build / run scripts (+ decision experiments, bench export)
-docs/             architecture · hybrid design · API protocol · benchmarking + results
+docs/             architecture · hybrid design · v3 upgrade research · benchmarking + results
 ```
 
 | Doc | What's inside |
 | --- | --- |
 | [docs/setup.md](docs/setup.md) | **fresh-system setup guide** — requirements, steps, verification, troubleshooting |
 | [docs/architecture.md](docs/architecture.md) | components, data flow, deployment topology |
-| [docs/hybrid-design.md](docs/hybrid-design.md) | why Jev-style System One, measured decision patterns, knobs |
-| [docs/jev-improvements-research.md](docs/jev-improvements-research.md) | research: Jev beyond routing, single-model design + validated experiments |
+| [docs/rag-upgrade-2026.md](docs/rag-upgrade-2026.md) | **v3 design rationale** — research synthesis, gate inversion, Jev re-placement |
+| [docs/hybrid-design.md](docs/hybrid-design.md) | v2 decision slots (historical), Jev-faithful patterns, knobs |
 | [docs/api.md](docs/api.md) | REST + SSE wire protocol |
 | [docs/benchmarking.md](docs/benchmarking.md) | methodology, metrics, judge design, fairness checklist |
-| [docs/benchmark-results.md](docs/benchmark-results.md) | the full runs: per-scenario tables, interpretation |
+| [docs/benchmark-results.md](docs/benchmark-results.md) | full runs: v1, v2, public benchmarks |
 | [CHANGELOG.md](CHANGELOG.md) | milestone-by-milestone history of what was built |
 
 Tests: `cd backend && .venv/bin/python -m pytest tests -v` (hermetic — no models, no
@@ -352,10 +349,10 @@ Apache-2.0 — see [LICENSE](LICENSE).
 | 2026-09-28 | [`9d829a6`](https://github.com/kanishka-namdeo/jev-rag/commit/9d829a6) · [`89f9d1b`](https://github.com/kanishka-namdeo/jev-rag/commit/89f9d1b) — public benchmarks wave 2: TriviaQA + 2WikiMultiHopQA + MuSiQue — five-benchmark suite, multi-hop sweep |
 | 2026-09-28 | [`aab887a`](https://github.com/kanishka-namdeo/jev-rag/commit/aab887a) — **portability hardening + fresh-system setup guide** ([docs/setup.md](docs/setup.md)): repo-root path anchoring, machine-independent scripts, secrets out of the endpoint probe, CI trigger fix |
 | 2026-09-29 | [`1367c56`](https://github.com/kanishka-namdeo/jev-rag/commit/1367c56) — history scrub: leaked DashScope API key replaced, ~1.5k `.next/` build-cache blobs purged from every commit (git-filter-repo rewrite + force-push) |
-| 2026-09-29 | [`b272649`](https://github.com/kanishka-namdeo/jev-rag/commit/b272649) · [`55f33de`](https://github.com/kanishka-namdeo/jev-rag/commit/55f33de) · [`227c495`](https://github.com/kanishka-namdeo/jev-rag/commit/227c495) · [`089e3f3`](https://github.com/kanishka-namdeo/jev-rag/commit/089e3f3) — v3 retrieval upgrade: research synthesis, BM25‖dense+RRF, contextual-prefix chunking, cross-encoder rerank |
+| 2026-09-29 | [`b272649`](https://github.com/kanishka-namdeo/jev-rag/commit/b272649) · [`55f33de`](https://github.com/kanishka-namdeo/jev-rag/commit/55f33de) · [`227c495`](https://github.com/kanishka-namdeo/jev-rag/commit/227c495) · [`089e3f3`](https://github.com/kanishka-namdeo/jev-rag/commit/089e3f3) — **v3 retrieval upgrade**: BM25‖dense+RRF, contextual-prefix chunking, cross-encoder rerank |
 | 2026-09-29 | [`48cc0b1`](https://github.com/kanishka-namdeo/jev-rag/commit/48cc0b1) — bench refactor: both arms drive the SAME ChatService orchestrator (structural arm parity) |
-| 2026-09-29 | [`1b4d827`](https://github.com/kanishka-namdeo/jev-rag/commit/1b4d827) — **hybrid v3: gate inversion** — score-feature escalation gate, hard-path-only heavy stages, Jev re-placed on evidence |
-| 2026-09-29 | [`23f3012`](https://github.com/kanishka-namdeo/jev-rag/commit/23f3012) · [`e3e92a0`](https://github.com/kanishka-namdeo/jev-rag/commit/e3e92a0) · [`3eaf3b6`](https://github.com/kanishka-namdeo/jev-rag/commit/3eaf3b6) — **hypothesis testbench** (2 pre-declared layers + stats) and the measured v3 verdict: single-hop fixed and significant (+9.8pp, p=0.048), multi-hop edge compressed, hybrid cheaper than baseline |
+| 2026-09-29 | [`1b4d827`](https://github.com/kanishka-namdeo/jev-rag/commit/1b4d827) — **hybrid v3: gate inversion** — score-feature escalation gate, Jev limited to relative judgments, single-hop regression fixed |
+| 2026-09-29 | [`23f3012`](https://github.com/kanishka-namdeo/jev-rag/commit/23f3012) · [`e3e92a0`](https://github.com/kanishka-namdeo/jev-rag/commit/e3e92a0) · [`3eaf3b6`](https://github.com/kanishka-namdeo/jev-rag/commit/3eaf3b6) — **hypothesis testbench** + measured v3 verdict: single-hop +9.8pp significant, multi-hop edge compressed, hybrid cheaper |
 
 </details>
 

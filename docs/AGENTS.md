@@ -12,18 +12,22 @@
   the path-anchoring/portability contract, verification, day-2 operations, troubleshooting.
   Keep it current with every setup-script or configuration-interface change
 - `architecture.md` — system components and data flow
-- `hybrid-design.md` — the Jev / System-One design rationale, research sources, latency notes
+- `hybrid-design.md` — the Jev / System-One design rationale (v2 slots, historical), research sources, latency notes
 - `jev-improvements-research.md` — research note: Jev-style decisions beyond model routing,
   the single-LLM degenerate design (effort routing / best-of-N / corrective loop / citation
   checks), local validation experiments and the v2 pipeline proposal
+- `rag-upgrade-2026.md` — **v3 design rationale**: research synthesis, gate inversion, Jev re-placement,
+  hypothesis-testbench methodology
+- `rag-upgrade-2026-results.md` — v3 headline results (run 16814bd5), H-GATE ablation, statistics
+- `testbench-design.md` — pre-declared Layer-1/Layer-2 testbench methodology
+- `testbench-results-layer1.md` — retrieval ablations (dense vs BM25 vs RRF vs cross-encoder)
 - `api.md` — REST + SSE protocol reference
 - `benchmarking.md` — BINDING evaluation methodology: scenario taxonomy, metric definitions
   (RAGAS/DeepEval/MT-Bench lineage), judge fairness protocol, resilience notes
-- `benchmark-results.md` — latest full run (hybrid v2, run 0314ac0a): export-script tables +
-  curated statistical analysis (scripts/analyze_bench_run.py), loss taxonomy
-  (scripts/diagnose_v2_losses.py), objectivity/confound disclosures, and the archived
-  v1 run. Regenerate the tables after every full run, then refresh the curated sections
-  to match the new numbers — never leave them contradicting each other
+- `benchmark-results.md` — full run history: v1, v2 (battery on/off), and v3 headline.
+  Export-script tables + curated statistical analysis, loss taxonomy, objectivity/confound disclosures.
+  Regenerate tables after every full run, then refresh curated sections — never leave them contradicting.
+  v3 is the current default; v2 is historical context for the gate-inversion narrative
 - `benchmark-v2-ablation.md` — finance-scenario battery-off ablation (run e98907aa):
   attribution of the v2 regression to the passage-screening battery; supports the
   `hybrid_passage_battery=false` default
