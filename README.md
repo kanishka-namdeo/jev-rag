@@ -108,6 +108,12 @@ a fresh clone runs them with zero dataset downloads
 
 ## 🧠 How it works
 
+<div align="center">
+  <img src="docs/assets/img/v3-architecture-v2.png" alt="v3 architecture: traditional and hybrid pipelines" width="880"/>
+  <br/>
+  <em>v3 architecture: both pipelines share the retrieval stack; hybrid adds an escalation gate and Jev-augmented hard path</em>
+</div>
+
 ```mermaid
 flowchart TB
     D["📄 your documents<br/>(PDF · DOCX · MD · HTML · XLSX · CSV · TXT)"] --> IN["ingestion · markitdown<br/>structure-aware chunks + contextual prefixes"]
@@ -149,6 +155,12 @@ flowchart TB
 
 ### How the escalation gate works
 
+<div align="center">
+  <img src="docs/assets/img/escalation-gate-v2.png" alt="Score-feature escalation gate" width="600"/>
+  <br/>
+  <em>The escalation gate uses calibrated retrieval scores to decide the path</em>
+</div>
+
 The gate decides whether a question needs the expensive hard path **after** cheap retrieval, not before:
 
 1. **Retrieve + rerank** → cross-encoder scores for top-10 candidates
@@ -172,6 +184,12 @@ Wire protocol: [docs/api.md](docs/api.md) · full architecture:
 [docs/rag-upgrade-2026.md](docs/rag-upgrade-2026.md).
 
 ## 📊 Results, with receipts
+
+<div align="center">
+  <img src="docs/assets/img/v3-results-chart.png" alt="v3 benchmark results: single-hop +9.8pp, pooled +5.1pp" width="700"/>
+  <br/>
+  <em>v3 headline: single-hop correctness fixed and significant, multi-hop edge compressed to noise</em>
+</div>
 
 **v3 headline (2026-09-29)** — both pipelines upgraded to 2026-standard retrieval, isolating what the Jev-augmented layer adds on top of a modern baseline. Run `16814bd5`: 98 questions, 5 public benchmarks, independent judge (`kimi-k2.5`), matched context budget:
 
