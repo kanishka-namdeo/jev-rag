@@ -1,0 +1,34 @@
+%%{init: {'theme': 'dark', 'themeVariables': { 'primaryColor': '#3B82F6', 'primaryTextColor': '#fff', 'primaryBorderColor': '#60A5FA', 'lineColor': '#94A3B8', 'secondaryColor': '#10B981', 'tertiaryColor': '#8B5CF6', 'background': '#0B0F19', 'mainBkg': '#1E293B', 'secondBkg': '#334155' }}}%%
+flowchart TB
+    START(["Reranked Passages<br/>After jev-score"])
+    --> FEATURES["🔢 Score Features<br/>• top_score<br/>• score_gap<br/>• coverage<br/>• query_passage_alignment"]
+    --> GATE{"🚦 Context<br/>Sufficient?"}
+
+    GATE -->|"YES ✓<br/>score ≥ θ"| SUFFICIENT["✅ Context Sufficient<br/>High confidence passages"]
+    GATE -->|"NO ✗<br/>score < θ"| INSUFFICIENT["⚠️ Context Insufficient<br/>Low confidence or gaps"]
+
+    SUFFICIENT --> ROUTER["🎯 Model Router"]
+    INSUFFICIENT --> ROUTER
+
+    ROUTER -->|"Easy Path"| LLM1["☁️ qwen3.7-plus<br/>Fast & Cheap"]
+    ROUTER -->|"Hard Path"| LLM2["☁️ qwen3.6-plus<br/>Deep Reasoning"]
+
+    LLM1 --> OUTPUT["✅ Final Answer<br/>Cited + Groundedness Badge"]
+    LLM2 --> OUTPUT
+
+    subgraph THRESHOLDS["📊 Gate Thresholds"]
+        T1["score_threshold = 0.75"]
+        T2["gap_threshold = 0.15"]
+        T3["coverage_min = 0.60"]
+    end
+
+    style START fill:#1E293B,stroke:#3B82F6,stroke-width:2px
+    style FEATURES fill:#1E293B,stroke:#8B5CF6,stroke-width:2px
+    style GATE fill:#F59E0B,stroke:#FBBF24,stroke-width:3px
+    style SUFFICIENT fill:#059669,stroke:#10B981,stroke-width:2px
+    style INSUFFICIENT fill:#D97706,stroke:#F59E0B,stroke-width:2px
+    style ROUTER fill:#1E293B,stroke:#8B5CF6,stroke-width:2px
+    style LLM1 fill:#1E1B4B,stroke:#6366F1,stroke-width:2px
+    style LLM2 fill:#1E1B4B,stroke:#6366F1,stroke-width:2px
+    style OUTPUT fill:#059669,stroke:#34D399,stroke-width:3px
+    style THRESHOLDS fill:#1E293B,stroke:#475569,stroke-width:2px

@@ -109,8 +109,75 @@ a fresh clone runs them with zero dataset downloads
 ## 🧠 How it works
 
 <div align="center">
-  <img src="docs/assets/img/v3-architecture-v2.png" alt="v3 architecture: traditional and hybrid pipelines" width="880"/>
-  <br/>
+
+```mermaid
+%%{init: {'theme': 'dark', 'themeVariables': { 'primaryColor': '#3B82F6', 'primaryTextColor': '#fff', 'primaryBorderColor': '#60A5FA', 'lineColor': '#94A3B8', 'secondaryColor': '#10B981', 'tertiaryColor': '#8B5CF6', 'background': '#0B0F19' }}}%%
+flowchart TB
+    subgraph INGESTION["📄 Document Ingestion"]
+        UPLOAD["Upload Documents"]
+        MARKDOWN["markitdown"]
+        CHUNK["Text Splitter"]
+        EMBED["fastembed ONNX"]
+    end
+
+    UPLOAD --> MARKDOWN --> CHUNK --> EMBED
+
+    CHROMADB[("🗄️ ChromaDB<br/>Vector Store + BM25")]
+    EMBED --> CHROMADB
+
+    subgraph QUERY["🔍 Query Processing"]
+        USERQUERY["User Query"]
+        QUERYEMBED["Embed Query"]
+        RETRIEVE["Hybrid Retrieval<br/>BM25 ‖ Dense + RRF"]
+        RERANK["Cross-Encoder Rerank<br/>Top-10 → Top-4"]
+    end
+
+    USERQUERY --> QUERYEMBED --> RETRIEVE --> RERANK
+    CHROMADB --> RETRIEVE
+
+    RERANK --> FORK{⚡}
+
+    subgraph TRADITIONAL["🔵 Traditional Pipeline"]
+        TOP4["Top-4 Passages"]
+        LLM1["☁️ Cloud LLM<br/>qwen3.7-plus"]
+        CITED["✓ Cited Answer"]
+    end
+
+    FORK -->|Simple Queries| TOP4 --> LLM1 --> CITED
+
+    subgraph HYBRID["🟢 Hybrid Pipeline (Jev-Style)"]
+        JEV["🧠 Jev Engine (Local)<br/>0.8B GGUF on llama.cpp"]
+        RERANK2["1. Rerank Passages"]
+        GATE["2. Escalation Gate"]
+        ROUTER["3. Model Router"]
+        VERIFY["4. Verify Groundedness"]
+        LLM2["☁️ Cloud LLM<br/>qwen3.7 / qwen3.6-plus"]
+        VERIFIED["✓ Verified Answer<br/>+ Groundedness Badge"]
+    end
+
+    FORK -->|Complex Queries| JEV
+    JEV --> RERANK2 --> GATE --> ROUTER --> VERIFY --> LLM2 --> VERIFIED
+
+    subgraph RESPONSE["📡 Response"]
+        SSE["SSE Stream"]
+        TRACE["Trace Panel"]
+        CITATIONS["Citations"]
+        BADGE["Groundedness Badge"]
+    end
+
+    CITED --> RESPONSE
+    VERIFIED --> RESPONSE
+
+    style INGESTION fill:#1E293B,stroke:#3B82F6,stroke-width:2px
+    style QUERY fill:#1E293B,stroke:#3B82F6,stroke-width:2px
+    style TRADITIONAL fill:#0C4A6E,stroke:#0EA5E9,stroke-width:2px
+    style HYBRID fill:#064E3B,stroke:#10B981,stroke-width:2px
+    style RESPONSE fill:#1E293B,stroke:#8B5CF6,stroke-width:2px
+    style CHROMADB fill:#0C4A6E,stroke:#0EA5E9,stroke-width:3px
+    style FORK fill:#475569,stroke:#fff,stroke-width:3px
+    style JEV fill:#065F46,stroke:#10B981,stroke-width:2px
+```
+
   <em>v3 architecture: both pipelines share the retrieval stack; hybrid adds an escalation gate and Jev-augmented hard path</em>
 </div>
 
@@ -155,8 +222,37 @@ flowchart TB
 ### How the escalation gate works
 
 <div align="center">
-  <img src="docs/assets/img/escalation-gate-v2.png" alt="Score-feature escalation gate" width="600"/>
-  <br/>
+
+```mermaid
+%%{init: {'theme': 'dark', 'themeVariables': { 'primaryColor': '#3B82F6', 'primaryTextColor': '#fff', 'primaryBorderColor': '#60A5FA', 'lineColor': '#94A3B8', 'secondaryColor': '#10B981', 'tertiaryColor': '#8B5CF6', 'background': '#0B0F19' }}}%%
+flowchart TB
+    START(["Reranked Passages<br/>After jev-score"])
+    --> FEATURES["🔢 Score Features<br/>• top_score<br/>• score_gap<br/>• coverage<br/>• query_passage_alignment"]
+    --> GATE{"🚦 Context<br/>Sufficient?"}
+
+    GATE -->|"YES ✓<br/>score ≥ θ"| SUFFICIENT["✅ Context Sufficient<br/>High confidence passages"]
+    GATE -->|"NO ✗<br/>score < θ"| INSUFFICIENT["⚠️ Context Insufficient<br/>Low confidence or gaps"]
+
+    SUFFICIENT --> ROUTER["🎯 Model Router"]
+    INSUFFICIENT --> ROUTER
+
+    ROUTER -->|"Easy Path"| LLM1["☁️ qwen3.7-plus<br/>Fast & Cheap"]
+    ROUTER -->|"Hard Path"| LLM2["☁️ qwen3.6-plus<br/>Deep Reasoning"]
+
+    LLM1 --> OUTPUT["✅ Final Answer<br/>Cited + Groundedness Badge"]
+    LLM2 --> OUTPUT
+
+    style START fill:#1E293B,stroke:#3B82F6,stroke-width:2px
+    style FEATURES fill:#1E293B,stroke:#8B5CF6,stroke-width:2px
+    style GATE fill:#F59E0B,stroke:#FBBF24,stroke-width:3px
+    style SUFFICIENT fill:#059669,stroke:#10B981,stroke-width:2px
+    style INSUFFICIENT fill:#D97706,stroke:#F59E0B,stroke-width:2px
+    style ROUTER fill:#1E293B,stroke:#8B5CF6,stroke-width:2px
+    style LLM1 fill:#1E1B4B,stroke:#6366F1,stroke-width:2px
+    style LLM2 fill:#1E1B4B,stroke:#6366F1,stroke-width:2px
+    style OUTPUT fill:#059669,stroke:#34D399,stroke-width:3px
+```
+
   <em>The escalation gate uses calibrated retrieval scores to decide the path</em>
 </div>
 
@@ -185,8 +281,16 @@ Wire protocol: [docs/api.md](docs/api.md) · full architecture:
 ## 📊 Results, with receipts
 
 <div align="center">
-  <img src="docs/assets/img/v3-results-chart.png" alt="v3 benchmark results: single-hop +9.8pp, pooled +5.1pp" width="700"/>
-  <br/>
+
+| Metric | Traditional v3 | Hybrid v3 | Δ |
+|--------|---------------|-----------|---|
+| **Correctness (pooled)** | 61.7% | **66.8%** | **+5.1pp** |
+| **Single-hop (n=41)** | 80.5% | **90.2%** | **+9.8pp** ✓ |
+| Multi-hop (n=57) | 48.2% | 50.0% | +1.8pp |
+| Over-abstention | 35.7% | **25.5%** | **−10.2pp** |
+| Latency p50 | 19.9s | 40.9s | 2.06× |
+| Cost per suite | $0.165 | **$0.148** | **cheaper** |
+
   <em>v3 headline: single-hop correctness fixed and significant, multi-hop edge compressed to noise</em>
 </div>
 

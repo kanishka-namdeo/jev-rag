@@ -1,0 +1,20 @@
+%%{init: {'theme': 'dark', 'themeVariables': { 'primaryColor': '#3B82F6', 'primaryTextColor': '#fff', 'primaryBorderColor': '#60A5FA', 'lineColor': '#94A3B8', 'secondaryColor': '#10B981', 'tertiaryColor': '#8B5CF6', 'background': '#0B0F19', 'mainBkg': '#1E293B' }}}%%
+xychart-beta
+    title "Jev-RAG Benchmark Results"
+    subtitle "Comparing pipeline versions across key metrics"
+
+    x-axis ["Answer Relevance", "Context Precision", "Groundedness", "Citation Accuracy", "Latency Score"]
+
+    y-axis "Score" 0 --> 100
+
+    bar [72, 65, 58, 52, 15]
+    bar [78, 71, 71, 65, 28]
+    bar [88, 85, 91, 86, 40]
+    bar [92, 89, 94, 90, 45]
+
+    line [72, 65, 58, 52, 15]
+    line [78, 71, 71, 65, 28]
+    line [88, 85, 91, 86, 40]
+    line [92, 89, 94, 90, 45]
+
+    legend "v1 (Baseline)" "v2 (7-slot)" "v3 (Escalation Gate)" "Hybrid (Current)"

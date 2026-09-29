@@ -1,0 +1,65 @@
+%%{init: {'theme': 'dark', 'themeVariables': { 'primaryColor': '#3B82F6', 'primaryTextColor': '#fff', 'primaryBorderColor': '#60A5FA', 'lineColor': '#94A3B8', 'secondaryColor': '#10B981', 'tertiaryColor': '#8B5CF6', 'background': '#0B0F19', 'mainBkg': '#1E293B', 'secondBkg': '#334155', 'tertiaryBkg': '#1E2538' }}}%%
+flowchart TB
+    subgraph INGESTION["📄 Document Ingestion"]
+        UPLOAD["Upload Documents"]
+        MARKDOWN["markitdown"]
+        CHUNK["Text Splitter"]
+        EMBED["fastembed ONNX"]
+    end
+
+    UPLOAD --> MARKDOWN --> CHUNK --> EMBED
+
+    CHROMADB[("🗄️ ChromaDB<br/>Vector Store + BM25")]
+    EMBED --> CHROMADB
+
+    subgraph QUERY["🔍 Query Processing"]
+        USERQUERY["User Query"]
+        QUERYEMBED["Embed Query"]
+        RETRIEVE["Hybrid Retrieval<br/>BM25 ‖ Dense + RRF"]
+        RERANK["Cross-Encoder Rerank<br/>Top-10 → Top-4"]
+    end
+
+    USERQUERY --> QUERYEMBED --> RETRIEVE --> RERANK
+    CHROMADB --> RETRIEVE
+
+    RERANK --> FORK{⚡}
+
+    subgraph TRADITIONAL["🔵 Traditional Pipeline"]
+        TOP4["Top-4 Passages"]
+        LLM1["☁️ Cloud LLM<br/>qwen3.7-plus"]
+        CITED["✓ Cited Answer"]
+    end
+
+    FORK -->|Simple Queries| TOP4 --> LLM1 --> CITED
+
+    subgraph HYBRID["🟢 Hybrid Pipeline (Jev-Style)"]
+        JEV["🧠 Jev Engine (Local)<br/>0.8B GGUF on llama.cpp"]
+        RERANK2["1. Rerank Passages"]
+        GATE["2. Escalation Gate"]
+        ROUTER["3. Model Router"]
+        VERIFY["4. Verify Groundedness"]
+        LLM2["☁️ Cloud LLM<br/>qwen3.7 / qwen3.6-plus"]
+        VERIFIED["✓ Verified Answer<br/>+ Groundedness Badge"]
+    end
+
+    FORK -->|Complex Queries| JEV
+    JEV --> RERANK2 --> GATE --> ROUTER --> VERIFY --> LLM2 --> VERIFIED
+
+    subgraph RESPONSE["📡 Response"]
+        SSE["SSE Stream"]
+        TRACE["Trace Panel"]
+        CITATIONS["Citations"]
+        BADGE["Groundedness Badge"]
+    end
+
+    CITED --> RESPONSE
+    VERIFIED --> RESPONSE
+
+    style INGESTION fill:#1E293B,stroke:#3B82F6,stroke-width:2px
+    style QUERY fill:#1E293B,stroke:#3B82F6,stroke-width:2px
+    style TRADITIONAL fill:#0C4A6E,stroke:#0EA5E9,stroke-width:2px
+    style HYBRID fill:#064E3B,stroke:#10B981,stroke-width:2px
+    style RESPONSE fill:#1E293B,stroke:#8B5CF6,stroke-width:2px
+    style CHROMADB fill:#0C4A6E,stroke:#0EA5E9,stroke-width:3px
+    style FORK fill:#475569,stroke:#fff,stroke-width:3px
+    style JEV fill:#065F46,stroke:#10B981,stroke-width:2px
