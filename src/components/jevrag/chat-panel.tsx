@@ -12,10 +12,10 @@ const MODE_HINTS: Record<string, string> = {
   traditional:
     "Traditional RAG — embedding retrieval → cloud LLM (qwen3.7-plus) directly answers with citations.",
   hybrid:
-    "Hybrid RAG v2 — the local Jev-style engine routes retrieval effort, screens every passage " +
-    "(evidence · conflicts · injection), gates sufficiency with a corrective retry, and can sample " +
-    "2 candidates that Jev selects between; the single cloud LLM (qwen3.7-plus) writes; answers get " +
-    "citation-level verification and a composite quality score.",
+    "Hybrid RAG v3 — score-feature escalation gate decides easy vs hard path after retrieval; " +
+    "hard path uses decomposition, multi-step retrieval, CRAG retry, and Jev best-of-2 selection; " +
+    "the single cloud LLM (qwen3.7-plus) writes; answers get citation-level verification and " +
+    "a composite quality score.",
   compare: "Compare — runs both pipelines side by side on the same question.",
 };
 

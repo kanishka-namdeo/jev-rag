@@ -27,9 +27,11 @@ for t in git curl python3; do command -v "$t" >/dev/null 2>&1 || MISSING="$MISSI
 if [ -n "$MISSING" ]; then log "FATAL: missing required tools:$MISSING"; exit 1; fi
 log "cmake: $(command -v cmake || echo MISSING)"
 log "g++:   $(command -v g++ || echo MISSING)"
+log "clang++: $(command -v clang++ || echo MISSING)"
 log "make:  $(command -v make || echo MISSING)"
-if ! command -v g++ >/dev/null 2>&1; then
-  log "FATAL: no C++ compiler (g++) available — cannot build llama.cpp/jev-score"
+# Accept either g++ or clang++ (macOS ships clang++ via Xcode, not g++)
+if ! command -v g++ >/dev/null 2>&1 && ! command -v clang++ >/dev/null 2>&1; then
+  log "FATAL: no C++ compiler (g++ or clang++) available — cannot build llama.cpp/jev-score"
   exit 5
 fi
 # Bootstrap cmake via pip if absent (portable: user-site first, venv-python fallback).

@@ -1,20 +1,21 @@
-"""RAG pipelines: traditional (retrieve -> cloud LLM) and hybrid v2
+"""RAG pipelines: traditional (retrieve -> cloud LLM) and hybrid v3
 (local Jev-style System One decisions + ONE cloud generator).
 
-v2 hybrid (single-generator design, docs/jev-improvements-research.md §4):
+v3 hybrid (score-feature escalation gate, docs/rag-upgrade-2026.md):
 
     [1] effort routing        choice {no_retrieval, single_pass, multi_step} (~1.2s)
-    [2] retrieval             single_pass: broad top-k | multi_step: decompose ->
-                             per-sub-query retrieval -> deduped pool
-    [3] rerank                calibrated relevance, one decide() call (unchanged)
-    [4] screening battery     3 nouls/passage: evidence / premise conflict / injection
-                             ordered thresholds -> include / conflict-block / drop
-    [5] sufficiency gate      insufficient -> corrective retry: rewrite query (cloud
-                             LLM) -> re-retrieve -> re-screen (cap 1 retry; CRAG)
-    [6] generation            single model; multi_step or low-sufficiency -> 2
-                             candidates (thinking off/on) + Jev best-of-2 selection
-    [7] citation verification ONE batched call: choice per emitted [n] + groundedness
+    [2] retrieval             BM25 ‖ dense + RRF fusion → cross-encoder rerank
+    [3] escalation gate       score-feature gate (top-1, margin, mean, above_floor)
+                             easy path: score ≥ θ → one LLM call
+                             hard path: score < θ → decompose → multi-step → CRAG → best-of-2
+    [4] best-of-2 (hard path) 2 candidates (thinking off/on) → Jev selects (relative)
+    [5] citation verification ONE batched call: choice per emitted [n] + groundedness
                              + answers-request nouls -> composite quality score
+
+Note: The v2 pipeline used Jev for 7 decision slots including absolute sufficiency gating.
+v3 limits Jev to 3 relative judgments (effort routing, best-of-2, citations) and uses
+cross-encoder scores for the escalation gate. The v2 slots remain as configurable testbench
+arms but are OFF by default.
 
 Event protocol (JSON dicts, serialized as SSE `data:` frames):
   meta | status | retrieval | decision | rerank | routing | sources | llm_start

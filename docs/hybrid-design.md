@@ -1,9 +1,10 @@
 # Hybrid design: Jev-style System One + cloud System Two
 
-> **v2 (2026-09-28):** the hybrid pipeline was rebuilt around the single-generator insight —
-> with one cloud LLM, model routing degenerates into effort routing and five new decision
-> slots pay for themselves (research: `docs/jev-improvements-research.md`, all slots validated
-> locally before shipping). The v2 flow is documented first; v1 details remain below.
+> **v3 (2026-09-29):** the hybrid pipeline was redesigned around a score-feature escalation gate.
+> The absolute sufficiency gate (v2) was replaced with calibrated retrieval scores, limiting Jev
+> to 3 relative judgments (effort routing, best-of-2, citations). The v2 7-slot design is documented
+> below as historical context; v1 details remain at the end. See [rag-upgrade-2026.md](rag-upgrade-2026.md)
+> for the full v3 design rationale and measured results.
 
 ## What "Jev" is (researched, not assumed)
 
@@ -26,11 +27,15 @@
 The hybrid pipeline keeps the division of labor the Jev concept implies:
 
 - **System One (local, fast, calibrated, cheap)** decides: how much retrieval effort a question
-  needs, which passages carry evidence (and which contradict the premise or carry injections),
-  whether the context suffices, which sampled candidate to keep, whether each citation holds.
+  needs, which sampled candidate to keep, whether each citation holds.
 - **System Two (cloud, deliberative)** writes the final prose — one model, not two.
 
-## v2 pipeline: the seven decision slots
+**v3 key insight:** A ~0.5B decision model cannot make reliable *absolute* judgments (sufficiency,
+relevance thresholds). The v3 design uses Jev only for **relative judgments** (best-of-2 selection,
+citation verification, chat-vs-doc routing) and delegates the hard sufficiency decision to
+**calibrated retrieval scores** (cross-encoder rerank scores + score-feature gate).
+
+## v3 pipeline: score-feature escalation gate (current)
 
 ```
 query
@@ -38,6 +43,91 @@ query
          no_retrieval → answer directly (skip embedding search; Adaptive-RAG class A)
          single_pass → broad top-10 retrieval
          multi_step  → decompose (LLM) → per-sub-query retrieval → deduped pool (≤12)
+  └▶ [2] retrieval             BM25 ‖ dense + RRF fusion → cross-encoder rerank (ONNX)
+  └▶ [3] escalation gate       score-feature gate (top-1, margin, mean, above_floor)
+         easy path: score ≥ θ → one LLM call → citation verification → done
+         hard path: score < θ → decompose → multi-step → CRAG retry → best-of-2 → citation verification
+  └▶ [4] best-of-2 (hard path) 2 candidates (thinking off/on, concurrent) → Jev selects (relative)
+  └▶ [5] citation verification ONE batched call: choice per emitted [n]
+         (supports/contradicts/says_nothing) + groundedness + answers-request nouls
+  └▶ [6] composite score       0.4·answers_request + 0.4·citations_supported
+                               + 0.2·¬contradicts_context   (code, not a model call)
+```
+
+**v3 changes from v2:**
+- **Sufficiency gate removed** — replaced with score-feature escalation gate (calibrated on eval data)
+- **Pointwise rerank moved to cross-encoder** — Jev rerank is now an optional testbench arm
+- **Jev limited to 3 relative judgments** — effort routing, best-of-2, citations (not 7 slots)
+- **Passage battery OFF by default** — miscalibrated absolute thresholds caused −20.8pp regression
+
+Design notes:
+
+- **Score-feature gate replaces absolute sufficiency.** The gate decides whether a question needs
+  the expensive hard path *after* cheap retrieval, using calibrated signals: top-1 cross-encoder
+  score, top1−top2 margin, top-k mean, count-above-floor. Threshold θ is calibrated on labeled
+  eval data (gold-in-top-4) using Youden J. This fixes the v2 single-hop regression (−7.3pp → +9.8pp).
+- **Effort routing replaces model routing.** The v1 `choice` between qwen3.7-plus and
+  qwen3.6-plus is gone; the same single decide() call now picks the retrieval strategy.
+  Validation: 9/12 on the Adaptive-RAG taxonomy, and P(no_retrieval) separates chat
+  (0.76–0.96) from doc questions (≤0.17). Full-run evidence (run 0314ac0a) moved the
+  shipped threshold from 0.5 to 0.9: at 0.5 one look-up policy question was misrouted
+  (automatic loss) and one unanswerable question was answered from parametric knowledge
+  (judged fabricated); real chat clears 0.94, so 0.9 keeps the fast path for chat while
+  defaulting factual questions to retrieval.
+- **Best-of-2 is a relative selector, never an absolute gate** — the planted-hallucination
+  candidate still scored 0.817 in validation; ranking is safe, thresholding is not.
+- **Citations auto-accept at confidence ≥ 0.8** (TypeSafe cookbook); below that they render as
+  unverified, not failed.
+- **One LLM per candidate, sampled concurrently** — the hard path costs one extra cloud call
+  (~$0.0004) and the two candidates are generated in parallel.
+- System Two also acts as a *tool* twice on the hard path: query rewrite (corrective loop) and
+  question decomposition (multi-step). Both are non-streaming utility calls with tiny outputs.
+
+### v3 knobs (`JEVRAG_*` env / `app/config.py`)
+
+| Knob | Default | Controls |
+| --- | --- | --- |
+| `HYBRID_EFFORT_ROUTING` | true | effort routing on/off |
+| `JEV_NO_RETRIEVAL_THRESHOLD` | 0.9 | skip retrieval only when P ≥ this |
+| `JEV_MULTISTEP_SUBQUERY_K` / `JEV_MULTISTEP_MAX_POOL` | 6 / 12 | decomposition retrieval depth / rerank pool cap |
+| `GATE_MODE` | `features` | escalation gate mode: `features` (score-based), `jev` (absolute), `none` |
+| `GATE_SCORE_THRESHOLD` | 0.6 | threshold for features gate (calibrated on eval data) |
+| `HYBRID_CORRECTIVE_RETRY` | true | CRAG retry on/off |
+| `HYBRID_BEST_OF_N` | true | best-of-2 selection on/off |
+| `HYBRID_CITATION_VERIFY` | true | citation verification on/off |
+| `JEV_CITATION_CONFIDENCE` | 0.8 | citation auto-accept confidence |
+
+**Testbench arms (OFF by default, configurable for experiments):**
+
+| Knob | Default | Controls |
+| --- | --- | --- |
+| `HYBRID_PASSAGE_BATTERY` | **false** | passage screening battery on/off — OFF after v2 regression |
+| `RERANK_MODE` | `cross` | reranker: `cross` (cross-encoder), `jev` (Jev noul), `none` |
+| `JEV_INJECTION_DROP_THRESHOLD` | 0.9 | drop passage when P(injection) ≥ this |
+| `JEV_CONTRADICTION_BLOCK_THRESHOLD` | 0.5 | conflict-block when P(contradiction) ≥ this |
+| `JEV_EVIDENCE_DROP_THRESHOLD` | 0.1 | drop when P(evidence) < this AND relevance < 0.5 |
+
+Every threshold follows the calibration discipline from the research: nominal thresholds miss
+realized budgets, so gates are Brier-scored in the benchmark rather than trusted blindly.
+
+**Battery status — OFF by default (evidence-based).** The v2 run
+([docs/benchmark-results.md](benchmark-results.md), run 0314ac0a) measured the battery's
+absolute thresholds as miscalibrated for the 0.8B stand-in: P(prompt-injection) fires at
+0.91–0.98 on ordinary earnings/technical prose (25 drops, 8 gold passages lost) and
+P(evidence) collapses to ~0.03 on near-duplicate KBs — over-abstention 39.5%, correctness
+−20.8pp vs traditional. The finance ablation (run e98907aa,
+[docs/benchmark-v2-ablation.md](benchmark-v2-ablation.md)) recovered 50% → 100% with the
+battery off. Re-enable only after per-corpus threshold calibration against labeled data.
+
+## v2 pipeline: seven decision slots (historical, 2026-09-28)
+
+The v2 pipeline used Jev for 7 decision slots. This design caused a single-hop regression
+(−7.3pp on public benchmarks) due to the absolute sufficiency gate. The v3 design replaced
+this with a score-feature escalation gate and limited Jev to 3 relative judgments.
+
+```
+query
+  └▶ [1] effort routing        ONE choice {no_retrieval, single_pass, multi_step} (~1-4 s)
   └▶ [2] rerank                calibrated relevance, one decide() call (unchanged from v1)
   └▶ [3] screening battery     3 nouls/passage: evidence · premise conflict · injection
          ordered thresholds → include / conflict-block / drop   (TypeSafe cookbook)
@@ -51,56 +141,7 @@ query
                                + 0.2·¬contradicts_context   (code, not a model call)
 ```
 
-Design notes:
-
-- **Effort routing replaces model routing.** The v1 `choice` between qwen3.7-plus and
-  qwen3.6-plus is gone; the same single decide() call now picks the retrieval strategy.
-  Validation: 9/12 on the Adaptive-RAG taxonomy, and P(no_retrieval) separates chat
-  (0.76–0.96) from doc questions (≤0.17). Full-run evidence (run 0314ac0a) moved the
-  shipped threshold from 0.5 to 0.9: at 0.5 one look-up policy question was misrouted
-  (automatic loss) and one unanswerable question was answered from parametric knowledge
-  (judged fabricated); real chat clears 0.94, so 0.9 keeps the fast path for chat while
-  defaulting factual questions to retrieval.
-- **Conflict-blocked passages keep their [n] labels** and move to a dedicated
-  "Conflicting evidence" prompt section — the generator must weigh them explicitly instead of
-  being silently poisoned. First live test caught a premise conflict (tiered vs global limits)
-  and the answer handled it correctly.
-- **Best-of-2 is a relative selector, never an absolute gate** — the planted-hallucination
-  candidate still scored 0.817 in validation; ranking is safe, thresholding is not.
-- **Citations auto-accept at confidence ≥ 0.8** (TypeSafe cookbook); below that they render as
-  unverified, not failed.
-- **One LLM per candidate, sampled concurrently** — the hard path costs one extra cloud call
-  (~$0.0004) and the two candidates are generated in parallel.
-- System Two also acts as a *tool* twice on the hard path: query rewrite (corrective loop) and
-  question decomposition (multi-step). Both are non-streaming utility calls with tiny outputs.
-
-### v2 knobs (`JEVRAG_*` env / `app/config.py`)
-
-| Knob | Default | Controls |
-| --- | --- | --- |
-| `HYBRID_EFFORT_ROUTING` | true | slot 1 on/off |
-| `JEV_NO_RETRIEVAL_THRESHOLD` | 0.9 | skip retrieval only when P ≥ this (0.5 → 0.9 after run 0314ac0a) |
-| `JEV_MULTISTEP_SUBQUERY_K` / `JEV_MULTISTEP_MAX_POOL` | 6 / 12 | decomposition retrieval depth / rerank pool cap |
-| `HYBRID_PASSAGE_BATTERY` | **false** | slot 3 on/off — OFF after full-run evidence (see below) |
-| `JEV_INJECTION_DROP_THRESHOLD` | 0.9 | drop passage when P(injection) ≥ this |
-| `JEV_CONTRADICTION_BLOCK_THRESHOLD` | 0.5 | conflict-block when P(contradiction) ≥ this |
-| `JEV_EVIDENCE_DROP_THRESHOLD` | 0.1 | drop when P(evidence) < this AND relevance < 0.5 |
-| `HYBRID_CORRECTIVE_RETRY` | true | slot 4 retry on/off |
-| `HYBRID_BEST_OF_N` | true | slot 5 on/off |
-| `HYBRID_CITATION_VERIFY` | true | slot 6 on/off |
-| `JEV_CITATION_CONFIDENCE` | 0.8 | citation auto-accept confidence |
-
-Every threshold follows the calibration discipline from the research: nominal thresholds miss
-realized budgets, so gates are Brier-scored in the benchmark rather than trusted blindly.
-
-**Battery status — OFF by default (evidence-based).** The full v2 run
-([docs/benchmark-results.md](benchmark-results.md), run 0314ac0a) measured the battery's
-absolute thresholds as miscalibrated for the 0.8B stand-in: P(prompt-injection) fires at
-0.91–0.98 on ordinary earnings/technical prose (25 drops, 8 gold passages lost) and
-P(evidence) collapses to ~0.03 on near-duplicate KBs — over-abstention 39.5%, correctness
-−20.8pp vs traditional. The finance ablation (run e98907aa,
-[docs/benchmark-v2-ablation.md](benchmark-v2-ablation.md)) recovered 50% → 100% with the
-battery off. Re-enable only after per-corpus threshold calibration against labeled data.
+The v2 knobs are still present in the code as testbench arms but are OFF by default.
 
 ## v1 decision points (superseded, kept for trace continuity)
 
@@ -131,7 +172,7 @@ Measured on this sandbox (2 CPU cores, Q4_K_M):
 Chosen pattern: passage text embedded in question instructions, single `decide()` call —
 the state is read once and every passage gets a calibrated verdict slot.
 
-## Cloud model (System Two — v2 uses exactly one)
+## Cloud model (System Two — v3 uses exactly one)
 
 | Model | Released | Price (in/out per Mtok) | Role here |
 | --- | --- | --- | --- |
@@ -141,13 +182,12 @@ the state is read once and every passage gets a calibrated verdict slot.
 Sources: llm-stats.com model pages, qwen.ai blog posts, live endpoint model list (verified
 2026-09-27).
 
-## Latency profile (this sandbox, live v2 measurements 2026-09-28)
+## Latency profile (this sandbox, live v3 measurements 2026-09-29)
 
-- Traditional end-to-end: ~16–30 s (retrieval ~0.1 s + LLM stream)
-- Hybrid v2 single_pass: ~116 s (effort 3.8 s + rerank 12 s + battery 14.3 s + sufficiency
-  5.1 s + LLM 43.7 s + citations 36.8 s — LLM endpoint latency included)
-- Hybrid v2 multi_step (hard path): ~180 s (adds decomposition, corrective retry, best-of-2)
-- Hybrid v2 no_retrieval: ~23 s (one decide() call + direct LLM stream)
-- Bench smoke (1 question, techdocs): hybrid 86 s vs traditional 16 s, hit1/MRR/NDCG all 1.0
-- Knobs to trade latency vs rigor: `JEVRAG_TOP_K_RETRIEVE`, `JEVRAG_JEV_RERANK_CHAR_LIMIT`,
-  `JEVRAG_JEV_CONTEXT_CHAR_LIMIT`, plus the per-slot v2 switches above.
+- Traditional v3 end-to-end: ~20 s (retrieval ~0.1 s + cross-encoder rerank ~0.2 s + LLM stream)
+- Hybrid v3 easy path: ~20 s (same as traditional + citation verification ~2 s)
+- Hybrid v3 hard path: ~41 s (adds decomposition, multi-step retrieval, CRAG retry, best-of-2)
+- Hybrid v3 no_retrieval: ~23 s (one decide() call + direct LLM stream)
+- Bench headline (98 questions): traditional p50 19.9 s, hybrid p50 40.9 s (2.06×)
+- Knobs to trade latency vs rigor: `JEVRAG_TOP_K_RETRIEVE`, disable citation verification,
+  reduce `GATE_SCORE_THRESHOLD` (more questions take the hard path)

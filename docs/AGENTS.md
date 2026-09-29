@@ -12,7 +12,9 @@
   the path-anchoring/portability contract, verification, day-2 operations, troubleshooting.
   Keep it current with every setup-script or configuration-interface change
 - `architecture.md` — system components and data flow
-- `hybrid-design.md` — the Jev / System-One design rationale (v2 slots, historical), research sources, latency notes
+- `hybrid-design.md` — the Jev / System-One design rationale: v3 score-feature escalation gate (current),
+  v2 seven-slot pipeline (historical), v1 decision points (superseded), validated decision patterns,
+  cloud model pricing, latency profile
 - `jev-improvements-research.md` — research note: Jev-style decisions beyond model routing,
   the single-LLM degenerate design (effort routing / best-of-N / corrective loop / citation
   checks), local validation experiments and the v2 pipeline proposal

@@ -51,7 +51,7 @@ hybrid runs **cheaper** than the baseline ($0.148 vs $0.165 per 98-question suit
 | **Escalation gate** | — | **Score-feature gate**: easy questions (high rerank confidence) skip the heavy path |
 | **Hard path (when gate fails)** | — | Sub-query decomposition → per-subquery retrieval → CRAG retry → **Jev best-of-2** selection |
 | **Verification** | — | **Jev citation verification** on final answer, shown as groundedness badge |
-| **Jev decisions** | — | 3 calls on hard path (effort routing, best-of-2, citations) — **NOT** 7 slots |
+| **Jev decisions** | — | 3 calls **by default** on hard path (effort routing, best-of-2, citations) — v2 slots remain as configurable testbench arms |
 | **Latency (p50)** | ~20 s | ~41 s on public benchmarks (2.06×) |
 | **Cost** | $0.165 / 98 questions | **$0.148 / 98 questions** (cheaper) |
 | **Pick it when** | You need the modern baseline with minimal latency | You want extra guardrails on single-hop, recovery on hard questions, and citation verification |
@@ -152,7 +152,6 @@ flowchart TB
 | **Jev decisions** | 7 slots (effort, rerank, battery, sufficiency, selection, citations, quality) | **3 slots** (effort routing, best-of-2, citations) | Heavy stages only on hard path; relative judgments only |
 | **Passage battery** | 3 nouls/passage | **OFF by default** | Miscalibrated absolute thresholds caused −20.8pp regression |
 | **Latency ratio** | ~3× | **~2×** | Hard path runs less often; cross-encoder faster than Jev rerank |
-
 ### How the escalation gate works
 
 <div align="center">
