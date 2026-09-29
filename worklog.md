@@ -767,3 +767,108 @@ Stage Summary:
 - Ops: 10 commits pushed (b272649..3eaf3b6 family), 121 backend tests green,
   reaper-proof chained-window protocol used throughout, next-server revived
   after RAM-pressure death, backend self-healed via ensure-backend
+
+---
+Task ID: 2-a
+Agent: general-purpose (venv rebuild)
+Task: Rebuild backend/.venv after 5th sandbox reset
+
+Work Log:
+- Read worklog.md for context (R1/R2 research entries at top; Task 12/13 history:
+  prior resets recovered via same setup_backend.sh; portability fixes already in
+  place so the script is path-independent)
+- Pre-flight checks: backend/.venv confirmed absent (wiped by reset);
+  requirements.txt present; uv available at /usr/local/bin/uv
+- Ran `bash /home/z/my-project/scripts/setup_backend.sh` in the FOREGROUND
+  (Bash tool timeout=600000ms; no nohup/setsid/&) — completed in one pass,
+  ~2m47s total, no retry needed
+  - uv venv --python 3.12 -> CPython 3.12.14 (uv-managed), 132 packages resolved
+    in 2.05s, prepared in 2m15s, installed in 903ms (incl. pyarrow 47.8MiB,
+    onnxruntime 22.5MiB, chromadb 22.2MiB, jev-style 0.3.0)
+  - Script sanity checks: fastapi 0.141.1 | chromadb 1.5.9 | fastembed 0.8.1 |
+    jev_style 0.3.0 — all passed
+  - Final line: "STATUS: SUCCESS — backend/.venv ready"
+- Post-verify: backend/.venv/bin/python exists (symlink to
+  ~/.local/share/uv/python/cpython-3.12-linux-x86_64-gnu), Python 3.12.14;
+  `import fastapi, chromadb, openai, sqlalchemy, fastembed` -> "imports ok"
+
+Stage Summary:
+- SUCCESS: backend/.venv rebuilt and verified (python 3.12.14, 132 packages from
+  requirements.txt, all core imports pass); jev_style 0.3.0 also imports fine
+  (it was installable from the pip index as jev-style==0.3.0, so no dependency
+  on the parallel local-model artifact build); no errors, no timeouts, no
+  retries; venv ready for backend boot / bench work
+
+---
+Task ID: 2-b
+Agent: general-purpose (local models rebuild)
+Task: Rebuild jev-style GGUF + jev-score binary after 5th sandbox reset
+
+Work Log:
+- Confirmed wipe: models/ and vendor/ both absent; scripts/setup_local_models.sh
+  intact (11653 bytes) — ran it in FOREGROUND, full log tee'd to
+  logs/setup_local_models_run1.log
+- Invocation 1/1 completed ALL phases in ~4m07s (15:40:34 -> 15:44:41), no
+  timeout, no retry needed:
+  - Phase 1: g++/make present; cmake MISSING -> pip bootstrap landed
+    /home/z/.venv/bin/cmake
+  - Phase 2: 13 repo files fetched from HF chaoliangUNSW/Jev-Style-0.8B-Decision-v3-GGUF
+    (build_jev_score.sh, jev_score.cpp, jev_style_decision_gguf.py, configs,
+    tokenizer)
+  - Phase 3: GGUF downloaded, 529296864 bytes exact match
+  - Phase 3b/3c: both runtime patches applied (JEV_SCORE_N_CTX,
+    JEV_SCORE_N_SEQ_MAX/JEV_SCORE_N_OUTPUTS_MAX); py_compile OK
+  - Phase 4: llama.cpp shallow-clone HEAD 00af635
+  - Phase 5: build_jev_score.sh exit 0 — llama.cpp 100%, libllama.so linked,
+    jev-score compiled
+- Verified: GGUF size 529296864 == expected (python3 os.path.getsize);
+  build/jev-score exists, 244736 bytes, executable (os.access X_OK)
+- Smoke test: models/jev-style/build/jev-score --help -> "usage: jev-score
+  --model PATH [--n-ctx N] ..." exit 0, no crash
+- backend/ untouched (concurrent 2-a venv rebuild owns it)
+
+Stage Summary:
+- SUCCESS (single invocation, zero retries)
+- Artifacts: models/jev-style/Jev-Style-0.8B-Decision-v3-Q4_K_M.gguf
+  (529296864 B, exact), models/jev-style/build/jev-score (244736 B,
+  executable), vendor/llama.cpp @ 00af635, patched
+  jev_style_decision_gguf.py, full log logs/setup_local_models_run1.log
+- No errors encountered; only rebuild cost was cmake pip-bootstrap + llama.cpp
+  compile (~2.5 min of the run)
+
+---
+Task ID: 14
+Agent: main orchestrator
+Task: Document mission/setup/progress + push H-GATE interim results (user request: "detailed doc and push results so far")
+
+Work Log:
+- Confirmed 5th sandbox reset aftermath: venv/models/db gone, source+git intact; restored
+  backend/.env (Dashscope creds, 3 models), rebuilt env via subagents 2-a (venv, ~3 min)
+  and 2-b (GGUF+jev-score, ~4 min), probed all 3 Dashscope models + jev/embedder/crossenc
+  (all OK) — full detail in their worklog entries above
+- M11 H-GATE full-power run restarted from zero (run be7b62ea): 192/392 triples done
+  (SQuAD 100/100, HotpotQA 92/100), 0 errors; interim analysis (n=48 x 4 arms):
+  base .865 / oracle-gate .865 / always-hard .833 (2.8x latency) / gate-none .802;
+  gate calibration Brier .123 ECE .157
+- Execution protocol evolution this session: Task tool backend failed 5x ("context
+  deadline exceeded") — subagent invocations DID spawn working executors (their runner
+  processes survived and made progress) but reports were lost; fell back to direct
+  foreground window chaining; discovered OOM-kill dynamics (4 GB RAM: 1 runner + jev-score
+  ~1.8 GB; concurrent runners OOM at startup) and adopted poll-then-launch serialization
+- Restored .gitignore (sandbox reset had clobbered it to a 2-line default, exposing
+  backend/.env, models/, backend/data/ — HEAD version restored, no secrets staged)
+- Wrote docs/project-status-2026-09-30.md (393 lines): mission, exact setup, sandbox
+  constraints, M1-M11 narrative + reasoning, results so far, M12-M14 queue, resume-on-
+  real-iron runbook (setup scripts, unlimited-window commands, scaling notes)
+- Exported interim artifacts: docs/assets/testbench-hgate-partial-2026-09-30.{md,json}
+  (192 rows) + new backend/scripts/dump_partial_run.py (partial-run JSON exporter)
+- README: doc-tour rows (status report, testbench design) + 2026-09-30 milestone row;
+  CHANGELOG: 2026-09-30 entry; this worklog entry
+- Commit + push (M14 partial: objective reporting milestone)
+
+Stage Summary:
+- Repo now carries the full engagement record: mission, setup, decisions-with-why,
+  interim numbers, and the runbook to continue on real hardware
+- M11 in flight at 192/392 (49%), 0 errors; run resumes after this push
+- 3 commits this session family already pushed (aa75203, 5eb65d4, 0f6ec7e, 71f73a3)
+  plus this documentation commit

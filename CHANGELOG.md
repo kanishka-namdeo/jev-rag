@@ -4,6 +4,34 @@ Milestone history for Jev-RAG. Each entry links to the commit that delivered it.
 Dates are YYYY-MM-DD (commit date). Format is loosely inspired by
 [Keep a Changelog](https://keepachangelog.com/), grouped by project phase.
 
+## 2026-09-30 — Session state report + H-GATE interim results pushed
+
+The engagement brief (upgrade both pipelines, re-place jev on evidence, evaluate
+a hypothesis testbench, objective reporting, milestone pushes) is now fully
+documented in a single self-contained report —
+[docs/project-status-2026-09-30.md](docs/project-status-2026-09-30.md) — covering
+mission, exact setup (models/roles/endpoint, local artifacts, versions), the
+sandbox execution protocol (OOM/reaper/window constraints and how the runner was
+engineered around them), the full M1–M11 narrative with the reasoning behind each
+decision, and a resume-on-real-iron runbook.
+
+Pushed alongside the report:
+
+- **H-GATE interim snapshot** (run `be7b62ea`, 192/392 triples, 0 errors):
+  `docs/assets/testbench-hgate-partial-2026-09-30.md` (analyzer output) and
+  `.json` (all 192 scored rows, machine-readable). Interim: base .865 >
+  always-hard .833 (2.8x latency) > gate-none .802; oracle-gate = base
+  (n=48 — not final; TriviaQA/2Wiki/MuSiQue still running).
+- **`backend/scripts/dump_partial_run.py`**: repo-committable JSON export of a
+  running testbench run (the completed-run exporter refuses in-flight runs).
+- README: status report + testbench-design rows in the doc tour, and the
+  2026-09-30 milestone row (testbench hardening commits + H-GATE launch).
+
+Why: the run had to restart from zero after the sandbox's 5th state reset wiped
+the run database; committing the interim rows makes the scored work portable and
+lets a more powerful machine resume or re-verify without re-paying for what is
+already measured.
+
 ## 2026-09-29 — Repo beautification: user-friendly README + community files
 
 The README was accurate but text-heavy (302 lines, dense prose walls). Following

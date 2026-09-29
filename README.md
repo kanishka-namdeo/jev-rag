@@ -421,6 +421,8 @@ docs/             architecture · hybrid design · v3 upgrade research · benchm
 | [docs/api.md](docs/api.md) | REST + SSE wire protocol |
 | [docs/benchmarking.md](docs/benchmarking.md) | methodology, metrics, judge design, fairness checklist |
 | [docs/benchmark-results.md](docs/benchmark-results.md) | full runs: v1, v2, public benchmarks |
+| [docs/testbench-design.md](docs/testbench-design.md) | pre-declared hypotheses + statistics for the ablation testbench |
+| [docs/project-status-2026-09-30.md](docs/project-status-2026-09-30.md) | **engagement status report** — mission, exact setup, milestone narrative, H-GATE interim results, resume-on-real-iron runbook |
 | [CHANGELOG.md](CHANGELOG.md) | milestone-by-milestone history of what was built |
 
 Tests: `cd backend && .venv/bin/python -m pytest tests -v` (hermetic — no models, no
@@ -474,6 +476,7 @@ Apache-2.0 — see [LICENSE](LICENSE).
 | 2026-09-29 | [`48cc0b1`](https://github.com/kanishka-namdeo/jev-rag/commit/48cc0b1) — bench refactor: both arms drive the SAME ChatService orchestrator (structural arm parity) |
 | 2026-09-29 | [`1b4d827`](https://github.com/kanishka-namdeo/jev-rag/commit/1b4d827) — **hybrid v3: gate inversion** — score-feature escalation gate, Jev limited to relative judgments, single-hop regression fixed |
 | 2026-09-29 | [`23f3012`](https://github.com/kanishka-namdeo/jev-rag/commit/23f3012) · [`e3e92a0`](https://github.com/kanishka-namdeo/jev-rag/commit/e3e92a0) · [`3eaf3b6`](https://github.com/kanishka-namdeo/jev-rag/commit/3eaf3b6) — **hypothesis testbench** + measured v3 verdict: single-hop +9.8pp significant, multi-hop edge compressed, hybrid cheaper |
+| 2026-09-30 | [`aa75203`](https://github.com/kanishka-namdeo/jev-rag/commit/aa75203) · [`5eb65d4`](https://github.com/kanishka-namdeo/jev-rag/commit/5eb65d4) · [`0f6ec7e`](https://github.com/kanishka-namdeo/jev-rag/commit/0f6ec7e) · [`71f73a3`](https://github.com/kanishka-namdeo/jev-rag/commit/71f73a3) — testbench hardening for hostile sandboxes: gate-calibration metrics (ECE/Brier/FN/FP), safe bare-resume contract, skip-if-ready ingestion, flock window wrapper; **H-GATE full-power run launched** (49% complete, 0 errors, interim results pushed) |
 
 </details>
 
