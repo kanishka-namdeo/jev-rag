@@ -24,7 +24,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from sqlalchemy import select  # noqa: E402
 
 from app.bench.metrics import pct  # noqa: E402
-from app.bench.stats import bh_fdr, brier_score, mcnemar_exact, paired_bootstrap_ci, wilson_ci  # noqa: E402
+from app.bench.stats import (  # noqa: E402
+    bh_fdr, brier_score, ece, mcnemar_exact, paired_bootstrap_ci, wilson_ci,
+)
 from app.db import BenchResult, BenchRun, db_session  # noqa: E402
 
 SINGLE_HOP = {"squad", "triviaqa", "techdocs", "finance", "policy"}
@@ -41,7 +43,7 @@ def load_rows(run_id: str) -> tuple[dict | None, list[BenchResult]]:
     return run, rows
 
 
-def _arm_stats(rows: list[BenchResult]) -> dict:
+def _arm_stats(rows: list[BenchResult], gate_threshold: float = 0.5) -> dict:
     corr = [r.generation["correctness"] for r in rows
             if r.generation and r.generation.get("correctness") is not None]
     abst = defaultdict(int)
@@ -66,9 +68,26 @@ def _arm_stats(rows: list[BenchResult]) -> dict:
         "tokens": sum(r.tokens_in or 0 for r in rows) + sum(r.tokens_out or 0 for r in rows),
     }
     if gate_rows:
-        out["gate"] = {"n": len(gate_rows),
-                       "accuracy": round(sum(1 for p, a in gate_rows if (p >= 0.5) == a) / len(gate_rows), 4),
-                       "brier": round(brier_score([p for p, _ in gate_rows], [a for _, a in gate_rows]), 4)}
+        scores = [p for p, _ in gate_rows]
+        outcomes = [a for _, a in gate_rows]
+        preds = [p >= gate_threshold for p in scores]
+        ans_rows = [(p, a) for p, a in gate_rows if a]        # answerable ground truth
+        unans_rows = [(p, a) for p, a in gate_rows if not a]  # unanswerable ground truth
+        # FN on answerable: gate says "insufficient" (p < thr) although the corpus
+        # can answer -> unnecessary hard-path escalation (the v2 failure mode that
+        # drove over-abstention; here it "only" costs latency + decompose tokens).
+        fn_ans = sum(1 for p, a in ans_rows if p < gate_threshold)
+        # FP on unanswerable: gate says "sufficient" although the corpus cannot
+        # answer -> missed escalation -> fabrication risk downstream.
+        fp_unans = sum(1 for p, a in unans_rows if p >= gate_threshold)
+        out["gate"] = {
+            "n": len(gate_rows), "threshold": gate_threshold,
+            "accuracy": round(sum(1 for pr, a in zip(preds, outcomes) if pr == a) / len(gate_rows), 4),
+            "brier": round(brier_score(scores, outcomes), 4),
+            "ece": round(ece(scores, outcomes), 4),
+            "fn_rate_answerable": round(fn_ans / len(ans_rows), 4) if ans_rows else None,
+            "fp_rate_unanswerable": round(fp_unans / len(unans_rows), 4) if unans_rows else None,
+        }
     return out
 
 
@@ -112,8 +131,13 @@ def analyze(run_id: str, base: str = "base") -> dict:
     report: dict = {"run_id": run_id, "label": run.label, "config": run.config,
                     "base_arm": base, "arms": {}, "subsets": {}}
     pvals: dict[str, float] = {}
+    # threshold semantics follow the run's gate mode (mirrors runner.py gate_analysis)
+    _cfg = (run.config if run else None) or {}
+    _gmode = _cfg.get("gate_mode", "features")
+    _thr = (_cfg.get("gate_score_threshold", 0.5) if _gmode == "features"
+            else _cfg.get("jev_sufficiency_threshold", 0.5))
     for arm, arows in sorted(by_arm.items()):
-        stats = _arm_stats(arows)
+        stats = _arm_stats(arows, gate_threshold=_thr)
         report["arms"][arm] = stats
         if base_rows and arm != base:
             paired = _paired(arows, base_rows)
@@ -131,7 +155,8 @@ def analyze(run_id: str, base: str = "base") -> dict:
             if r.scenario_id in ids:
                 sub[r.mode].append(r)
         if any(sub.values()):
-            report["subsets"][label] = {arm: _arm_stats(ar) for arm, ar in sorted(sub.items())}
+            report["subsets"][label] = {arm: _arm_stats(ar, gate_threshold=_thr)
+                                       for arm, ar in sorted(sub.items())}
     return report
 
 
@@ -140,7 +165,15 @@ def _fmt(report: dict) -> str:
              f"label: {report['label']}", "",
              "| arm | n | corr | 95% CI | abstain | escalate | p50 ms | cost | Δacc vs base | CI95 | McNemar p | FDR q |",
              "|---|---|---|---|---|---|---|---|---|---|---|---|"]
+    lines_gate: list[str] = []
     for arm, s in report["arms"].items():
+        gate = s.get("gate")
+        if gate:
+            lines_gate.append(
+                f"| {arm} | {gate['n']} | {gate['threshold']} | {gate['accuracy']} | "
+                f"{gate['brier']} | {gate['ece']} | "
+                f"{gate['fn_rate_answerable'] if gate['fn_rate_answerable'] is not None else '—'} | "
+                f"{gate['fp_rate_unanswerable'] if gate['fp_rate_unanswerable'] is not None else '—'} |")
         ci = s.get("correctness_ci95_wilson")
         ci_s = f"[{ci[0]:.2f}, {ci[1]:.2f}]" if ci else ""
         abst = (s.get("abstention") or {}).get("abstained", 0)
@@ -156,6 +189,10 @@ def _fmt(report: dict) -> str:
             f"| {arm} | {s['n']} | {s.get('correctness')} | {ci_s} | {abst} | "
             f"{esc if esc is not None else '—'} | {(s.get('latency_ms') or {}).get('p50')} | "
             f"{s.get('cost_usd')} | {delta} | {ci95} | {p} | {q_s} |")
+    if lines_gate:
+        lines += ["", "## gate calibration (sufficiency_p vs ground-truth answerability)", "",
+                  "| arm | n | thr | acc | Brier | ECE | FN(ans) | FP(unans) |",
+                  "|---|---|---|---|---|---|---|---|"] + lines_gate
     for label, arms in (report.get("subsets") or {}).items():
         lines += ["", f"## subset: {label}", "",
                   "| arm | n | corr | abstain | p50 ms |", "|---|---|---|---|---|"]
