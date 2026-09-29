@@ -17,8 +17,9 @@ exactly what the hybrid adds.**
 [![Local-first](https://img.shields.io/badge/architecture-local--first-10b981)](#-how-it-works)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-ff69b4.svg)](CONTRIBUTING.md)
 
-**+8.4pp** correctness on the internal suite · **+18.4pp** pooled on public multi-hop
-benchmarks · **0** fabrications · **$0.0004** per query
+**+9.8pp** correctness on public single-hop questions (v3, Wilcoxon p = 0.048) ·
+**+5.1pp** pooled across five public benchmarks · **0** fabrications ·
+hybrid runs **cheaper** than the baseline ($0.148 vs $0.165 per 98-question suite)
 
 <br/>
 
@@ -101,22 +102,26 @@ a fresh clone runs them with zero dataset downloads
 
 ```mermaid
 flowchart TB
-    D["📄 your documents<br/>(PDF · DOCX · MD · HTML · XLSX · CSV · TXT)"] --> IN["ingestion<br/>markitdown + langchain splitters"]
+    D["📄 your documents<br/>(PDF · DOCX · MD · HTML · XLSX · CSV · TXT)"] --> IN["ingestion · markitdown<br/>structure-aware chunks + contextual prefixes"]
     IN --> EMB["embeddings · local ONNX<br/>multilingual MiniLM"]
     EMB --> V[("ChromaDB<br/>vector store")]
+    IN --> BM[("BM25 lexical index<br/>(rebuilt from Chroma, in-memory)")]
 
-    U["💬 question"] --> EMBQ["embed query · local ONNX"]
-    EMBQ --> V
+    U["💬 question"] --> FUSE["hybrid retrieval · BM25 ‖ dense<br/>reciprocal-rank fusion"]
+    V --> FUSE
+    BM --> FUSE
+    FUSE -- "top-10 candidates" --> CE["🔀 cross-encoder rerank<br/>ONNX · calibrated P(relevant) → top-4"]
 
-    subgraph T["Traditional pipeline"]
-        V -- "top-4" --> TL["☁️ cloud LLM · qwen3.7-plus<br/>cited answer streams back"]
+    subgraph T["Traditional pipeline (2026 baseline)"]
+        CE -- "top-4" --> TL["☁️ cloud LLM · qwen3.7-plus<br/>cited answer streams back"]
     end
 
-    subgraph H["Hybrid pipeline · Jev-style System One"]
-        V -- "top-10 candidates" --> JR["🧠 Jev rerank (local GGUF)<br/>calibrated P(relevant) per passage → top-4"]
-        JR --> JG["🧠 Jev sufficiency gate + model routing<br/>P(context answers?) · fast vs deep model"]
-        JG -- "qwen3.7-plus or qwen3.6-plus" --> HL["☁️ cloud LLM · cited answer"]
-        HL --> JV["🧠 Jev groundedness verification<br/>P(answer supported by sources) → badge"]
+    subgraph H["Hybrid pipeline · Jev-style System One (v3)"]
+        CE --> GATE["🚦 escalation gate<br/>top-1 rerank score ≥ θ? (calibrated)"]
+        GATE -- "pass (easy path)" --> HL["☁️ one cloud call<br/>cited answer"]
+        GATE -- "fail (hard path)" --> DEC["cloud decompose → per-sub-query retrieval<br/>→ Jev screening battery → CRAG retry → best-of-2 (Jev selects)"]
+        DEC --> HL
+        HL --> JV["🧠 Jev citation verification<br/>P(answer supported by sources) → badge + composite quality"]
     end
 
     TL --> OUT["streamed answer + trace"]
@@ -125,8 +130,8 @@ flowchart TB
 
 | Component | Where | What |
 | --- | --- | --- |
-| Embeddings + vector store | 🖥️ local | fastembed ONNX (CPU) + embedded ChromaDB |
-| Jev-style decision model | 🖥️ local | 0.53 GB GGUF on llama.cpp (`jev-score`) |
+| Retrieval | 🖥️ local | BM25 ‖ dense (fastembed ONNX) + RRF fusion, cross-encoder rerank (ONNX) |
+| Jev-style decision model | 🖥️ local | 0.53 GB GGUF on llama.cpp (`jev-score`) — routing, best-of-2 selection, verification |
 | Storage | 🖥️ local | SQLite (documents, conversations, traces, bench runs) |
 | Frontend + backend | 🖥️ local | Next.js 16 + FastAPI |
 | Generation (System Two) | ☁️ endpoint | OpenAI-compatible Dashscope: `qwen3.7-plus` |
@@ -136,6 +141,33 @@ Wire protocol: [docs/api.md](docs/api.md) · full architecture:
 [docs/hybrid-design.md](docs/hybrid-design.md).
 
 ## 📊 Results, with receipts
+
+**v3 upgrade (2026-09-29)** — both pipelines were upgraded to the 2026-standard
+retrieval stack (BM25 ‖ dense + RRF fusion, cross-encoder rerank, contextual-prefix
+chunking), so the comparison isolates what the Jev-augmented layer adds **on top of
+a modern baseline**. Run `16814bd5`: 98 questions, 5 public benchmarks, 0 errors,
+16 resumable windows, independent judge (`kimi-k2.5`), same matched context budget:
+
+| v3 headline (98 public questions) | Traditional v3 | Hybrid v3 | Δ |
+| --- | --- | --- | --- |
+| **Correctness (pooled)** | 61.7% | **66.8%** | **+5.1pp** · CI [−0.5, +10.7] · p = 0.065 |
+| **Single-hop subset (n=41)** | 80.5% | **90.2%** | **+9.8pp · CI [+2.4, +19.5] · Wilcoxon p = 0.048 ✓** |
+| Multi-hop subset (n=57) | 48.2% | 50.0% | +1.8pp · n.s. |
+| Over-abstention (answerable Q) | 35.7% | **25.5%** | −10.2pp |
+| Latency p50 | 19.9 s | 40.9 s | 2.06× (was 3×) |
+| Cost per suite | $0.165 | **$0.148** | hybrid is cheaper |
+
+> The honest reading: the v2 single-hop regression (−7.3pp) is **fixed and inverted**
+> — the gate inversion (decide sufficiency AFTER cheap retrieval, from calibrated
+> rerank scores, not by asking a 0.5B model for absolute judgments) did what the
+> calibration literature predicted. The v2 multi-hop edge compressed to noise
+> **because the upgraded baseline got that good** — the modern retrieval stack ate
+> most of the win. The hybrid still wins pooled, answers more, abstains less,
+> and costs less. Full statistics, gate behavior and the per-scenario table:
+> [docs/rag-upgrade-2026-results.md](docs/rag-upgrade-2026-results.md).
+
+<details>
+<summary><b>Historical: v2 numbers (pre-upgrade, same protocol)</b></summary>
 
 Six document scenarios × 48 ground-truth questions, both arms under a matched
 context budget, scored by an **independent LLM judge** (`kimi-k2.5` — a different
@@ -196,6 +228,7 @@ Full detail: [docs/benchmark-results.md](docs/benchmark-results.md) ·
 [docs/benchmark-public-wave2.md](docs/benchmark-public-wave2.md) ·
 methodology: [docs/benchmarking.md](docs/benchmarking.md).
 
+</details>
 </details>
 
 ## ⚙️ Configuration
@@ -319,6 +352,10 @@ Apache-2.0 — see [LICENSE](LICENSE).
 | 2026-09-28 | [`9d829a6`](https://github.com/kanishka-namdeo/jev-rag/commit/9d829a6) · [`89f9d1b`](https://github.com/kanishka-namdeo/jev-rag/commit/89f9d1b) — public benchmarks wave 2: TriviaQA + 2WikiMultiHopQA + MuSiQue — five-benchmark suite, multi-hop sweep |
 | 2026-09-28 | [`aab887a`](https://github.com/kanishka-namdeo/jev-rag/commit/aab887a) — **portability hardening + fresh-system setup guide** ([docs/setup.md](docs/setup.md)): repo-root path anchoring, machine-independent scripts, secrets out of the endpoint probe, CI trigger fix |
 | 2026-09-29 | [`1367c56`](https://github.com/kanishka-namdeo/jev-rag/commit/1367c56) — history scrub: leaked DashScope API key replaced, ~1.5k `.next/` build-cache blobs purged from every commit (git-filter-repo rewrite + force-push) |
+| 2026-09-29 | [`b272649`](https://github.com/kanishka-namdeo/jev-rag/commit/b272649) · [`55f33de`](https://github.com/kanishka-namdeo/jev-rag/commit/55f33de) · [`227c495`](https://github.com/kanishka-namdeo/jev-rag/commit/227c495) · [`089e3f3`](https://github.com/kanishka-namdeo/jev-rag/commit/089e3f3) — v3 retrieval upgrade: research synthesis, BM25‖dense+RRF, contextual-prefix chunking, cross-encoder rerank |
+| 2026-09-29 | [`48cc0b1`](https://github.com/kanishka-namdeo/jev-rag/commit/48cc0b1) — bench refactor: both arms drive the SAME ChatService orchestrator (structural arm parity) |
+| 2026-09-29 | [`1b4d827`](https://github.com/kanishka-namdeo/jev-rag/commit/1b4d827) — **hybrid v3: gate inversion** — score-feature escalation gate, hard-path-only heavy stages, Jev re-placed on evidence |
+| 2026-09-29 | [`23f3012`](https://github.com/kanishka-namdeo/jev-rag/commit/23f3012) · [`e3e92a0`](https://github.com/kanishka-namdeo/jev-rag/commit/e3e92a0) · [`3eaf3b6`](https://github.com/kanishka-namdeo/jev-rag/commit/3eaf3b6) — **hypothesis testbench** (2 pre-declared layers + stats) and the measured v3 verdict: single-hop fixed and significant (+9.8pp, p=0.048), multi-hop edge compressed, hybrid cheaper than baseline |
 
 </details>
 

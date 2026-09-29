@@ -1,7 +1,106 @@
 # Jev-RAG Worklog
 
-Single shared work log for all agents working on this repo. Append-only; each
+Single shared work log for all agents working in this repo. Append-only; each
 section starts with `---`. Newest at top.
+
+---
+Task ID: R1
+Agent: research sub-agent (Task R1, research-only)
+Task: survey 2025-2026 production-RAG state-of-the-art; per-technique
+what/evidence/cost/complexity/verdict for THIS stack (CPU-only local models,
+fastembed+ChromaDB, Dashscope cloud LLM, budget-conscious); deliver ranked
+ADOPT/SKIP list targeting the three known weaknesses (single-hop gate false
+negatives, 3x latency, keep multi-hop gains)
+
+Work Log:
+- Read worklog + benchmark history (Tasks 1-12) for constraints and failure
+  modes before searching; noted 4 independent confirmations of gate false
+  negatives with gold top-ranked (P=0.03-0.05) as the #1 problem to target
+- Ran 29 web searches (RAG 2026 trends; hybrid BM25+RRF; MTEB embedding models
+  incl. Qwen3-Embedding/bge-m3; contextual retrieval; cross-encoder vs
+  LLM rerankers; Adaptive-RAG/Self-RAG/CRAG; long-context-vs-RAG; chunking
+  evidence; GraphRAG/LightRAG cost; RAPTOR; HyDE; Matryoshka; late chunking;
+  query decomposition/IRCoT/CompactRAG; small-model routing; citation/ALCE;
+  agentic-RAG component ablations) + direct fetch of Anthropic contextual
+  retrieval page (web_reader function unavailable -> curl fallback)
+- Key quantitative findings captured with sources: Anthropic contextual
+  retrieval 49%/67% failure reduction; RRF NDCG 0.7068->0.7497 (2026
+  benchmark reference); reranker precision 0.71->0.79 (Airbyte 2026);
+  Qwen3-Reranker-class 0.4-0.6B rerank nDCG@10 54.11->59.28 BEIR; LightRAG
+  cost -57% vs GraphRAG but shrinking gains on re-eval; RAPTOR +20pp only on
+  narrative QA (QuALITY); LC-vs-RAG study (LC wins only when cost ignored,
+  Self-Route hybrid retains ~97% perf at fraction of cost); sbert Matryoshka
+  8.3% dims -> 98.37% perf
+- Delivered structured report to main agent: ADOPT-first list (post-retrieval
+  sufficiency gate, BM25+RRF hybrid, cross-encoder rerank replacing jev
+  pointwise noul, title-prefix contextual retrieval, battery demotion to
+  hard path, embedding swap eval, reranker-margin abstention calibration,
+  citation F1 metric), explicit SKIP list (GraphRAG, HyDE, Self-RAG, LLM
+  listwise rerank, Matryoshka now, late chunking, proposition chunking), and
+  a 2026 reference architecture sketch for the FastAPI/ChromaDB/fastembed
+  CPU-only stack
+
+Stage Summary:
+- Research-only task, no code touched; 2025-2026 evidence base assembled with
+  numbers and URLs, mapped to this project's specific failure modes; top
+  recommendation: invert the gate (always cheap-retrieve, decide AFTER
+  retrieval using cross-encoder margin) + hybrid lexical/dense retrieval —
+  both near-zero-cost changes aimed directly at the -7.3pp single-hop loss
+  and the 3x latency, while leaving the multi-hop decomposition machinery
+  intact for the hard path
+
+---
+Task ID: R2
+Agent: research sub-agent (general-purpose)
+Task: Research where a small (~0.5B CPU GGUF, llama.cpp, logprob/noul scoring)
+local model helps vs hurts in a modern (2025-2026) RAG pipeline; survey cheap
+alternatives to LLM gates; design a hypothesis-driven testbench. RESEARCH ONLY
+— no project code touched.
+
+Work Log:
+- Read worklog + repo context: hybrid pipeline uses jev for routing, rerank,
+  screening, CRAG-style sufficiency gate, best-of-2 selection, citation
+  verification; gate failure mode documented (72% acc public / 31-37% on
+  answerable multi-hop, mean P 0.33-0.37, false negatives with gold top-ranked)
+- Ran ~30 distinct web searches + 10 primary-source fetches (arXiv abstracts,
+  ACL Anthology). Key primary sources pulled: Adaptive-RAG (2403.14403),
+  RouteLLM (2406.18665), FIRST single-token reranking (2406.15657), Kadavath
+  P(True)/P(IK) (2207.05221), Soudani UE-in-RAG (Findings ACL 2025),
+  Brehme RAG-eval survey (2504.20119), Self-RAG (2310.11511), RAGCache
+  (2404.12457), MERA routing (OpenReview 2026), RCT-MARS, OfficeQA Pro stats
+  protocol, CRAG T5-large evaluator descriptions
+- Findings (full report returned to caller): literature CONTRADICTS a zero-shot
+  0.5B model making absolute sufficiency/answerability judgments (Kadavath:
+  calibration scales with size, P(IK) miscalibrated on new tasks; Soudani: UE
+  methods fail in RAG, simple calibration function beats raw confidence; even
+  Claude 3.5 Sonnet abstention drops 84.1%→52% merely when context present);
+  CRAG itself used a FINE-TUNED T5-large evaluator, not a zero-shot prompt;
+  literature SUPPORTS small models for trained query-complexity routing
+  (Adaptive-RAG T5/BERT classifier; RouteLLM >2x cost savings; MERA 87.3%
+  router acc) and for relative/listwise logit-based reranking (FIRST: first-
+  token logits → ranking, 50% faster) though 149M cross-encoders beat 0.5B
+  generative rerankers on quality; speculative drafting to cloud is inapplicable
+  (needs co-located verifier w/ logprobs); semantic caching needs no LLM
+- Testbench design delivered: gate-isolation arms (never/always/oracle-retry
+  bounders), score-feature gate baselines (top-1 score, margin, top-k entropy,
+  coverage count), paired McNemar + 50k-resample bootstrap + BH-FDR, power
+  analysis for n=100-500, fractional ablation matrix (72-arm full factorial
+  infeasible at ~2.5min/question), per-hypothesis metrics (recall@k/nDCG,
+  gate acc/Brier/ECE/FN-rate-on-answerable, e2e correctness + pairwise win +
+  cost/latency)
+- No files modified other than this worklog entry (research-only contract)
+
+Stage Summary:
+- Ranked verdict for jev-like 0.5B: KEEP for trained routing + relative
+  rerank/scoring + citation string-anchoring; RE-TRAIN OR REMOVE for absolute
+  sufficiency gating (replace with retrieval score-distribution features +
+  calibrated classifier, Soudani-style); REMOVE for speculative drafting and
+  best-of-2 absolute preference (move to cloud judge or cheap features)
+- Next actions for main agent: (1) build score-feature gate baseline + oracle
+  gate arm, (2) re-run gate ablation on 98-question public suite, (3) consider
+  distilling cloud-judge gate labels onto jev-score (Codifying-the-Judge
+  pattern), (4) add gate ECE + FN-rate-on-answerable to analyze_bench_run.py
+  output (metric names only — code change owned by main agent, not R2)
 
 ---
 Task ID: 12
@@ -261,3 +360,410 @@ Stage Summary:
 - GitHub PAT stored at /home/z/my-project/.git-credentials (git credential.helper store --file, repo-local); repo history intact at HEAD c05f7f5; only local uncommitted change: .gitignore platform additions.
 - jev-score is now position-independent ($ORIGIN rpath + no-as-needed link); note for fresh installs: a plain rebuild re-bakes an absolute rpath — relink step documented here is the fix if the tree moves post-build.
 - Known sandbox quirks handled: tool-call processes are reaped (use the ensure-backend route / .zscripts/dev.sh instead of manual uvicorn); HuggingFace GGUF downloads stall (use .zscripts/dl_gguf.sh).
+
+---
+Task ID: A1
+Agent: code-audit agent (read-only deep audit)
+Task: Read-only architectural audit of the full repo (pipelines, Jev engine, LLM
+client, ingestion, config, bench harness, API, tests, experiment scripts,
+frontend trace consumers) to produce a precise map before upgrading both RAG
+pipelines to modern RAG practices.
+
+Work Log:
+- Read completely: rag/pipelines.py (741 ln), llm/jev_engine.py (456 ln),
+  llm/dashscope.py, rag/ingestion.py, rag/prompts.py, rag/retriever.py,
+  config.py, bench/runner.py (755 ln), bench/judge.py, bench/metrics.py,
+  bench/scenarios.py, api/routes.py, api/bench_routes.py, main.py, db.py,
+  all 3 test files (35 tests), experiment_rerank.py,
+  experiment_single_model_routing.py, scripts/analyze_bench_run.py (stats),
+  frontend types/store/api + trace-panel/chat-message/bench components
+- Mapped both pipelines stage-by-stage with line refs (traditional: 4 stages;
+  hybrid v2: 7 slots incl. effort routing, corrective retry, best-of-2,
+  batched citation verify) and the SSE event protocol (12 event types)
+- Catalogued every JevEngine public method, its noul/choice pattern, prompt
+  phrasing and one-decide()-fan-out batching; DashscopeLLM client surface
+  (stream/complete, pacer, gateway auth, enable_thinking fallback)
+- Extracted the complete config knob inventory (34 retrieval/pipeline-relevant
+  settings with defaults) and the bench fairness contract (identical prompts/
+  chunking/embeddings, matched context budget, independent judge, per-question
+  DB fields, gate Brier, rerank lift, position-swap pairwise)
+- Located stats: McNemar/Wilcoxon/bootstrap/Wilson/Spearman live in
+  scripts/analyze_bench_run.py, NOT in app/bench/metrics.py (Brier is in-app)
+- Verified NO TODO/FIXME markers in backend Python code (grep clean)
+- Flagged key brittleness: bench runner's _arm_hybrid (~230 ln) is a hand-
+  mirrored duplicate of ChatService._run_hybrid — every pipeline upgrade must
+  be applied twice or arms drift (top upgrade risk); metrics@k hardcoded to
+  4/10 coupled to knob defaults; char-based chunking with no structure
+  awareness; no embedding-space versioning on docs
+- Nothing modified except this worklog entry (repo tree untouched; git clean)
+
+Stage Summary:
+- Delivered the architectural map (flow diagrams, knobs, bench contract,
+  extension points for BM25/reranker/chunking/query transforms, smells list)
+  as the A1 report for the pipeline-upgrade effort
+- Single most important pre-upgrade action: unify production pipeline and
+  bench arms (shared orchestration module) before adding any new stage,
+  otherwise the A/B contract silently breaks
+
+---
+Task ID: I3
+Agent: implementation agent (ONNX cross-encoder reranker, M2 milestone)
+
+Task: create backend/app/rag/crossenc.py (local ONNX CPU cross-encoder
+reranker, Xenova/ms-marco-MiniLM-L-6-v2) + backend/tests/test_crossenc.py;
+touch NOTHING else (no existing file modified, no commit).
+
+Work Log:
+- Read worklog + docs/rag-upgrade-2026.md first; verified HF repo layout LIVE
+  via huggingface_hub.list_repo_files: onnx/model.onnx (fp32) EXISTS — final
+  allow_patterns = ["onnx/model.onnx", "tokenizer.json"] (quantized variant
+  kept in code only as a layout fallback); documented in module docstring
+- Verified live before writing code: two-segment tokenizer.encode(query,
+  passage) yields [CLS] q [SEP] p [SEP] with type_ids 0/1; ONNX graph
+  declares input_ids + attention_mask + token_type_ids (int64, dynamic) and
+  output logits [B,1]; DEVIATION from spec hint "token_type_ids all-zeros":
+  real segment ids are the sentence-transformers reference contract and
+  measured much better (relevant 0.9996 vs 0.7579 all-zeros) — implemented
+  real segments, zeros only as impossible-path fallback
+- Wrote crossenc.py: CrossEncoderReranker(model_name, cache_dir=None,
+  max_length=512, threads=None); load() idempotent + double-checked lock +
+  sticky error + never raises (Embedder.load pattern); ORT session:
+  CPUExecutionProvider, intra_op threads or min(4, cpu), ORT_SEQUENTIAL,
+  ORT_ENABLE_ALL; input names discovered dynamically from session
+- score_pairs: manual per-batch padding ([PAD]=0, mask 0), truncation
+  longest_first max_length, logits [B,1]->sigmoid->floats in order; []
+  for empty passages (short-circuits even before load — spec sentence
+  ambiguity resolved this way), None when not loaded; deterministic across
+  batch sizes (verified bitwise-identical logits bs=3 vs bs=10)
+- rerank: dict(c) copies, text[:char_limit] (mirrors jev_rerank_char_limit
+  400), adds ce_score rounded 4, sort desc with stable original-index
+  tie-break; graceful passthrough in original order (no ce_score) when not
+  loaded — design decision, documented
+- Downloaded via snapshot_download to default HF cache (~/.cache/huggingface):
+  onnx/model.onnx 90,992,115 bytes + tokenizer.json 711,396 bytes = ~91.7 MB
+  total; cold download 7.2-7.8 s, warm load 0.48 s
+- Measured latency (4 intra-op threads, CPU): 8 pairs/1 batch median 21 ms
+  (range 21-49 ms over 5 trials, incl. tokenize+pad); 20 pairs/3 batches
+  54 ms — two orders of magnitude under the jev noul rerank path
+- Tests (6): live relevance separation (0.9996 vs ~0.0, margin>0.2, two
+  relevant close), live rerank ordering/annotation/no-mutation/empty,
+  load idempotent (same session object identity, <1 s), bogus model
+  graceful False (ThreadPoolExecutor 120 s timeout guard, no exception
+  escapes, info() carries error, sticky), batch order with 10 passages
+  bs=3 (argmax at planted index 7 + bs-independence), hermetic
+  not-loaded contract; all live tests skipif JEVRAG_SKIP_NET_TESTS=1
+- RESULTS: pytest tests/test_crossenc.py -q -> 6 passed in 3.13 s;
+  offline mode -> 1 passed, 5 skipped; FULL backend suite -> 41 passed
+  (35 pre-existing + 6 new) — no existing test touched
+
+Stage Summary:
+- crossenc.py + test_crossenc.py delivered, exactly two files, zero
+  existing files modified, no commit made (per contract)
+- Integration-ready API for M4: construct CrossEncoderReranker() once,
+  r.load() at startup (bool, never raises, sticky error), then
+  score_pairs(query, passages, batch_size=8) -> list[float] | None or
+  rerank(query, chunks, text_key="text", char_limit=400) ->
+  list[dict] with ce_score; info() for /system/status; caller
+  serializes scoring (asyncio.to_thread); cache_dir wiring to
+  /home/z/my-project/models deferred to integration (default None)
+- Deviations from task spec (all measured/documented in code): (1) real
+  token_type segment ids instead of all-zeros, (2) empty-passages check
+  before not-loaded check, (3) sticky load failure, (4) rerank
+  passthrough instead of [] when not loaded
+
+---
+Task ID: I1
+Agent: implementation agent I1 (general-purpose)
+Task: M2 isolated module — dependency-free lexical retrieval: BM25Okapi
+index + RRF fusion in backend/app/rag/lexical.py + pytest suite
+backend/tests/test_lexical.py; exactly two new files, no existing file
+modified, no commit.
+
+Work Log:
+- Read worklog.md + docs/rag-upgrade-2026.md (design of record) first;
+  checked app/rag layout + existing test conventions (tests run with
+  cwd=backend, python -m pytest puts cwd on sys.path -> `from app.rag...`
+  imports work; no conftest needed)
+- Wrote app/rag/lexical.py (306 lines, stdlib only: re/math/collections):
+  module docstring covers hybrid lexical+dense+RRF purpose (2026 settled
+  default, BM25 rescues entity/lexical lookups that MiniLM dense ranks
+  poorly), zero-dependency rationale (sandbox pip egress unreliable),
+  in-memory rebuild-from-Chroma storage story (no persistence format)
+- tokenize(): lowercase -> word-char runs via
+  r"[0-9A-Za-z_\u00c0-\uffff]+" (spec's À-￿ range) -> inside each run,
+  contiguous CJK subsequences (han 4E00-9FFF, kana 3040-30FF, hangul
+  AC00-D7AF) become sliding char bigrams ("机器学习" -> 机器/器学/学习,
+  lone char stays single), non-CJK segments stay whole tokens
+  ("CNN报道机器学习" -> cnn + 报道/道机/机器/器学/学习 — cross-boundary
+  道机 is by design, no word segmentation); PURE: no stopword filtering
+  (stopwords live on the index), deterministic
+- LexicalIndex (BM25Okapi, Lucene idf ln(1+(N-df+0.5)/(df+0.5)), k1=1.5
+  b=0.75 defaults): build((chunk_id,text) list) fully resets state (df/
+  avgdl/idf/tfs — verified no leak across rebuilds), query loops over
+  query-token OCCURRENCES (repeated query token contributes k times),
+  unknown tokens contribute 0, zero-score docs dropped, sort score desc
+  then chunk_id asc, top_n slicing with None=all; doc_count/is_built
+  properties (is_built=True even after empty-corpus build, documented);
+  thread-safety note in class docstring (no locks, caller serializes via
+  asyncio.to_thread); avgdl==0 guard prevents ZeroDivision on all-empty
+  corpora
+- ADDED beyond spec (documented): public LexicalIndex.tokens(text) ->
+  tokenize+stopword-filter stream (what build/query actually see) so
+  stopword behaviour is directly testable/inspectable; stopword filter
+  applies only to ascii alphabetic tokens as spec'd, None disables
+- rrf_fuse(rankings, rrf_k=60): 1/(k+rank) rank>=1, missing ids
+  contribute 0, sort fused desc then id asc, empty/all-empty -> []
+- tests/test_lexical.py (11 tests): hand-verifiable BM25 vs a _ref_bm25
+  reference implementation of the spec formula fed HAND-COUNTED tf/df/dl
+  (documented inline — not a tautology of the module code); idf sanity
+  (all-docs term < rare term, same tf/dl); CJK bigrams incl. mixed
+  CNN报道机器学习 + kana/hangul ranges (codepoint-verified) + accented
+  latin + tokenize purity (keeps 'the'); stopwords default vs None
+  (token stream AND behavioural query check); deterministic tie-break
+  (identical docs -> chunk_id asc, exactly-equal floats); rrf winner-
+  change vs either list + missing-id + empty/all-empty + passthrough;
+  top_n slicing (1/5/0/None); empty index + empty corpus + all-empty-doc
+  guard; stopword-only query; repeated query tokens double scores; build-
+  over-build replaces state (hand-checked scores before AND after)
+- Verification: pytest tests/test_lexical.py -q -> 11 passed in 0.09s;
+  full backend suite tests -q -> 52 passed in 9.95s (41 pre-existing incl.
+  parallel agents' + 11 new); `python -c "import app.rag.lexical"` OK
+- Performance sanity (not a pytest — kept suite timing-free): build of
+  1500 docs x ~1050 chars mixed EN/CJK in 0.965s (< 2s target, pure
+  CPython 3.12.14); ~3.5 ms/query at N=1500; identical output across two
+  independent rebuilds (determinism)
+- git status: only the two new files added by me; no tracked file touched
+  (worklog.md modification + sibling untracked files belong to the
+  parallel I-agents); no commit made per contract
+
+Stage Summary:
+- lexical.py + test_lexical.py delivered, exactly two files, zero
+  existing files modified, no commit
+- Integration-ready API for M3 (retrieval_mode knob): tokenize(text) ->
+  list[str]; LexicalIndex(k1=1.5, b=0.75, stopwords=frozenset|None=
+  _DEFAULT_STOP) with .build(corpus: list[tuple[str, str]]) -> None,
+  .query(text: str, top_n: int|None=None) -> list[tuple[str, float]],
+  .tokens(text: str) -> list[str], properties .doc_count / .is_built;
+  rrf_fuse(rankings: list[list[str]], rrf_k: int=60) -> list[str]
+- Deviations from task spec: (1) extra public method tokens() added for
+  testability/inspection, (2) zero-score docs are dropped from query
+  results (Lucene behaviour — documented; ties still hit the id-asc tie-
+  break), (3) is_built is a build-has-run flag, true even for an empty
+  corpus. Everything else per spec, incl. formula, defaults, determinism
+  and thread-safety contract
+
+---
+Task ID: I2
+Agent: implementation sub-agent (Task I2, isolated module)
+Task: build backend/app/bench/stats.py — paired statistical testing module for
+the hypothesis testbench (docs/rag-upgrade-2026.md §4, milestone M2), pure
+stdlib (math/random/statistics) only, plus pytest tests. No existing file
+touched; no commit.
+
+Work Log:
+- Read worklog.md + docs/rag-upgrade-2026.md §4 (pre-declared stats plan) +
+  scripts/analyze_bench_run.py for the incumbent scipy-based conventions
+  before implementing; module docstring cites the pre-declared plan (exact
+  McNemar on discordant pairs, paired bootstrap 95% CI percentile method
+  with 50k resamples in production — default 10k for test speed, BH-FDR
+  across the hypothesis grid)
+- Created backend/app/bench/stats.py (10 public functions, __all__ declared):
+  mcnemar_exact (exact two-sided binomial on discordant pairs, math.comb),
+  wilson_ci (n=0 -> (0.0, 1.0) JSON-safe, vs NaN in the old script —
+  documented deviation), paired_bootstrap_ci ({"point","lo","hi"},
+  stat="mean"|"median"|callable, fresh random.Random(seed) per call,
+  numpy-linear-equivalent percentile interpolation), wilcoxon_signed_rank
+  (zeros dropped, average ranks for ties, scipy-compatible normal approx
+  WITH continuity correction + tie-corrected variance — formulation fully
+  documented in docstring; z uses W+ whose null mean is n(n+1)/4, returned
+  w = min(W+,W-); n<5 -> p=1.0 guard; rank-biserial = (W+ - W-)/S),
+  bh_fdr (step-up, monotone, order-preserving, clamps p into [0,1]),
+  brier_score, ece (equal-width bins, empty bins skipped), roc_sweep
+  (unique thresholds desc + threshold=-inf sentinel row, youden_j = tpr-fpr),
+  best_threshold (argmax J, ties -> higher threshold; None if a class
+  missing), summarize_paired_pvals (BH across named hypotheses,
+  n_significant_005 counts adjusted q < 0.05)
+- Created backend/tests/test_stats.py: 26 hermetic tests, reference values
+  verified by hand (math.comb inline) — mcnemar(8,1)=20/512=0.0390625,
+  Wilson 8/10 = [0.4902, 0.9433] hand formula, BH textbook example
+  [0.01,0.04,0.03,0.005] -> [0.02,0.04,0.04,0.02], full ROC row-by-row hand
+  case, bootstrap negation-symmetry (exact) + seed determinism
+- CROSS-VALIDATED against the scipy stack with the system python (backend
+  venv has no scipy by design): mcnemar_exact == scipy.binomtest on 10
+  cases incl. b=c and asymmetric tails; wilcoxon p == scipy
+  (zero_method='wilcox', mode='approx', correction=True) to 1e-9 on 10
+  random tie/zero-laden datasets; bh_fdr == statsmodels fdr_bh exactly on
+  5 cases; wilson_ci == statsmodels method='wilson' bit-for-bit when passed
+  the exact norm.ppf(0.975) z (default 1.959963985 is the spec constant,
+  same as analyze_bench_run.py — ~1e-10 interval difference from z's 9th
+  decimal only)
+- Verification: cd backend && .venv/bin/python -m pytest tests/test_stats.py
+  -q -> 26 passed in 0.18s; full suite 88 passed in 9.68s (35 pre-existing
+  + 26 mine + 27 from the parallel I1/I3/I4 modules — no interference);
+  `import app.bench.stats` confirmed from backend/; no pip packages added
+- Statistically strict choices documented in docstrings: brier/ece raise
+  ValueError on empty input (returning 0.0 would masquerade as perfect
+  calibration); roc tpr/fpr are 0.0 (not NaN) when a class is absent while
+  the -inf sentinel still reports tpr=1/fpr=1 with both classes present
+
+Stage Summary:
+- Paired-stats testbench module live at app/bench.stats (pure stdlib,
+  deterministic given seed): exact McNemar, Wilson CI, paired bootstrap
+  (mean/median/callable), Wilcoxon + rank-biserial (scipy-verified), BH-FDR
+  (statsmodels-verified), Brier, ECE, ROC sweep + best-threshold (gate
+  calibration for §3.3), hypothesis-grid summary — 26/26 tests green,
+  cross-checked against scipy/statsmodels
+- Ready for M7 (testbench implementation) to consume: build gate-feature
+  arms -> feed discordant pairs to mcnemar_exact, graded diffs to
+  wilcoxon_signed_rank/paired_bootstrap_ci(n_resamples=50_000), and the
+  per-hypothesis p-value grid to summarize_paired_pvals
+- Two files created, zero existing files modified, nothing committed
+
+---
+Task ID: I4
+Agent: implementation agent I4 (M2 parallel subagent)
+Task: structure-aware markdown chunker with contextual prefixes (audit
+finding #5; docs/rag-upgrade-2026.md §2.4 evidence + §3.1 index design) —
+new module app/rag/chunking.py + tests; NO existing files modified
+
+Work Log:
+- Read worklog.md + docs/rag-upgrade-2026.md (§2.4 contextual retrieval:
+  Anthropic 5.7%->3.7% top-20 failures with prefixes; §3.1 v3 stack) +
+  app/rag/ingestion.py for the incumbent flat 900/140 splitter + CJK
+  separator ladder conventions before implementing
+- Created backend/app/rag/chunking.py (stdlib + lazy
+  langchain_text_splitters import only — no new deps):
+  * ChunkSpec dataclass (text / section / heading_path / char_count where
+    char_count = body length WITHOUT prefix, so ingestion can cap totals)
+  * split_structure_aware(text, title, chunk_size=900, overlap=140) ->
+    list[ChunkSpec]: single-pass markdown parser (ATX regex per spec
+    ^(#{1,6})\s+(.+?)\s*#*\s*$; Setext text+= / - recognized; ``` and ~~~
+    fences toggle in-fence state and heading detection is ignored inside
+    fences; CRLF normalized); sections carry cumulative level-stack paths,
+    content before the first heading is the root section (path=[])
+  * Contextual prefix = " | ".join([title] + heading_path), chunk text =
+    prefix + " :: " + body; body budget = max(200, chunk_size -
+    len(prefix) - 4); overlap clamped to budget-1
+  * Heading-only sections merge FORWARD: their heading joins the next
+    section's path (## Empty / ## Next -> ["Empty","Next"]); carried
+    headings replace the common-prefix part of the next raw path, normal
+    sections keep full stack path; trailing heading-only sections dropped
+  * Heading path capped to deepest 3 levels to bound prefix length
+  * Code-fence safety: piece with odd count of fence-marker lines is MERGED
+    with the next piece in the same section (preferred; joined with blank
+    line; documented trade-offs: merged piece may exceed body budget and
+    re-includes up to `overlap` chars); only the section-FINAL piece is
+    auto-closed with appended "\n```" when the section itself is unbalanced
+  * split_plain(text, chunk_size, overlap) compat wrapper: flat recursive
+    split, no structure, no prefix (old ingestion behaviour)
+  * Design decisions 1-7 documented in the module docstring incl.
+    determinism (pure function), empty-title prefix join guard, min-body
+    200 floor, setext list+thematic-break mis-read caveat
+- Created backend/tests/test_chunking.py: 10 hermetic tests (no models, no
+  network, no config) — structure/prefixes/heading paths + size budgets
+  (char_count <= max(200, chunk_size - len(prefix) - 4), len(text) <=
+  chunk_size + 60), long-fence balance (even marker-line count per chunk,
+  headings inside fences ignored), Setext = / - recognition, heading-only
+  forward merge, no-heading title-only prefix, CJK 。-splitting with
+  prefix, empty/whitespace/heading-only -> [] + tiny -> 1 chunk, deep-path
+  cap to 3, determinism (two calls equal), split_plain sizes + no prefix
+- Edge verification beyond tests: malformed unclosed fence auto-close,
+  empty title (no leading " | "), chunk_size=100 clamps to 200 budget,
+  ~~~ fences, real scripts/test-assets/sample-knowledge.md -> 5 prefixed
+  chunks ("sample-knowledge | Aurora Cloud Services — Employee Handbook
+  (2026 Edition) | 1. Refund and Billing ..."), CRLF input, pickle equality
+- Verification: cd backend && .venv/bin/python -m pytest
+  tests/test_chunking.py -q -> 10 passed in 0.42s; full suite 88 passed in
+  9.4s (35 pre-existing + 10 mine + parallel I1/I2/I3 modules — no
+  interference); import from backend/ cwd confirmed via python -m pytest
+
+Stage Summary:
+- Split stage of §3.1 v3 index is ready: split_structure_aware produces
+  Anthropic-style contextual-prefix chunks with balanced code fences and
+  CJK-aware within-section splitting (langchain_text_splitters reused);
+  split_plain preserves the legacy flat behaviour for compat callers
+- Next (M3 integration, owned by main agent): swap Ingestor._split to
+  split_structure_aware(text, filename) and store ChunkSpec fields
+  (chunk_count, optional section metadata); reingest docs for a new
+  embedding-space version
+- Two files created, zero existing files modified, nothing committed
+
+---
+Task ID: 13
+Agent: main (Super Z)
+Task: upgrade both RAG pipelines to latest 2026 methodologies via research
+subagents; re-evaluate Jev-model placement in the new pipeline; highlight/build
+a hypothesis-based testbench; implement carefully; report objectively; push per
+milestone
+
+Work Log:
+- M1 (b272649): 3 parallel research agents (R1 trending RAG practice ~29
+  searches; R2 small-model placement literature ~30 searches; A1 full code
+  audit) -> docs/rag-upgrade-2026.md (design of record: gate inversion, BM25
+  +RRF, cross-encoder rerank, contextual prefixes, jev re-placement table,
+  SKIP list with reasons)
+- M2 (55f33de): 4 parallel implementation subagents built isolated modules:
+  rag/lexical.py (BM25+RRF, zero deps), rag/crossenc.py (ONNX
+  ms-marco-MiniLM-L6, 91MB, deterministic), rag/chunking.py
+  (structure-aware + contextual prefixes), bench/stats.py (McNemar/bootstrap/
+  Wilcoxon/BH-FDR/ECE/ROC — cross-validated against scipy); 53 new tests
+- M5 (48cc0b1, executed before M3/M4 to single-site integration): deleted the
+  runner's 230-line hand-mirrored arms; both bench arms now drive
+  ChatService.run(bench=True) — structural arm parity; runner 755->488 lines;
+  live 2-question smoke validated (full decision trail, 0 errors)
+- M3 (227c495): HybridSearch (BM25 || dense + RRF fusion, doc-scoped lazy
+  rebuilds keyed on an in-memory store revision counter); contextual-prefix
+  ingestion; per-instance chroma collection names (found+fixed a cross-store
+  data leak); 9 integration tests on real Chroma
+- M4 (089e3f3): rerank_mode cross|jev|none in BOTH pipelines; traditional v3
+  = 2026 baseline (10 candidates -> rerank -> 4); fallback chain with
+  [FALLBACK]-marked records; live: gold 0.9997 vs distractors ~0.0
+- M6 (1b4d827): hybrid v3 — effort routing CONCURRENT with retrieval; gate
+  inversion (features|jev|none + bench-injected never/always/oracle
+  escalate); hard-path-only heavy stages; SUFFICIENCY_THRESHOLD -> knob;
+  10 new pipeline tests; live smokes: easy path zero local-LLM hot calls,
+  hard path escalates -> decompose -> retry -> honest abstention
+- M7 (23f3012): docs/testbench-design.md (pre-declared hypotheses H-GATE/
+  H-RERANK/H-SELECT/H-VERIFY/H-HARDPATH, never/always/oracle bounders,
+  McNemar+bootstrap+BH-FDR protocol, power notes); Layer-1
+  eval_retrieval.py (7 arms, resumable, gate calibration); Layer-2
+  run_testbench.py (9 ablation arms, shared-orchestrator, reaper-proof) +
+  analyze_testbench.py
+- M8 (e3e92a0): Layer-1 run complete (98Q x 7 arms): v3 default confirmed
+  best precision (hit@1 .918 MRR .942); BM25-alone -6.2pp p=0.001 (fusion
+  justified); jev rerank WEAKEST reranker (-3.5pp vs no rerank); bge swap
+  REJECTED (-1.9pp n.s.); gate calibration theta*=0.987 acc .59 -> shipped
+  theta 0.5 (escalates 17%, hard scenarios). En-route fixes: Embedder pure
+  python floats (chromadb rejects np.float32 — broke bge), eval_resume
+  no longer drops non-invoked arms (wiped data once, re-ran deterministically),
+  bge corpus decoupled from documents table, orphan-chunk cleanup 37k->4.2k
+- M9 (3eaf3b6): headline run 16814bd5 (98Q, 0 errors, 16 chained windows,
+  ~$0.31): pooled +5.1pp p=0.065; SINGLE-HOP -7.3pp -> +9.8pp SIGNIFICANT
+  (Wilcoxon p=.048 CI [+2.4,+19.5]); multi-hop +1.8pp n.s. (upgraded baseline
+  ate the v2 win — reported as the honest headline); over-abstention 35.7% ->
+  25.5%; latency 3x -> 2.06x; hybrid cheaper ($0.148 vs $0.165); features
+  gate acc .898 Brier .103 (v2: .72/.38); 6/10 escalations recovered, 4
+  honest abstentions. H-GATE ablation 6b58fc40 (20Q x 3 arms): base .70 >
+  gate-none .65 > always-hard .60 (+2.6x latency) — direction confirms the
+  design, n=20 underpowered (reported as such)
+- M10: README (v3 architecture mermaid, v3 results table, v2 as history,
+  milestones), CHANGELOG entry, worklog (this), backend restarted on v3
+  config, full stack re-verified
+
+Stage Summary:
+- Both pipelines upgraded to the 2026 standard; the comparison now isolates
+  the jev-augmented layer on top of a modern baseline
+- Jev placement re-evaluated ON EVIDENCE: kept (routing/selection/
+  verification — all relative judgments), removed (absolute sufficiency,
+  hot-path pointwise rerank — both measured worse than replacements)
+- Hypothesis testbench: YES it makes sense (built + run): Layer-1 offline
+  (minutes, no cloud) + Layer-2 resumable ablations with bounder arms and
+  pre-declared stats; full matrix remains runnable via run_testbench.py
+- Headline verdict (objective): single-hop regression FIXED+INVERTED
+  (+9.8pp significant), multi-hop edge compressed by the stronger baseline,
+  pooled +5.1pp borderline, hybrid cheaper and 2.06x latency
+- Known negatives kept visible: rerank hurts MuSiQue (.635->.557 recall),
+  wiki2 hard for both arms (.28), gate top-1 signal weak for gold-in-top-4
+- Ops: 10 commits pushed (b272649..3eaf3b6 family), 121 backend tests green,
+  reaper-proof chained-window protocol used throughout, next-server revived
+  after RAM-pressure death, backend self-healed via ensure-backend

@@ -336,3 +336,48 @@ shipping (`docs/jev-improvements-research.md` §3-4, now marked implemented):
     529,296,864 bytes, Apache-2.0); endpoint model split chosen from published strengths
     (qwen3.7-plus = faster/cheaper/agentically stronger default; qwen3.6-plus = always-on CoT
     for the deep-reasoning route).
+
+## 2026-09-29 — v3 upgrade: 2026-standard retrieval + gate inversion + hypothesis testbench
+
+Both pipelines were upgraded to current production RAG practice, the Jev model
+was re-placed on evidence, and the whole thing was measured with a pre-declared
+hypothesis testbench. Research → design → implementation → measurement, one
+commit per milestone:
+
+- **Research (3 parallel agents)**: 2025-26 RAG practice survey, small-model
+  placement literature, full code audit → [docs/rag-upgrade-2026.md](docs/rag-upgrade-2026.md) (design of record).
+- **New retrieval stack (both arms)**: BM25 ‖ dense + reciprocal-rank fusion,
+  ONNX cross-encoder rerank (replaces the Jev pointwise rerank on the hot path),
+  structure-aware chunking with contextual title/section prefixes — zero new
+  dependencies, CPU-only, all local.
+- **Gate inversion (the core fix)**: v2 asked the 0.5B model for absolute
+  sufficiency judgments BEFORE retrieval (single-hop −7.3pp, 3× latency, gate
+  acc 72%/Brier 0.38). v3 always retrieves first and escalates to the hard path
+  on a calibrated score-feature gate (top-1 rerank score; acc 0.898, Brier 0.103).
+  Heavy stages (decompose, screening battery, CRAG retry, best-of-2) now run
+  ONLY on the hard path; effort routing runs concurrently with retrieval.
+- **Jev re-placement**: kept for relative judgments (best-of-2 selection,
+  citation verification, chat-vs-doc routing); removed from absolute sufficiency
+  and hot-path rerank — every removal backed by measurement, not taste.
+- **Structural arm parity**: the bench runner's 230-line hand-maintained mirror
+  of the hybrid pipeline is deleted; both arms drive the SAME ChatService
+  orchestrator (arm divergence is now impossible by construction).
+- **Hypothesis testbench**: two pre-declared layers — offline retrieval eval
+  (7 arms, gate calibration) and a resumable pipeline ablation runner
+  (gate/rerank/selection/verification arms with never/always/oracle bounders),
+  exact McNemar + paired bootstrap + BH-FDR:
+  [docs/testbench-design.md](docs/testbench-design.md),
+  [results Layer-1](docs/testbench-results-layer1.md).
+- **Measured (run 16814bd5, 98 public questions, 0 errors)**: pooled +5.1pp
+  (p=0.065); **single-hop −7.3pp → +9.8pp, significant (Wilcoxon p=0.048)**;
+  multi-hop compressed to +1.8pp n.s. because the upgraded baseline got good;
+  over-abstention 35.7% → 25.5%; latency 3× → 2.06×; hybrid still cheaper.
+  H-GATE ablation (run 6b58fc40): features gate 0.70 > never 0.65 > always 0.60
+  at 2.6× lower latency than always-escalating — direction confirms the design.
+  All numbers with n/CI/statistics:
+  [docs/rag-upgrade-2026-results.md](docs/rag-upgrade-2026-results.md).
+- **Known negatives, kept visible**: the cross-encoder rerank *hurts* on
+  MuSiQue (recall 0.635 → 0.557, compositional gold doesn't look "relevant");
+  wiki2 stays hard for both arms (0.28); the bge embedding swap was REJECTED
+  (−1.9pp, n.s.); the gate's top-1 score remains a weak signal for
+  gold-in-top-4 (θ* = 0.987 acc 0.59) — full honesty tables in the results docs.
