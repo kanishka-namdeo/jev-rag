@@ -41,7 +41,8 @@
   (musique `mq14/oracle-gate` Dashscope `APITimeoutError`).
 - `api.md` — REST + SSE protocol reference
 - `benchmarking.md` — BINDING evaluation methodology: scenario taxonomy, metric definitions
-  (RAGAS/DeepEval/MT-Bench lineage), judge fairness protocol, resilience notes
+  (RAGAS/DeepEval/MT-Bench lineage), judge fairness protocol, context precision/recall,
+  multi-judge ensemble, query robustness testing, statistical power analysis, resilience notes
 - `benchmark-results.md` — full run history: v1, v2 (battery on/off), and v3 headline.
   Export-script tables + curated statistical analysis, loss taxonomy, objectivity/confound disclosures.
   Regenerate tables after every full run, then refresh curated sections — never leave them contradicting.

@@ -20,9 +20,11 @@
   files, answerability, stress tags) — the benchmark's source of truth
 - `app/bench/corpora/<scenario>/*.md` — scenario documents (bench- prefixed filenames)
 - `app/bench/metrics.py` — deterministic retrieval metrics (hit@k, MRR, recall@k, file-level NDCG,
-  Brier) — formulas are standard TREC/BeIR, see docs/benchmarking.md
+  Brier) — formulas are standard TREC/BeIR, see docs/benchmarking.md; RAGAS-style LLM-based
+  context precision/recall metrics (diagnose ranking quality vs coverage gaps)
 - `app/bench/judge.py` — LLM-as-judge: absolute correctness/faithfulness/abstention (RAGAS/DeepEval
-  definitions), MT-Bench pairwise with position swap, 8-canary self-test
+  definitions), MT-Bench pairwise with position swap, 8-canary self-test; `MultiJudgeEnsemble`
+  aggregates across multiple independent judges (geometric median, Kish n_eff for correlated errors)
 - `app/bench/runner.py` — sequential orchestrator inside uvicorn: scenario re-ingest → both arms
   (production-identical prompts/knobs) → judge → aggregate → persist
 - `app/rag/pipelines.py` — both pipeline implementations (hybrid = v2 single-generator design),
@@ -39,10 +41,29 @@
   verify_citations_and_quality / legacy verify_groundedness);
   subprocess OOM auto-recovery; JEV_SCORE_N_CTX context control
 - `app/rag/ingestion.py` — markitdown parsing, chunking, indexing, doc deletion
-- `scripts/` — smoke tests, validated experiments, bench result export (keep them runnable)
+- `scripts/` — smoke tests, validated experiments, bench result export, query robustness testing,
+  statistical power analysis (keep them runnable)
 - `tests/` — hermetic tests (no models, no network): basic API, bench metrics math, scenario
   integrity, judge parsing/clamping/degradation, engine recovery, v2 policy functions
   (`tests/test_v2_pipeline.py`) — keep new decision-shape changes covered there first
+
+## GPU Acceleration
+
+- **jev-score** (llama.cpp): Built with CUDA support (`GGML_CUDA=ON`). Uses GPU automatically when available.
+- **Embedder** (fastembed): Configured to use `CUDAExecutionProvider` with automatic CPU fallback (see `app/rag/retriever.py:65-80`).
+- **Cross-encoder** (ONNX): Configured to use `CUDAExecutionProvider` with automatic CPU fallback (see `app/rag/crossenc.py:160-180`).
+
+### WSL2 GPU Limitation
+
+ONNX Runtime's CUDA provider does **not** work with WSL2's GPU virtualization layer. The paravirtualized GPU driver (`/dev/dxg`) lacks full CUDA support needed by ONNX Runtime. This causes "no CUDA-capable device is detected" errors even though `nvidia-smi` shows the GPU.
+
+**Impact**: Embedder and cross-encoder automatically fall back to CPU in WSL2. jev-score works on GPU.
+
+**Fallback behavior**: When CUDA initialization fails, the system logs a warning and automatically falls back to CPU execution. This ensures the pipeline remains functional in WSL2 and other environments with limited GPU support.
+
+**Workaround**: For full GPU acceleration, use native Linux (not WSL2) or wait for ONNX Runtime to support WSL2 GPU passthrough.
+
+**Verification**: Run `backend/scripts/gpu_test.py` to check GPU status for each component.
 
 ## Local Contracts
 

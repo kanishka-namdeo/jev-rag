@@ -109,6 +109,28 @@ Per-question latency with per-stage breakdown (retrieval / Jev rerank /
 sufficiency+routing / LLM / verification — judge time excluded), p50/p95, tokens,
 and USD cost of cloud generation. *(How fast and how expensive is each pipeline? p50 = typical case, p95 = worst-case.)*
 
+### 5. Context precision & recall (RAGAS-style LLM-based retrieval diagnostics)
+
+These metrics diagnose **WHERE** retrieval failures occur — ranking quality vs coverage gaps — using LLM judges to evaluate retrieval beyond deterministic file-level metrics.
+
+- **Context precision** (0–1) — Are relevant chunks ranked highly? Computes average precision (AP) over ranked verdicts: for each retrieved chunk, the judge determines if it's useful for answering the question, then AP measures how early relevant chunks appear.
+  - 1.0 = all relevant chunks at the top
+  - 0.5 = relevant chunks scattered
+  - 0.0 = no relevant chunks retrieved
+  - *Diagnoses reranking quality*
+
+- **Context recall** (0–1) — Was all needed context retrieved? Decomposes the reference answer into atomic claims, then checks how many are supported by the retrieved context.
+  - 1.0 = all claims supported by context
+  - 0.5 = half the claims supported
+  - 0.0 = no claims supported
+  - *Diagnoses retrieval coverage gaps*
+
+**Implementation:** `backend/app/bench/metrics.py:context_precision()` and `context_recall()` follow RAGAS 0.4.3 definitions. Each metric adds ~2 LLM calls per question (one per chunk for precision; one decomposition + one per claim for recall).
+
+**Configuration:** `JEVRAG_BENCH_CONTEXT_METRICS` (bool, default `true`). Disable to save LLM calls when only deterministic retrieval metrics are needed.
+
+**Reference:** [RAGAS context metrics](https://docs.ragas.io/en/stable/concepts/metrics/available_metrics/)
+
 ## Judge design & fairness protocol
 
 - **Independent judge family**: the judge is `kimi-k2.5` on the same Dashscope
@@ -117,6 +139,12 @@ and USD cost of cloud generation. *(How fast and how expensive is each pipeline?
   (MT-Bench, G-Eval). The RAG arms are unchanged: all generation still uses the two
   Qwen models the system is configured with. Judge choice is configurable via
   `JEVRAG_BENCH_JUDGE_MODEL`. *(Using a different model family for judging prevents the judge from favoring its own style.)*
+
+- **Multi-judge ensemble** (optional): `MultiJudgeEnsemble` in `backend/app/bench/judge.py` aggregates scores across multiple independent judges to reduce variance and detect judge bias. Uses geometric median for robustness against outlier judges and computes Kish effective sample size (n_eff) to account for correlated errors.
+  - **Configuration:** `JEVRAG_BENCH_JUDGE_ENSEMBLE` (str, comma-separated model names, empty = single judge). Example: `"kimi-k2.5,gpt-4o-mini,claude-3-haiku"`
+  - **Aggregation:** Mean for continuous scores (correctness, faithfulness), majority vote for categorical decisions (abstention, pairwise winner)
+  - **Agreement metrics:** Reports inter-judge agreement (1 - CV for continuous scores, vote fraction for categorical)
+  - **Reference:** OpenJury framework, Cohere research on multi-judge reliability
 - **temperature = 0, structured JSON only** (`response_format=json_object`), with a
   short human-readable `reason` for auditability and clamping/normalisation on parse.
 - **Judge self-test**: every run starts with 8 canary cases with known expected
@@ -163,7 +191,84 @@ endpoint spend.
 
 Environment knobs: `JEVRAG_BENCH_JUDGE_MODEL` (default `kimi-k2.5`),
 `JEVRAG_BENCH_PAIRWISE` (default on), `JEVRAG_BENCH_MAX_QUESTIONS_PER_SCENARIO`
-(0 = all; useful for smoke runs).
+(0 = all; useful for smoke runs), `JEVRAG_BENCH_CONTEXT_METRICS` (default on; RAGAS-style context precision/recall),
+`JEVRAG_BENCH_JUDGE_ENSEMBLE` (comma-separated judge models, empty = single judge).
+
+## Query robustness testing
+
+Beyond static benchmark scores, real-world RAG systems must handle natural query variation. The `backend/scripts/test_query_robustness.py` script measures pipeline stability under paraphrasing — do we retrieve the same documents and produce the same answers when users ask the same question differently?
+
+**What it measures:**
+- **Retrieval stability** — fraction of paraphrases that retrieve the identical file set as the original query
+- **File overlap (Jaccard)** — average set similarity between original and paraphrase retrievals
+- **Answer consistency** — fraction of paraphrases producing the exact same answer (case-insensitive)
+- **Latency variance** — how much does response time fluctuate across paraphrases?
+
+**How it works:**
+1. For each question in a scenario, generate N paraphrases using the LLM (preserving semantic meaning, varying structure/vocabulary)
+2. Run the original query and all paraphrases through the pipeline
+3. Compare retrieved file sets and generated answers
+4. Report per-question and aggregate stability metrics
+
+**Usage:**
+```bash
+# Test techdocs scenario with 4 paraphrases per question
+python backend/scripts/test_query_robustness.py --scenario techdocs --n-paraphrases 4
+
+# Test hybrid pipeline only, limit to 10 questions
+python backend/scripts/test_query_robustness.py --scenario finance --mode hybrid --max-questions 10
+
+# Save results to JSON
+python backend/scripts/test_query_robustness.py --scenario techdocs --output robustness.json
+```
+
+**Configuration:** `JEVRAG_BENCH_ROBUSTNESS_PARAPHRASES` (int, default 0 = disabled). Set to 3-5 for robustness testing. Adds ~N LLM calls per question (paraphrase generation).
+
+**Interpretation:**
+- ≥90% retrieval stability + ≥90% answer consistency = excellent robustness
+- 70-90% = good but some sensitivity to phrasing
+- <70% = pipeline is highly sensitive to query variation; consider query expansion or retrieval improvements
+
+**Reference:** "How You Ask Matters" (arXiv 2604.10745) found 55% decision flips on human rewrites; "Out of Style" (EACL 2026) found 40% Recall@5 drop on informal queries.
+
+## Statistical power analysis
+
+Most RAG benchmarks are underpowered — they run on 48-100 questions and claim significance without checking if the sample size is sufficient to detect meaningful differences. The `backend/scripts/power_analysis.py` script computes the **minimum detectable effect (MDE)** for paired benchmark comparisons using statsmodels.
+
+**What it computes:**
+- **MDE (Cohen's d)** — the smallest effect size the benchmark can reliably detect given n questions, correlation ρ, α=0.05, power=0.80
+  - Small effect: d ≈ 0.2
+  - Medium effect: d ≈ 0.5
+  - Large effect: d ≈ 0.8
+- **Required sample size** — how many questions needed to detect a given effect size
+- **Correlation estimation** — Pearson correlation between the two systems' outcomes (higher correlation → higher power for paired tests)
+
+**How it works:**
+1. Extract paired outcomes (traditional vs hybrid correctness) from a benchmark run
+2. Estimate correlation ρ between the two systems
+3. Compute MDE using paired t-test formula: MDE_paired = MDE_independent × √(1-ρ)
+4. Report required n for small/medium/large effects
+
+**Usage:**
+```bash
+# Analyze an existing benchmark run
+python backend/scripts/power_analysis.py --run-id <run_id>
+
+# Manual calculation: can we detect a 5% improvement (p1=0.875, p2=0.927) with n=48?
+python backend/scripts/power_analysis.py --p1 0.875 --p2 0.927 --n 48 --rho 0.5
+
+# Save results to JSON
+python backend/scripts/power_analysis.py --run-id <run_id> --output power.json
+```
+
+**Interpreting MDE:**
+- MDE ≥ 0.8 (large): ⚠️ Underpowered — can only detect large effects. Most RAG improvements are small-medium (d=0.2-0.5).
+- MDE 0.5-0.8 (medium): ⚠️ Moderate power — can detect medium-large effects, but small effects may be missed.
+- MDE < 0.5 (small-medium): ✅ Well-powered — can detect meaningful RAG improvements.
+
+**Key insight:** For paired tests, higher correlation ρ between systems increases power (reduces MDE). If traditional and hybrid agree on 80% of questions (ρ=0.8), the effective sample size is n × (1-ρ) = n × 0.2, but the paired test variance is (1-ρ) × var_independent, so MDE_paired = MDE_independent × √(0.2) ≈ 0.45 × MDE_independent.
+
+**Reference:** clawRxiv 2604.01974: Power Analysis for Pairwise Model Comparisons; statsmodels documentation.
 
 ## Resilience
 

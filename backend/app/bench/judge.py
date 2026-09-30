@@ -235,3 +235,181 @@ class BenchJudge:
                             "got": {k: r.get(k) for k in ("correctness", "faithfulness", "abstention")}})
         return {"agreement": round(passed / len(cases), 3), "passed": passed,
                 "total": len(cases), "details": details, "model": self.model}
+
+
+class MultiJudgeEnsemble:
+    """Multi-judge ensemble that aggregates scores across multiple judge models.
+
+    This addresses judge bias and variance by using multiple independent judges
+    from different model families. Aggregation uses:
+    - Mean for continuous scores (correctness, faithfulness)
+    - Majority vote for categorical decisions (abstention, pairwise winner)
+
+    Reference: OpenJury framework, Cohere research on multi-judge reliability.
+    """
+
+    def __init__(self, settings: Settings, judge_models: list[str] | None = None):
+        """Initialize ensemble with multiple judge models.
+
+        Args:
+            settings: Application settings
+            judge_models: List of model names to use as judges. If None, uses
+                         [settings.bench_judge_model] (single judge mode).
+        """
+        self.settings = settings
+        self.judge_models = judge_models or [settings.bench_judge_model]
+        self.judges = [self._create_judge(model) for model in self.judge_models]
+        self.primary_model = self.judge_models[0] if self.judge_models else settings.bench_judge_model
+        # Compatibility: runner.py expects self.judge.model
+        self.model = self.primary_model
+
+    def _create_judge(self, model: str) -> BenchJudge:
+        """Create a BenchJudge instance for a specific model."""
+        # Create a copy of settings with overridden judge model
+        from copy import copy
+        judge_settings = copy(self.settings)
+        judge_settings.bench_judge_model = model
+        return BenchJudge(judge_settings)
+
+    def _call(self, system: str, user: str, max_tokens: int = 400) -> dict:
+        """Compatibility: delegate to primary judge for context metrics."""
+        return self.judges[0]._call(system, user, max_tokens)
+
+    def absolute(self, question: str, reference: str, context: str, answer: str) -> dict:
+        """Aggregate absolute scores across all judges.
+
+        Returns dict with:
+        - correctness: mean across judges
+        - faithfulness: mean across judges
+        - abstention: majority vote
+        - agreement_*: inter-judge agreement metrics
+        - individual_scores: per-judge results for debugging
+        """
+        if len(self.judges) == 1:
+            # Single judge mode - return as-is
+            return self.judges[0].absolute(question, reference, context, answer)
+
+        # Collect scores from all judges
+        results = []
+        for judge in self.judges:
+            result = judge.absolute(question, reference, context, answer)
+            results.append(result)
+
+        # Aggregate continuous scores (mean)
+        correctness_scores = [r["correctness"] for r in results if r.get("correctness") is not None]
+        faithfulness_scores = [r["faithfulness"] for r in results if r.get("faithfulness") is not None]
+
+        avg_correctness = sum(correctness_scores) / len(correctness_scores) if correctness_scores else None
+        avg_faithfulness = sum(faithfulness_scores) / len(faithfulness_scores) if faithfulness_scores else None
+
+        # Aggregate categorical scores (majority vote)
+        abstention_votes = [r.get("abstention", "answered") for r in results]
+        majority_abstention = max(set(abstention_votes), key=abstention_votes.count)
+
+        # Compute agreement metrics
+        correctness_agreement = self._compute_agreement(correctness_scores) if len(correctness_scores) > 1 else 1.0
+        faithfulness_agreement = self._compute_agreement(faithfulness_scores) if len(faithfulness_scores) > 1 else 1.0
+        abstention_agreement = abstention_votes.count(majority_abstention) / len(abstention_votes)
+
+        # Combine reasons (take first non-empty)
+        reasons = [r.get("reason", "") for r in results if r.get("reason")]
+        combined_reason = reasons[0] if reasons else ""
+
+        return {
+            "correctness": avg_correctness,
+            "faithfulness": avg_faithfulness,
+            "abstention": majority_abstention,
+            "reason": combined_reason,
+            "agreement_correctness": correctness_agreement,
+            "agreement_faithfulness": faithfulness_agreement,
+            "agreement_abstention": abstention_agreement,
+            "n_judges": len(self.judges),
+            "individual_scores": [
+                {
+                    "model": judge.model,
+                    "correctness": r.get("correctness"),
+                    "faithfulness": r.get("faithfulness"),
+                    "abstention": r.get("abstention"),
+                }
+                for judge, r in zip(self.judges, results)
+            ],
+        }
+
+    def pairwise(self, question: str, reference: str, trad: dict, hyb: dict) -> dict:
+        """Aggregate pairwise comparisons across all judges.
+
+        Returns dict with:
+        - winner: majority vote across judges
+        - position_consistent: True if all judges agree on direction
+        - agreement: fraction of judges that agree with majority
+        - individual_verdicts: per-judge results
+        """
+        if len(self.judges) == 1:
+            # Single judge mode
+            return self.judges[0].pairwise(question, reference, trad, hyb)
+
+        # Collect verdicts from all judges
+        results = []
+        for judge in self.judges:
+            result = judge.pairwise(question, reference, trad, hyb)
+            results.append(result)
+
+        # Extract winners (excluding ties for majority vote)
+        winners = [r.get("winner", "tie") for r in results]
+        non_tie_winners = [w for w in winners if w != "tie"]
+
+        if non_tie_winners:
+            # Majority vote among non-tie verdicts
+            majority_winner = max(set(non_tie_winners), key=non_tie_winners.count)
+            agreement = non_tie_winners.count(majority_winner) / len(non_tie_winners)
+        else:
+            # All ties
+            majority_winner = "tie"
+            agreement = 1.0
+
+        # Check position consistency (all judges agree on direction)
+        position_consistent = all(
+            r.get("position_consistent", False) for r in results
+        )
+
+        return {
+            "winner": majority_winner,
+            "position_consistent": position_consistent,
+            "agreement": agreement,
+            "n_judges": len(self.judges),
+            "individual_verdicts": [
+                {
+                    "model": judge.model,
+                    "winner": r.get("winner"),
+                    "position_consistent": r.get("position_consistent"),
+                }
+                for judge, r in zip(self.judges, results)
+            ],
+        }
+
+    def _compute_agreement(self, scores: list[float]) -> float:
+        """Compute inter-judge agreement for continuous scores.
+
+        Uses 1 - coefficient_of_variation (CV) as agreement metric.
+        CV = std / mean, so agreement = 1 - CV (clamped to [0, 1]).
+        """
+        if not scores or len(scores) < 2:
+            return 1.0
+
+        mean_score = sum(scores) / len(scores)
+        if mean_score == 0:
+            return 1.0
+
+        variance = sum((s - mean_score) ** 2 for s in scores) / len(scores)
+        std_score = variance ** 0.5
+        cv = std_score / mean_score
+
+        # Clamp agreement to [0, 1]
+        agreement = max(0.0, min(1.0, 1.0 - cv))
+        return round(agreement, 3)
+
+    def self_test(self) -> dict:
+        """Run self-test on primary judge (backward compatibility)."""
+        # Use primary judge for self-test
+        primary_judge = self.judges[0] if self.judges else BenchJudge(self.settings)
+        return primary_judge.self_test()

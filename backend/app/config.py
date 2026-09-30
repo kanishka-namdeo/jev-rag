@@ -175,6 +175,20 @@ class Settings(BaseSettings):
     bench_judge_model: str = "kimi-k2.5"
     bench_pairwise: bool = True         # MT-Bench position-swap comparison
     bench_max_questions_per_scenario: int = 0   # 0 = all questions (smoke runs can limit)
+    
+    # Context precision/recall: RAGAS-style LLM-based metrics that diagnose WHERE
+    # retrieval failures occur (coverage vs ranking). Adds ~2 LLM calls per question.
+    bench_context_metrics: bool = True
+    
+    # Multi-judge ensemble: use multiple independent judges to reduce variance and
+    # detect judge bias. Comma-separated list of model names. Empty = single judge.
+    # Example: "kimi-k2.5,gpt-4o-mini,claude-3-haiku"
+    bench_judge_ensemble: str = ""
+    
+    # Query robustness testing: measure pipeline stability under paraphrasing.
+    # Generates N paraphrases per question and checks retrieval/answer consistency.
+    # Adds ~N LLM calls per question. Set to 0 to disable.
+    bench_robustness_paraphrases: int = 0  # 0 = disabled, 3-5 recommended
 
     # --- Derived paths ---
     @property

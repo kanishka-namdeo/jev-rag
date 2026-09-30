@@ -31,8 +31,8 @@ from typing import Any
 
 from sqlalchemy import select
 
-from app.bench.judge import BenchJudge
-from app.bench.metrics import agg_retrieval, brier, pct, retrieval_metrics
+from app.bench.judge import BenchJudge, MultiJudgeEnsemble
+from app.bench.metrics import agg_retrieval, brier, context_precision, context_recall, pct, retrieval_metrics
 from app.bench.scenarios import SCENARIO_MAP, BenchQuestion, BenchScenario, doc_path
 from app.config import Settings
 from app.db import BenchResult, BenchRun, db_session, new_id
@@ -78,7 +78,18 @@ class BenchRunner:
         self.embedder = embedder
         self.store = store
         self.ingestor = ingestor
-        self.judge = judge
+        
+        # Support multi-judge ensemble if configured
+        if settings.bench_judge_ensemble:
+            judge_models = [m.strip() for m in settings.bench_judge_ensemble.split(",") if m.strip()]
+            if judge_models:
+                self.judge = MultiJudgeEnsemble(settings, judge_models)
+                logger.info("Using multi-judge ensemble with %d judges: %s", len(judge_models), judge_models)
+            else:
+                self.judge = judge
+        else:
+            self.judge = judge
+        
         # Reuses the production ChatService's System Two helper calls (decompose,
         # query rewrite) so the bench arm executes the exact same prompts + calls.
         self.chat = ChatService(settings, llm, jev, embedder, store)
@@ -260,11 +271,42 @@ class BenchRunner:
         hyb_metrics = retrieval_metrics(hyb["files"], gold) if gold else {}
         naive_metrics = retrieval_metrics(hyb["pre_files"][: self.settings.top_k_use], gold) if gold else {}
 
+        # Compute context precision/recall if enabled (RAGAS-style diagnostics)
+        context_metrics = {}
+        if self.settings.bench_context_metrics:
+            self._patch_run(run_id, progress_stage=f"[{scenario.id}] computing context metrics for {q.id}")
+            
+            # Context precision: are relevant chunks ranked highly?
+            def _judge_fn(system: str, user: str) -> dict:
+                return self.judge._call(system, user, max_tokens=100) or {}
+            
+            trad_ctx = [trad["context"]]  # Single context block
+            hyb_ctx = [hyb["context"]]
+            
+            trad_cp = await asyncio.to_thread(
+                context_precision, q.question, q.reference, trad_ctx, _judge_fn)
+            trad_cr = await asyncio.to_thread(
+                context_recall, q.question, q.reference, trad_ctx, _judge_fn)
+            
+            hyb_cp = await asyncio.to_thread(
+                context_precision, q.question, q.reference, hyb_ctx, _judge_fn)
+            hyb_cr = await asyncio.to_thread(
+                context_recall, q.question, q.reference, hyb_ctx, _judge_fn)
+            
+            context_metrics = {
+                "traditional": {"context_precision": trad_cp, "context_recall": trad_cr},
+                "hybrid": {"context_precision": hyb_cp, "context_recall": hyb_cr},
+            }
+
         rows = []
         for mode, arm, gen, metrics in (
             ("traditional", trad, trad_gen, trad_metrics),
             ("hybrid", hyb, hyb_gen, hyb_metrics),
         ):
+            # Merge context metrics into generation dict
+            if context_metrics and mode in context_metrics:
+                gen = {**gen, **context_metrics[mode]}
+            
             usage = arm["usage"]
             rows.append(BenchResult(
                 id=new_id(), run_id=run_id, scenario_id=scenario.id, question_id=q.id,
@@ -406,6 +448,13 @@ class BenchRunner:
             for r in rs:
                 if r.generation:
                     abst[r.generation.get("abstention", "error")] += 1
+            
+            # Aggregate context precision/recall if present
+            ctx_prec = [r.generation.get("context_precision") for r in rs
+                       if r.generation and r.generation.get("context_precision") is not None]
+            ctx_rec = [r.generation.get("context_recall") for r in rs
+                      if r.generation and r.generation.get("context_recall") is not None]
+            
             out: dict[str, Any] = {
                 "n": len(rs),
                 "correctness": round(mean(corr), 4) if corr else None,
@@ -419,6 +468,13 @@ class BenchRunner:
                 "cost_usd": round(sum(r.cost_usd or 0 for r in rs), 5),
                 "errors": sum(1 for r in rs if r.error),
             }
+            
+            # Add context metrics if available
+            if ctx_prec:
+                out["context_precision"] = round(mean(ctx_prec), 4)
+            if ctx_rec:
+                out["context_recall"] = round(mean(ctx_rec), 4)
+            
             if rs and rs[0].mode == "hybrid":
                 sufs = [r.sufficiency_p for r in rs if r.sufficiency_p is not None]
                 vers = [r.verification_p for r in rs if r.verification_p is not None]
