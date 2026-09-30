@@ -92,6 +92,13 @@ test -d backend/.venv && test -f backend/.env && echo "venv+env OK"
 bash scripts/probe_public_gateway.sh          # gateway + judge model reachable
 ```
 
+`probe_public_gateway.sh` is a real gate, not a status printout: it exits **1** if any of the
+three models or the judge `json_object` smoke fails, and exits 0 only on `STATUS: SUCCESS`.
+It strips `\r` when reading `backend/.env`, because a CRLF env file (normal on a Windows
+checkout) otherwise lands a CR inside the Authorization header and the URL and every call
+fails. Every worker makes generator *and* judge calls, so a run launched past a failing probe
+just produces error rows.
+
 Models must already be built (`scripts/setup_local_models.sh`). Stop the dev server so it
 does not hold a jev-score subprocess.
 
@@ -139,10 +146,17 @@ Exit codes: `0` every worker's run is `completed` · `1` at least one still runn
 `3` finished-but-incomplete — a worker died or hit its window budget without reaching
 `completed`, or the meta file is unreadable; read §4 before merging. A `running` DB row
 whose pid is gone is exit 3, not 1 — that is the crash you must notice. Progress shows
-`done/total` from the DB (`run_testbench.py` now records `progress_total` up front;
-`bench_results` row counts are shown alongside as the hard ground truth).
+`done/total` from the DB (`run_testbench.py` persists `progress_total` before the first
+ingest, so the denominator is real from the first poll; `bench_results` row counts are shown
+alongside as the hard ground truth).
+**One intentional 3:** a `--driver resume --smoke` run stops after 2 questions and
+`bench_resume.py` leaves its run row at `status='running'` with stage `smoke complete`, so the
+monitor reports `dead_incomplete` / exit 3 for a smoke that finished exactly as asked. Read
+`progress_stage` before believing the crash story — `smoke complete` or
+`paused (resumable — deadline)` means the worker stopped on purpose.
 Note: under `wsl -- bash -ic`, `$?` does not reliably carry a script's status — capture it
-in-process if you are scripting around the monitor.
+in-process if you are scripting around the monitor. Piping the launcher through `head` shows
+141 (SIGPIPE), not its real status.
 
 ### 4. Resume if a window ends or a worker dies
 
@@ -191,6 +205,11 @@ Selection and output rules:
   `4` a scenario contributed zero rows. All of them abort *before* writing anything.
 
 The command prints the merged run id on its own line — record it, it is what reports cite.
+**A re-merge mints a brand-new unified run id** (the merged DB is rebuilt from scratch every
+run, so idempotency is about *content*, not identity). Any id already cited in a results doc
+or analysis command is orphaned by re-running the merge — the analyzer answers
+`run <old-id> not found` and exits 1. Re-merge, then re-analyse with the id the merge just
+printed; never capture the id before a planned re-merge.
 
 ### 6. Analyze and export
 
@@ -220,7 +239,8 @@ touches `backend/data/`, which holds your documents and conversations. Keep
 | `database is locked` | two processes sharing one `data_dir`; the launcher guard prevents it — check `--data-dirs` overrides |
 | merge exits `MISSING: …` | a scenario DB was never created (worker died pre-ingest) or `--scenarios` names one that never ran |
 | one `error` row per some question | accepted and kept visible, never silently dropped — a transient `APITimeoutError` is data (M11 kept 1 of 392) |
-| monitor exits 3 | do not merge and call it a full run; resume first |
+| monitor exits 3 | do not merge and call it a full run; resume first — unless `progress_stage` is `smoke complete` / `paused (resumable — deadline)`, which are deliberate stops (§3) |
+| `analyze_testbench.py` says `run … not found` | the merged DB was rebuilt by a later `_merge_par_run.py` call, which mints a fresh unified run id each time — cite the id the **latest** merge printed |
 
 ## Related
 

@@ -218,6 +218,11 @@ def main() -> int:
     processed = 0
     planned = _planned_total(scenario_ids, arms, args.max_per_scenario)
     base_done = len(done)
+    # Land the denominator in the DB BEFORE ingest. The monitor reads done/total from
+    # bench_runs, and total stayed 0 until the first triple committed — which made a
+    # 2-triple smoke indistinguishable from a 98-question run for the whole ingest
+    # phase (docs/parallel-bench-runbook.md §3).
+    _patch_run(run_id, base_done, "planning", total=planned)
 
     def bump(stage: str) -> None:
         _patch_run(run_id, base_done + processed, stage, total=planned)

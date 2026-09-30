@@ -13,7 +13,10 @@
 - `dev.sh` — starts backend + frontend together for local development
 - `init-fullstack-reference.sh` — reference copy of the sandbox init script (documentation only)
 - `probe_public_gateway.sh` — endpoint reachability probe (models list, one chat per model,
-  judge json_object smoke); reads key/base-url from env or `backend/.env` — never hardcodes credentials
+  judge json_object smoke); reads key/base-url from env or `backend/.env` — never hardcodes
+  credentials. Strips `\r` from `.env` values (a CRLF env file is the Windows default and a CR
+  in the header or URL makes every call fail). It is a gate: `STATUS: SUCCESS` + exit 0 only
+  when all three models and the judge json_object check answered, exit 1 otherwise
 - `backend/scripts/smoke_jev.py` — engine smoke test (noul warm-up, rerank, sufficiency+routing)
 - `backend/scripts/build_public_scenarios.py` — materializes the five public benchmark scenarios
   from raw parquets into `app/bench/corpora/` + the manifest (merge-safe without `--force`)

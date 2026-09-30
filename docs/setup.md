@@ -199,11 +199,13 @@ curl -s http://127.0.0.1:8000/api/system/health
 
 # 2) endpoint reachability + model list (reads backend/.env; no hardcoded keys)
 bash scripts/probe_public_gateway.sh
-#   -> REPLY: OK-qwen3.7-plus / OK-qwen3.6-plus / OK-kimi-k2.5, plus a
-#      json_object judge smoke response
+#   -> "OK /models: N model(s) served", then "OK qwen3.7-plus: OK-qwen3.7-plus",
+#      "OK qwen3.6-plus: …", "OK kimi-k2.5: …", "OK judge json_object parses as a dict",
+#      then "STATUS: SUCCESS" and exit 0. Any FAIL line exits 1 — do not start a
+#      benchmark run past it.
 
 # 3) hermetic test suite (no models, no network — same as CI)
-cd backend && .venv/bin/python -m pytest tests -v    # 35 passed
+cd backend && .venv/bin/python -m pytest tests -v    # 144 passed
 
 # 4) frontend lint
 cd .. && bun run lint                                # no output = clean
