@@ -112,7 +112,7 @@ curl -X POST localhost:8000/api/bench/runs \
 cd backend && .venv/bin/python scripts/analyze_bench_run.py <run_id>
 ```
 
-Full methodology: scenario taxonomy, metric definitions, judge fairness protocol, and statistical tests are documented in [benchmarking.md](benchmarking.md). Testbench hypotheses and arms are pre-declared in [testbench-design.md](testbench-design.md).
+Full methodology: scenario taxonomy, metric definitions, judge fairness protocol, and statistical tests are documented in [benchmarking.md](benchmarking.md). Testbench hypotheses and arms are pre-declared in [testbench-design.md](testbench-design.md). On a workstation, a full suite runs several times faster with one worker per scenario on its own data directory — launch, monitor, resume and merge procedure in [parallel-bench-runbook.md](parallel-bench-runbook.md).
 
 **Reproducibility notes:**
 - All five public benchmark scenarios ship in the repo — a fresh clone runs them with zero dataset downloads

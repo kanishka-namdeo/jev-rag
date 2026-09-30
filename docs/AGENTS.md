@@ -43,6 +43,13 @@
 - `benchmarking.md` — BINDING evaluation methodology: scenario taxonomy, metric definitions
   (RAGAS/DeepEval/MT-Bench lineage), judge fairness protocol, context precision/recall,
   multi-judge ensemble, query robustness testing, statistical power analysis, resilience notes
+- `parallel-bench-runbook.md` — OPERATIONAL procedure for multi-worker benchmark runs on a
+  workstation: the four worker contracts (one scenario = one `JEVRAG_DATA_DIR`, `RUN_ID=`
+  line, DB-as-progress-source, `parallel_run_meta.json` schema), sizing per worker,
+  launch/monitor/resume/merge/analyze commands, monitor exit codes, failure modes.
+  Changing any script in the parallel chain (`scripts/run_parallel_bench.sh`,
+  `scripts/check_parallel_bench.sh`, `backend/scripts/_merge_par_run.py`,
+  `backend/scripts/run_testbench.py`) requires updating this page in the same commit
 - `benchmark-results.md` — full run history: v1, v2 (battery on/off), and v3 headline.
   Export-script tables + curated statistical analysis, loss taxonomy, objectivity/confound disclosures.
   Regenerate tables after every full run, then refresh curated sections — never leave them contradicting.

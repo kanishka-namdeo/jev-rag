@@ -128,7 +128,11 @@ def get_engine():
         settings = get_settings()
         _engine = create_engine(
             f"sqlite:///{settings.db_path}",
-            connect_args={"check_same_thread": False},
+            # timeout -> SQLite busy handler: parallel workers own separate DBs, but
+            # the status monitor reads a worker's DB while it is mid-transaction.
+            # WAL stays off deliberately: backend/data* lives on /mnt/d (9p), where
+            # WAL's shared-memory semantics are unreliable.
+            connect_args={"check_same_thread": False, "timeout": 30},
         )
         _SessionLocal = sessionmaker(bind=_engine, expire_on_commit=False)
     return _engine

@@ -78,6 +78,29 @@ Default section order:
 
 When the user requests a durable behavior change, record it here or in the relevant child AGENTS.md
 
+## Development Environment (this system)
+
+This repo lives on a **Windows 10/11 host** at `d:\test_jev\jev-rag`. All backend, script, and
+model operations **must run inside WSL2 Ubuntu-24.04** — not native Windows PowerShell.
+
+- **WSL2 distro**: `Ubuntu-24.04` (the only Linux distro installed)
+- **Project path in WSL2**: `/mnt/d/test_jev/jev-rag`
+- **How to run commands**: `wsl -d Ubuntu-24.04 -- bash -ic "<command>"` (interactive shell
+  sources `.bashrc` so `uv`, `bun`, and other tools are on PATH)
+- **Backend venv**: `/mnt/d/test_jev/jev-rag/backend/.venv` (Python 3.12, installed via uv)
+- **Hardware**: NVIDIA RTX 2070 **Super** (8 GB VRAM), **12 cores**, **15 GB RAM** (+4 GB
+  swap) — a workstation, NOT the constrained 4 GB/2-core hosted sandbox the early worklog
+  described. jev-score uses CUDA via llama.cpp; embedder and cross-encoder fall back to CPU
+  (ONNX Runtime doesn't support WSL2 GPU passthrough; see [docs/setup-gpu.md](docs/setup-gpu.md))
+- **Native Windows tools**: only Python 3.14 and winget are installed natively. No git, cmake,
+  uv, bun, or C++ compiler on the Windows PATH. Do NOT attempt native Windows setup.
+- **Setup guide**: [docs/windows-setup.md](docs/windows-setup.md) captures the full WSL2 setup
+  process for this specific system; [docs/setup.md](docs/setup.md) is the binding cross-platform guide
+
+**For agents**: always prefix backend/script commands with `wsl -d Ubuntu-24.04 -- bash -ic "..."`.
+Use generous timeouts for long-running commands (llama.cpp build: 600000ms+). The dev server
+(`bash scripts/dev.sh`) must also run inside WSL2.
+
 ## Purpose
 
 - Jev-RAG: a local-first hybrid RAG system over user-uploaded documents with two pipelines:
@@ -131,10 +154,23 @@ instructions mention them. No child doc may weaken them.
   with one scenario) and record the delta vs `docs/benchmark-results.md` in the PR/commit message.
   Full runs re-export results via `backend/scripts/export_bench_results.py`. Methodology is
   binding: `docs/benchmarking.md` (judge must stay model-family-independent from the generators).
-- **Sandbox memory discipline.** The jev-score subprocess needs ~1.5GB RSS and the sandbox has
-  4GB total: during any long local-model run, avoid launching browsers, recompiling the frontend,
-  or starting duplicate model processes. The engine auto-reloads on subprocess death
-  (`JevEngine._try_load`); never remove that recovery path.
+- **Memory discipline.** The jev-score subprocess needs ~1.5GB RSS. This workstation has 15 GB
+  RAM (12 cores), so during a local-model run avoid only what truly competes for memory —
+  launching browsers, recompiling the frontend, or starting duplicate model processes. The
+  engine auto-reloads on subprocess death (`JevEngine._try_load`); never remove that recovery
+  path.
+- **Benchmarks may run with parallel workers.** Unlike the constrained sandbox, this box
+  runs **one worker process per scenario on separate `JEVRAG_DATA_DIR`s** — ~5 concurrent
+  workers (~2.3 GB each) fit in 15 GB; `scripts/run_parallel_bench.sh` launches,
+  `scripts/check_parallel_bench.sh` reports from each worker's DB, and
+  `backend/scripts/_merge_par_run.py` merges the per-scenario DBs into one run
+  (`backend/data_merged/`). Both suites are covered via `--driver testbench|resume`.
+  Workers detach with `setsid nohup`. The binding procedure and the four worker contracts
+  (uniform `backend/data_par/<scenario>` dirs, `RUN_ID=` line, DB-as-progress-source,
+  `parallel_run_meta.json`) live in [docs/parallel-bench-runbook.md](docs/parallel-bench-runbook.md)
+  and must be updated with any change to those scripts. Proven: the M11 5-way parallel
+  H-GATE run, ~2h wall-clock, 392 triples
+  ([docs/testbench-results-hgate.md](docs/testbench-results-hgate.md)).
 - **Tests and lint stay green.** Backend pytest and `bun run lint` must pass before every push.
 - **Commit and push at milestones.** Small, descriptive commits; push to `origin/main` after each
   meaningful milestone (feature, fix, docs).

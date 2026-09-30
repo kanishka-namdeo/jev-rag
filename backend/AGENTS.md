@@ -125,12 +125,18 @@ ONNX Runtime's CUDA provider does **not** work with WSL2's GPU virtualization la
 - Bench arms MUST mirror the production pipelines exactly (same prompts from
   `app/rag/prompts.py`, same thresholds/knobs) — the benchmark measures the shipped system,
   not a variant. When a pipeline changes, mirror it in `runner.py` and re-run
-- Runs are sequential, one active at a time (single jev-score subprocess); results persist
-  per question so partial results survive interruptions
-- **Parallel workers**: for workstations with ≥12GB RAM, run one runner per scenario on
-  separate `JEVRAG_DATA_DIR`s (see root AGENTS.md). Launch via
-  `scripts/run_parallel_bench.sh`, monitor via `scripts/check_parallel_bench.sh`,
-  merge results via `backend/scripts/_merge_par_run.py`. Each worker needs ~2.3GB RSS.
+- Runs are sequential, one active at a time **per process** (single jev-score subprocess);
+  results persist per question so partial results survive interruptions
+- **Parallel workers**: on a workstation (≥12 GB RAM free, ~2.3 GB RSS per worker) run one
+  worker process per scenario on separate `JEVRAG_DATA_DIR`s — `scripts/run_parallel_bench.sh`
+  (`--driver testbench|resume`, `--max-parallel`), `scripts/check_parallel_bench.sh`,
+  `backend/scripts/_merge_par_run.py`. The in-process single-run contract above is
+  unchanged; parallelism comes from independent processes, never from sharing a runner or
+  a data dir. Full procedure and worker contracts:
+  [docs/parallel-bench-runbook.md](../docs/parallel-bench-runbook.md)
+- `scripts/run_testbench.py` prints `RUN_ID=<uuid>` before model warm-up and records
+  `progress_total` up front — the launcher and the monitor depend on both; the DB, not the
+  log, is the progress source of truth
 - The runner retries the hybrid arm once after transient jev engine death, then fails fast;
   never convert engine-death into per-question "error" rows
 - Aggregate summary formulas (`_summarize`) must stay aligned with the frontend's

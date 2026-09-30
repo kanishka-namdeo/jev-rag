@@ -19,6 +19,9 @@ __pycache__/
 *.pyc
 
 # --- ad-hoc scratch / debug scripts (local only) ---
+backend/tmp_*
+backend/*.log
+bench_diff*.txt
 cuda-keyring_1.1-1_all.deb
 test_cuda_env.sh
 test_gpu_components.py

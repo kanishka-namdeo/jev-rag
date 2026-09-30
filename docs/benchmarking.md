@@ -184,10 +184,16 @@ curl localhost:8000/api/bench/runs/<id>     # run + results + summary
 ```
 
 The runner executes sequentially inside the FastAPI process (the Jev engine is a
-single subprocess; runs are serialised; only one active run is allowed). A full
-6-scenario run is 48 questions × 2 systems ≈ 96 generations + ~240 judge calls
+single subprocess; runs are serialised; only one active run is allowed **per process**).
+A full 6-scenario run is 48 questions × 2 systems ≈ 96 generations + ~240 judge calls
 (48×2 absolute + 48×2 pairwise) ≈ 40–70 minutes on 2 CPU cores, a few cents of
 endpoint spend.
+
+On a workstation, the same suite runs several times faster with **one worker process per
+scenario on its own data directory** — that is an execution detail, not a methodology
+change, and every metric, judge and arm definition above still binds. See
+[parallel-bench-runbook.md](parallel-bench-runbook.md) for the launch/monitor/merge
+procedure and the worker contracts.
 
 Environment knobs: `JEVRAG_BENCH_JUDGE_MODEL` (default `kimi-k2.5`),
 `JEVRAG_BENCH_PAIRWISE` (default on), `JEVRAG_BENCH_MAX_QUESTIONS_PER_SCENARIO`

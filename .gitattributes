@@ -1,0 +1,3 @@
+# Bash scripts must keep LF: they run inside WSL2, and a CRLF checkout makes every
+# one of them die on `$'\r': command not found`. The repo has core.autocrlf=true.
+*.sh text eol=lf

@@ -185,6 +185,9 @@ def main() -> int:
 
     done = completed_triples(run_id)
     logger.info("testbench %s: %d completed triples to skip", run_id, len(done))
+    # Launcher contract: printed before model load so scripts/run_parallel_bench.sh
+    # can capture the id seconds after launch, not after the ~17s warm-up.
+    print(f"RUN_ID={run_id}", flush=True)
 
     llm = DashscopeLLM(settings)
     jev = JevEngine(settings)
@@ -213,6 +216,12 @@ def main() -> int:
     deadline = time.monotonic() + args.window_minutes * 60
     t_start = time.time()
     processed = 0
+    planned = _planned_total(scenario_ids, arms, args.max_per_scenario)
+    base_done = len(done)
+
+    def bump(stage: str) -> None:
+        _patch_run(run_id, base_done + processed, stage, total=planned)
+
     try:
         for sid in scenario_ids:
             if time.monotonic() > deadline:
@@ -234,7 +243,7 @@ def main() -> int:
                     if (sid, q.id, arm) in done:
                         continue
                     if time.monotonic() > deadline:
-                        _patch_run(run_id, processed, "window-budget-reached")
+                        bump("window-budget-reached")
                         return 0
                     chat = arm_chats[arm]
                     escalate: bool | None
@@ -279,7 +288,7 @@ def main() -> int:
                         logger.warning("engine unavailable at %s/%s/%s — 20s grace retry", arm, sid, q.id)
                         time.sleep(20)
                         try:
-                            _patch_run(run_id, processed, f"engine-retry {sid}/{q.id}/{arm}")
+                            bump(f"engine-retry {sid}/{q.id}/{arm}")
                             # retry once inline
                             res = asyncio.run(run_arm_question(chat, q, doc_ids, escalate))
                         except Exception as e2:  # noqa: BLE001
@@ -289,12 +298,14 @@ def main() -> int:
                         logger.exception("arm question failed: %s/%s/%s", arm, sid, q.id)
                         _persist_error(run_id, sid, q, arm, e)
                     _trim_memory()
-                    _patch_run(run_id, processed, f"{sid}/{q.id}/{arm}")
-        _patch_run(run_id, processed, "completed")
+                    bump(f"{sid}/{q.id}/{arm}")
+        bump("completed")
     except KeyboardInterrupt:
-        _patch_run(run_id, processed, "interrupted")
+        bump("interrupted")
 
-    print(f"\nrun_id: {run_id}  processed: {processed}  elapsed: {(time.time()-t_start)/60:.1f} min")
+    print(f"\nrun_id: {run_id}  processed: {processed} "
+          f"(run total {base_done + processed}/{planned})  "
+          f"elapsed: {(time.time()-t_start)/60:.1f} min")
     print("resume with:  .venv/bin/python scripts/run_testbench.py --resume " + run_id)
     return 0
 
@@ -320,13 +331,27 @@ def retrieval_metrics_safe(files: list[str], gold: list[str]) -> dict:
     return retrieval_metrics(files, gold)
 
 
-def _patch_run(run_id: str, done: int, stage: str) -> None:
+def _planned_total(scenario_ids: list[str], arms: list[str],
+                   max_per_scenario: int) -> int:
+    """Triples this invocation intends to score — the monitor's denominator."""
+    total = 0
+    for sid in scenario_ids:
+        questions = SCENARIO_MAP[sid].questions
+        if max_per_scenario:
+            questions = questions[:max_per_scenario]
+        total += len(questions) * len(arms)
+    return total
+
+
+def _patch_run(run_id: str, done: int, stage: str, total: int | None = None) -> None:
     with db_session() as session:
         run = session.get(BenchRun, run_id)
         if run is None:
             return
         run.progress_done = done
         run.progress_stage = stage
+        if total is not None:
+            run.progress_total = total
         if stage == "completed":
             run.status = "completed"
             run.finished_at = datetime.now(timezone.utc)
