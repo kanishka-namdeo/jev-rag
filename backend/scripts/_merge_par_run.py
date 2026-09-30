@@ -52,6 +52,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sqlite3
 import sys
 import uuid
@@ -62,7 +63,10 @@ from pathlib import Path
 # Repo root anchored from this file's own location — never a hardcoded path.
 ROOT = Path(__file__).resolve().parents[2]
 BACKEND = ROOT / "backend"
-DATA_PAR_DEFAULT = BACKEND / "data_par"
+# The launcher and the monitor honour JEVRAG_DATA_PAR_ROOT, so the merge must too —
+# otherwise a scratch-root run launches, monitors, and then cannot be merged with the
+# same root argument set (docs/parallel-bench-runbook.md §"Worker contracts" item 1).
+DATA_PAR_DEFAULT = Path(os.environ.get("JEVRAG_DATA_PAR_ROOT") or BACKEND / "data_par")
 META_DEFAULT = DATA_PAR_DEFAULT / "parallel_run_meta.json"
 MERGED_DB_DEFAULT = BACKEND / "data_merged" / "app.db"
 MAIN_DB = BACKEND / "data" / "app.db"
@@ -599,8 +603,9 @@ def build_parser() -> argparse.ArgumentParser:
                         help="Comma-separated scenario IDs narrowing the merge; "
                              "empty = the meta file list, else the built-in default")
     parser.add_argument("--label", default="", help="Label for the merged run")
-    parser.add_argument("--meta", default=str(META_DEFAULT),
-                        help="parallel_run_meta.json to build the plan from (empty string disables it)")
+    parser.add_argument("--meta", default=None,
+                        help="parallel_run_meta.json to build the plan from "
+                             "(default: <data-par>/parallel_run_meta.json; empty string disables it)")
     parser.add_argument("--data-par", default=str(DATA_PAR_DEFAULT),
                         help="Per-scenario data dir root used when neither --data-dirs "
                              "nor the meta file names a path")
@@ -619,8 +624,11 @@ def main(argv: list[str] | None = None) -> int:
     merged_db = merged_db if merged_db.is_absolute() else (ROOT / merged_db).resolve()
 
     meta = MetaPlan(note="meta file disabled (--meta '')")
-    if args.meta:
-        meta = load_meta(resolve_path(args.meta))
+    # Unset --meta follows --data-par / JEVRAG_DATA_PAR_ROOT, so one scratch root drives
+    # the whole chain; an explicit empty --meta still disables the meta file entirely.
+    meta_arg = str(data_par / "parallel_run_meta.json") if args.meta is None else args.meta
+    if meta_arg:
+        meta = load_meta(resolve_path(meta_arg))
     scenarios = split_list(args.scenarios) or meta.scenarios or split_list(DEFAULT_SCENARIOS)
     if not scenarios:
         print("ERROR: no scenarios selected (empty meta file and no --scenarios)", file=sys.stderr)

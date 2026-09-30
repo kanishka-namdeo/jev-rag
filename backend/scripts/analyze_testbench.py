@@ -120,6 +120,24 @@ def _paired(arm_rows: list[BenchResult], base_rows: list[BenchResult]) -> dict:
     }
 
 
+def gate_threshold_from_config(cfg: dict | None) -> float:
+    """The gate operating point a run actually used, from its recorded config.
+
+    run_testbench.py stores the knobs NESTED under config["base"], not at the top level —
+    reading them flat silently fell back to 0.5 and calibrated every published gate table
+    at an operating point the run never used. Top level stays a fallback for older
+    flat-config runs. 0.0 is a legitimate threshold, so absence is tested with `is None`.
+    """
+    cfg = cfg or {}
+    base = cfg.get("base") or {}
+    mode = base.get("gate_mode") or cfg.get("gate_mode") or "features"
+    key = "gate_score_threshold" if mode == "features" else "jev_sufficiency_threshold"
+    value = base.get(key)
+    if value is None:
+        value = cfg.get(key)
+    return 0.5 if value is None else float(value)
+
+
 def analyze(run_id: str, base: str = "base") -> dict:
     run, rows = load_rows(run_id)
     if run is None:
@@ -132,10 +150,7 @@ def analyze(run_id: str, base: str = "base") -> dict:
                     "base_arm": base, "arms": {}, "subsets": {}}
     pvals: dict[str, float] = {}
     # threshold semantics follow the run's gate mode (mirrors runner.py gate_analysis)
-    _cfg = (run.config if run else None) or {}
-    _gmode = _cfg.get("gate_mode", "features")
-    _thr = (_cfg.get("gate_score_threshold", 0.5) if _gmode == "features"
-            else _cfg.get("jev_sufficiency_threshold", 0.5))
+    _thr = gate_threshold_from_config(run.config if run else None)
     for arm, arows in sorted(by_arm.items()):
         stats = _arm_stats(arows, gate_threshold=_thr)
         report["arms"][arm] = stats

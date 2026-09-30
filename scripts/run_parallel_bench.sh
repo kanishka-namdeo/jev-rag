@@ -16,11 +16,15 @@
 #   --window-minutes N          soft per-worker wall-clock deadline
 #   --max-parallel N            concurrent workers; the rest queue (default: 5)
 #   --resume s:run_id,...       resume existing per-scenario runs
+#   --data-par PATH          scratch data_par root (default: backend/data_par)
 #   --smoke                     resume-driver only: stop after 2 questions
 #   --dry-run                   print the exact worker command lines, touch nothing
 #
 # Env defaults (FLAGS OVERRIDE THESE): DRIVER ARMS SCENARIOS LABEL MAX_PER_SCENARIO
-#   WINDOW_MINUTES MAX_PARALLEL RESUME_SPEC RUN_ID_TIMEOUT
+#   WINDOW_MINUTES MAX_PARALLEL RESUME_SPEC RUN_ID_TIMEOUT JEVRAG_DATA_PAR_ROOT
+#
+# ARMS defaults to the 4-arm H-GATE family (base,gate-none,always-hard,oracle-gate),
+# NOT the full 9-arm Layer-2 suite — always pass --arms explicitly for a full run.
 #
 # Contracts implemented (runbook §"Worker contracts"):
 #   1. one worker = one scenario = one data dir: backend/data_par/<scenario>/ for
@@ -41,7 +45,7 @@ BACKEND="$REPO_ROOT/backend"
 # Same override the monitor and merge accept, so a smoke run can be pointed at a
 # scratch root instead of writing into the real backend/data_par/ history.
 DATA_PAR="${JEVRAG_DATA_PAR_ROOT:-$BACKEND/data_par}"
-META_FILE="$DATA_PAR/parallel_run_meta.json"
+META_FILE="$DATA_PAR/parallel_run_meta.json"   # recomputed if --data-par is given
 PY="$BACKEND/.venv/bin/python"
 
 # How we recognise a live worker process in /proc (POSIX ERE, no grep -oP).
@@ -122,6 +126,8 @@ while [[ $# -gt 0 ]]; do
         --window-minutes)    need_value "$@"; WINDOW_MINUTES="$(trim "$2")"; shift 2 ;;
         --max-parallel)      need_value "$@"; MAX_PARALLEL="$(trim "$2")"; shift 2 ;;
         --resume)            need_value "$@"; RESUME_SPEC="$2"; shift 2 ;;
+        --data-par)          need_value "$@"; DATA_PAR="$(trim "$2")"
+                             META_FILE="$DATA_PAR/parallel_run_meta.json"; shift 2 ;;
         --smoke)             SMOKE=1; shift ;;
         --dry-run)           DRY_RUN=1; shift ;;
         -h|--help)           usage; exit 0 ;;

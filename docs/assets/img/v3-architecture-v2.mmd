@@ -1,4 +1,5 @@
 %%{init: {'theme': 'dark', 'themeVariables': { 'primaryColor': '#3B82F6', 'primaryTextColor': '#fff', 'primaryBorderColor': '#60A5FA', 'lineColor': '#94A3B8', 'secondaryColor': '#10B981', 'tertiaryColor': '#8B5CF6', 'background': '#0B0F19', 'mainBkg': '#1E293B', 'secondBkg': '#334155', 'tertiaryBkg': '#1E2538' }}}%%
+%% doc-only mirror of generate_diagrams.py (create_architecture_diagram) — not rendered by any tool in this repo %%
 flowchart TB
     subgraph INGESTION["📄 Document Ingestion"]
         UPLOAD["Upload Documents"]
@@ -34,16 +35,18 @@ flowchart TB
 
     subgraph HYBRID["🟢 Hybrid Pipeline (Jev-Style)"]
         JEV["🧠 Jev Engine (Local)<br/>0.8B GGUF on llama.cpp"]
-        RERANK2["1. Rerank Passages"]
-        GATE["2. Escalation Gate"]
-        ROUTER["3. Model Router"]
-        VERIFY["4. Verify Groundedness"]
-        LLM2["☁️ Cloud LLM<br/>qwen3.7 / qwen3.6-plus"]
+        EFFORT["1. Effort Routing"]
+        GATE["2. Score-feature Gate"]
+        BESTOF["3. Best-of-2 (hard path)"]
+        VERIFY["4. Citation Verify"]
+        LLM2["☁️ Cloud LLM<br/>qwen3.7-plus<br/>Single generator (no router)"]
         VERIFIED["✓ Verified Answer<br/>+ Groundedness Badge"]
     end
 
     FORK -->|Complex Queries| JEV
-    JEV --> RERANK2 --> GATE --> ROUTER --> VERIFY --> LLM2 --> VERIFIED
+    JEV --> EFFORT --> GATE
+    GATE -->|Easy| LLM2 --> VERIFY --> VERIFIED
+    GATE -->|Hard| BESTOF --> LLM2
 
     subgraph RESPONSE["📡 Response"]
         SSE["SSE Stream"]

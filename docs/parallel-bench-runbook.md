@@ -30,8 +30,9 @@ and you must change all three scripts plus this page in the same commit.
    included. Each worker therefore owns its own `app.db`, Chroma index and fastembed
    cache, so two workers can never contend for a SQLite file.
    `backend/data_par/` is gitignored. All three scripts accept
-   `JEVRAG_DATA_PAR_ROOT` / `--data-par` to point at a scratch root instead — use it for
-   smoke runs so you never write into a previous full run's history.
+   `JEVRAG_DATA_PAR_ROOT` *and* `--data-par` (the flag beats the env, and the merge
+   resolves its `--meta` default under the same root) — use a scratch root for smoke
+   runs so you never write into a previous full run's history.
 2. **`RUN_ID=<uuid>` is the worker's machine-readable stdout line.**
    `backend/scripts/run_testbench.py` prints it with `flush=True` *before* loading local
    models; `backend/scripts/bench_resume.py` can only print it once its run row exists,
@@ -111,14 +112,22 @@ bash scripts/run_parallel_bench.sh \
   --arms base,gate-none,always-hard,oracle-gate \
   --scenarios squad,hotpotqa,triviaqa,wiki2,musique \
   --label hgate-par --max-parallel 5
+# the COMPLETE Layer-2 suite — all 9 pre-declared arms (docs/testbench-design.md)
+bash scripts/run_parallel_bench.sh --driver testbench \
+  --arms base,gate-jev,gate-none,always-hard,oracle-gate,rerank-jev,rerank-none,no-bestof,no-verify \
+  --scenarios squad,hotpotqa,triviaqa,wiki2,musique \
+  --label layer2-full9 --max-per-scenario 0 --window-minutes 480 --max-parallel 5
 ```
 
 Flags: `--driver testbench|resume` (default `testbench`), `--arms`, `--scenarios`,
 `--label`, `--max-per-scenario N` (`0` = all), `--window-minutes N`, `--max-parallel N`
-(default 5), `--resume scenario:run_id,...`, `--smoke` (resume driver only), `--dry-run`,
-`-h`. Env fallbacks exist for every default (`ARMS`, `SCENARIOS`, `LABEL`, `MAX_PARALLEL`,
-`RUN_ID_TIMEOUT`, `JEVRAG_DATA_PAR_ROOT`), flags win. The launcher detaches each worker
-with `setsid nohup` so it survives the terminal, polls for `RUN_ID=`, then prints the
+(default 5), `--resume scenario:run_id,...`, `--data-par PATH` (scratch root, beats the env),
+`--smoke` (resume driver only), `--dry-run`, `-h`. Env fallbacks exist for every default
+(`ARMS`, `SCENARIOS`, `LABEL`, `MAX_PARALLEL`, `RUN_ID_TIMEOUT`, `JEVRAG_DATA_PAR_ROOT`),
+flags win. **`--arms` is not one of the harmless defaults: it is the 4-arm H-GATE family**
+(`base,gate-none,always-hard,oracle-gate`), so a launch that omits `--arms` silently runs
+4 of the 9 declared arms — always pass the arm set explicitly. The launcher detaches each
+worker with `setsid nohup` so it survives the terminal, polls for `RUN_ID=`, then prints the
 monitor and merge commands. `--dry-run` prints the exact worker command lines and exits
 before creating any directory or file. A scenario whose run id never lands is reported
 per scenario and makes the launcher exit non-zero — it never writes a half-populated
@@ -136,9 +145,10 @@ Driver mapping — the launcher's job, and the reason one entrypoint covers both
 ### 3. Monitor
 
 ```bash
-bash scripts/check_parallel_bench.sh          # human-readable
-bash scripts/check_parallel_bench.sh --json   # for scripts/CI
-tail -f backend/data_par/squad/bench.log      # error text for one worker
+bash scripts/check_parallel_bench.sh                      # human-readable
+bash scripts/check_parallel_bench.sh --json               # for scripts/CI
+bash scripts/check_parallel_bench.sh --data-par PATH      # report a scratch root
+tail -f backend/data_par/squad/bench.log                  # error text for one worker
 ```
 
 Exit codes: `0` every worker's run is `completed` · `1` at least one still running ·
@@ -146,9 +156,11 @@ Exit codes: `0` every worker's run is `completed` · `1` at least one still runn
 `3` finished-but-incomplete — a worker died or hit its window budget without reaching
 `completed`, or the meta file is unreadable; read §4 before merging. A `running` DB row
 whose pid is gone is exit 3, not 1 — that is the crash you must notice. Progress shows
-`done/total` from the DB (`run_testbench.py` persists `progress_total` before the first
-ingest, so the denominator is real from the first poll; `bench_results` row counts are shown
-alongside as the hard ground truth).
+`done/total` from the DB (`run_testbench.py` persists `progress_total` immediately after it
+prints `RUN_ID=`, i.e. *before* loading local models and before the first ingest, so the
+denominator is real from the very first poll — with a cold fastembed cache the model-load
+window alone runs to minutes and a `0/?` row there is indistinguishable from a short run;
+`bench_results` row counts are shown alongside as the hard ground truth).
 **One intentional 3:** a `--driver resume --smoke` run stops after 2 questions and
 `bench_resume.py` leaves its run row at `status='running'` with stage `smoke complete`, so the
 monitor reports `dead_incomplete` / exit 3 for a smoke that finished exactly as asked. Read
@@ -181,7 +193,9 @@ cd backend
 
 No arguments needed when a meta file exists: it reads `workers[]` for each scenario's
 `run_id` and `data_dir` (`--meta PATH` to point elsewhere, `--data-par ROOT`, `--out DB`
-to write a scratch merged DB). Explicit overrides: `--run-ids scenario:uuid,...` and
+to write a scratch merged DB). An unset `--meta` resolves under the same root as
+`--data-par` / `JEVRAG_DATA_PAR_ROOT`, so one scratch root drives launch → monitor → merge;
+`--meta ''` disables the meta file entirely. Explicit overrides: `--run-ids scenario:uuid,...` and
 `--data-dirs scenario:path,...` always beat the meta file; `--scenarios` selects
 scenarios and `--arms` narrows rows by `bench_results.mode` (the arm lives in `mode`;
 `traditional`/`hybrid` for resume-driver runs — an `--arms` value matching nothing warns
@@ -214,7 +228,8 @@ printed; never capture the id before a planned re-merge.
 ### 6. Analyze and export
 
 ```bash
-# public testbench runs
+# public testbench runs (from backend/, as §5 left you)
+cd backend
 JEVRAG_DATA_DIR=backend/data_merged \
   .venv/bin/python scripts/analyze_testbench.py <merged-run-id> \
   --out ../docs/testbench-results-<label>.md

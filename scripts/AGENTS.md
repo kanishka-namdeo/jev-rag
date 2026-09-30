@@ -33,6 +33,8 @@
 - `backend/scripts/_merge_par_run.py` — merges per-scenario parallel-run
   DBs into one canonical merged DB (default `backend/data_merged/app.db`).
   Reads `parallel_run_meta.json` by default (`--meta`, `--data-par`, `--out`);
+  an unset `--meta` resolves under the `--data-par` / `JEVRAG_DATA_PAR_ROOT` root so one
+  scratch root drives launch → monitor → merge, and `--meta ''` disables the meta file.
   `--run-ids` / `--data-dirs` override it, `--scenarios` selects scenarios and
   `--arms` narrows rows by `bench_results.mode`. Per scenario it picks the
   *completed* run with the most rows (PARTIAL warning + most-rows fallback when
@@ -41,21 +43,36 @@
   0 merged / 2 missing source / 3 unreadable source / 4 zero-row scenario.
   Idempotent (rebuilds the merged DB on re-run).
   Usage: `.venv/bin/python scripts/_merge_par_run.py --arms base,gate-none --scenarios squad,hotpotqa`
+- `backend/scripts/analyze_testbench.py` — per-arm metrics + paired stats (exact McNemar,
+  bootstrap CI, BH-FDR) for a testbench run; `--out FILE` writes the Markdown report and a
+  `.json` twin
+- `backend/scripts/plot_testbench_arms.py` — renders the Layer-2 arm chart **from a merged
+  run's DB** by reusing `analyze_testbench.analyze()`, so the PNG cannot drift from the
+  report it illustrates (correctness + Wilson CI + Δ/q, p50 latency, escalation rate, cost).
+  Needs `matplotlib` (declared in `backend/requirements.txt`). Unlike
+  `docs/assets/img/generate_diagrams.py`, which carries illustrative hardcoded numbers,
+  every figure here is measured.
+  Usage: `JEVRAG_DATA_DIR=data_merged .venv/bin/python scripts/plot_testbench_arms.py RUN_ID --out ../docs/assets/img/layer2-arm-results.png`
 - `scripts/run_parallel_bench.sh` — the parallel-bench entrypoint: launches one detached
   worker per scenario on separate `JEVRAG_DATA_DIR`s (`backend/data_par/<scenario>/`,
-  override root with `JEVRAG_DATA_PAR_ROOT`). `--driver testbench|resume` maps flags to
+  override root with `JEVRAG_DATA_PAR_ROOT` or `--data-par`, flag wins).
+  `--driver testbench|resume` maps flags to
   `backend/scripts/run_testbench.py` or `bench_resume.py`, so both suites parallelise.
   `--max-parallel N` (default 5) queues instead of oversubscribing RAM, `--resume s:id,...`
   resumes, `--dry-run` prints commands and touches nothing. Polls (bounded, `RUN_ID_TIMEOUT`)
   for the worker's `RUN_ID=` line instead of sleeping, refuses to start on top of live
   workers owning the same dirs, and writes `data_par/parallel_run_meta.json`.
+  **`--arms` defaults to the 4-arm H-GATE family, not the 9-arm Layer-2 suite** — a launch
+  that omits it silently runs 4 of the 9 declared arms, so always pass the arm set.
   Usage: `bash scripts/run_parallel_bench.sh --arms "base,gate-none" --scenarios "squad,hotpotqa"`
 - `scripts/check_parallel_bench.sh` — status of parallel workers, read from each worker's
   `app.db` (`bench_runs.status/progress_*`, `bench_results` counts) plus pid liveness —
-  never from log text, which is human-formatted. `--json` for machines.
+  never from log text, which is human-formatted. `--json` for machines, `--data-par PATH`
+  to report a scratch root. Under `wsl -- bash -ic` the shell status is unreliable — read
+  `exit_code` from `--json`.
   Exits 0 all completed / 1 still running / 2 nothing to report / 3 dead-or-partial
   (resume before merging).
-  Usage: `bash scripts/check_parallel_bench.sh [--json]`
+  Usage: `bash scripts/check_parallel_bench.sh [--json] [--data-par PATH]`
 - `analyze_bench_run.py` / `analyze_per_scenario.py` / `bench_progress.py` / `diagnose_v2_losses.py` /
   `diagnose_public_bench.py` — run analysis/diagnostics over the bench DB (repo-anchored paths)
 - `measure_jev_memory.py` / `verify_jev_flags.py` / `verify_jev_runtime_parity.py` — jev-score

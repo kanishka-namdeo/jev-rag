@@ -522,5 +522,10 @@ def test_cli_defaults_are_repo_anchored(tmp_path):
     assert Path(defaults["out"]).is_absolute()
     assert str(merge.BACKEND) in defaults["out"]
     assert Path(defaults["out"]).parent == merge.BACKEND / "data_merged"
-    assert Path(defaults["meta"]) == merge.META_DEFAULT
+    assert Path(defaults["data_par"]).is_absolute()
+    assert str(merge.BACKEND) in defaults["data_par"]
+    # --meta is deliberately unset: it derives from the resolved --data-par root so one
+    # scratch root (JEVRAG_DATA_PAR_ROOT) drives launcher, monitor and merge alike.
+    assert defaults["meta"] is None
+    assert merge.META_DEFAULT == merge.DATA_PAR_DEFAULT / "parallel_run_meta.json"
     assert merge.ROOT == Path(__file__).resolve().parents[2]

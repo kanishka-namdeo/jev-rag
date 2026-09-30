@@ -1,20 +1,19 @@
 %%{init: {'theme': 'dark', 'themeVariables': { 'primaryColor': '#3B82F6', 'primaryTextColor': '#fff', 'primaryBorderColor': '#60A5FA', 'lineColor': '#94A3B8', 'secondaryColor': '#10B981', 'tertiaryColor': '#8B5CF6', 'background': '#0B0F19', 'mainBkg': '#1E293B' }}}%%
+%% doc-only mirror of generate_diagrams.py (create_results_chart) — not rendered by any tool here; its values are that script's illustrative literals, measured results live in docs/results.md (run 16814bd5) %%
 xychart-beta
     title "Jev-RAG Benchmark Results"
     subtitle "Comparing pipeline versions across key metrics"
 
-    x-axis ["Answer Relevance", "Context Precision", "Groundedness", "Citation Accuracy", "Latency Score"]
+    x-axis ["Answer Relevance", "Context Precision", "Groundedness", "Citation Accuracy", "Latency (ms)"]
 
-    y-axis "Score" 0 --> 100
+    y-axis "Score / Normalized Latency" 0 --> 105
 
-    bar [72, 65, 58, 52, 15]
-    bar [78, 71, 71, 65, 28]
-    bar [88, 85, 91, 86, 40]
-    bar [92, 89, 94, 90, 45]
+    bar [0.72, 0.65, 0.58, 0.52, 15]
+    bar [0.78, 0.71, 0.71, 0.65, 28]
+    bar [0.88, 0.85, 0.91, 0.86, 40]
 
-    line [72, 65, 58, 52, 15]
-    line [78, 71, 71, 65, 28]
-    line [88, 85, 91, 86, 40]
-    line [92, 89, 94, 90, 45]
+    line [0.72, 0.65, 0.58, 0.52, 15]
+    line [0.78, 0.71, 0.71, 0.65, 28]
+    line [0.88, 0.85, 0.91, 0.86, 40]
 
-    legend "v1 (Baseline)" "v2 (7-slot)" "v3 (Escalation Gate)" "Hybrid (Current)"
+    legend "v1 (Baseline)" "v2 (7-slot Pipeline)" "v3 (Escalation Gate)"

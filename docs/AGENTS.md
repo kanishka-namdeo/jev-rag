@@ -60,12 +60,21 @@
 - `benchmark-public.md` + `benchmark-public-wave2.md` — the two public-benchmark run
   reports (SQuAD/HotpotQA wave 1; TriviaQA/2Wiki/MuSiQue wave 2) with statistics and
   loss taxonomy; regenerated curated sections after each public run
-- `assets/img/` — README banner + UI screenshots + generated architecture visualizations.
-  Regenerable from the live app (live-browser capture, not mocks); refresh after any UI change
-  that alters what the README shows. Generated images (AI-produced, not live-browser):
-  `v3-architecture-v2.png` (v3 pipeline diagram), `escalation-gate-v2.png` (score-feature gate),
-  `v3-results-chart.png` (benchmark comparison). Keep these in sync with the README sections
-  they illustrate; regenerate when the architecture or numbers change
+- `assets/img/` — README banner + UI screenshots + architecture/benchmark visualizations.
+  UI shots (`bench-lab.png`, `bench-charts.png`, `chat-compare.png`, `trace-panel.png`,
+  `v2-*.png`) are regenerable only from the live app (live-browser capture, not mocks);
+  refresh them after any UI change that alters what the README shows.
+  Diagram PNGs (`v3-architecture-v2.png`, `escalation-gate-v2.png`, `v3-results-chart.png`)
+  are produced by `assets/img/generate_diagrams.py` — a reproducible matplotlib script
+  (run it **from** `docs/assets/img/`, its output filenames are CWD-relative), not an
+  image-model artifact. Its numbers are **illustrative literals**, not measured results,
+  so do not cite the PNG as evidence.
+  `layer2-arm-results.png` is the exception: `backend/scripts/plot_testbench_arms.py`
+  renders it from a merged testbench run, so every figure on it is measured. Regenerate it
+  with the run it illustrates.
+  The sibling `.mmd` files are documentation-only — nothing in the repo renders them
+  (no `mmdc`/graphviz on this box), so treat the PNG as the source of truth and keep the
+  `.mmd` text consistent with `generate_diagrams.py` by hand when either changes.
 
 ## Local Contracts
 

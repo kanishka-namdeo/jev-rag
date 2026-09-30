@@ -2,8 +2,9 @@
 # check_parallel_bench.sh — status of parallel benchmark workers, read from their DBs.
 #
 # Usage:
-#   bash scripts/check_parallel_bench.sh              # human-readable table
-#   bash scripts/check_parallel_bench.sh --json       # machine-readable, stable keys
+#   bash scripts/check_parallel_bench.sh                    # human-readable table
+#   bash scripts/check_parallel_bench.sh --json             # machine-readable, stable keys
+#   bash scripts/check_parallel_bench.sh --data-par PATH    # report a scratch root
 #
 # Source of truth is each worker's own SQLite DB (bench_runs + bench_results), never its
 # log — docs/parallel-bench-runbook.md §"Worker contracts" items 3 and 4. Logs are only
@@ -35,20 +36,30 @@ REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 DATA_PAR="${JEVRAG_DATA_PAR_ROOT:-$REPO_ROOT/backend/data_par}"
 
 OUTPUT_JSON=0
-for arg in "$@"; do
-    case "$arg" in
+while [[ $# -gt 0 ]]; do
+    case "$1" in
         --json)
             OUTPUT_JSON=1
+            shift
+            ;;
+        --data-par)
+            if [[ -z "${2:-}" ]]; then
+                echo "ERROR: --data-par requires a value" >&2
+                exit 2
+            fi
+            DATA_PAR="$2"
+            shift 2
             ;;
         -h|--help)
-            echo "Usage: bash scripts/check_parallel_bench.sh [--json]"
-            echo "Reads bench_runs/bench_results from backend/data_par/<scenario>/app.db."
+            echo "Usage: bash scripts/check_parallel_bench.sh [--json] [--data-par PATH]"
+            echo "Reads bench_runs/bench_results from <data_par>/<scenario>/app.db"
+            echo "(default backend/data_par, or \$JEVRAG_DATA_PAR_ROOT; --data-par wins)."
             echo "Exit codes: 0 all completed, 1 still running, 2 nothing to report, 3 dead-incomplete."
             exit 0
             ;;
         *)
-            echo "Unknown argument: $arg" >&2
-            echo "Usage: bash scripts/check_parallel_bench.sh [--json]" >&2
+            echo "Unknown argument: $1" >&2
+            echo "Usage: bash scripts/check_parallel_bench.sh [--json] [--data-par PATH]" >&2
             exit 2
             ;;
     esac

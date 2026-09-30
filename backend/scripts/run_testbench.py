@@ -189,6 +189,14 @@ def main() -> int:
     # can capture the id seconds after launch, not after the ~17s warm-up.
     print(f"RUN_ID={run_id}", flush=True)
 
+    # Land the denominator in the DB before anything slow happens. The monitor reads
+    # done/total from bench_runs; with a cold fastembed cache the model load + corpus
+    # download below takes minutes, and `0/?` for that whole window is indistinguishable
+    # from a 98-question run (docs/parallel-bench-runbook.md §3).
+    planned = _planned_total(scenario_ids, arms, args.max_per_scenario)
+    base_done = len(done)
+    _patch_run(run_id, base_done, "planning", total=planned)
+
     llm = DashscopeLLM(settings)
     jev = JevEngine(settings)
     if not jev.load():
@@ -216,13 +224,6 @@ def main() -> int:
     deadline = time.monotonic() + args.window_minutes * 60
     t_start = time.time()
     processed = 0
-    planned = _planned_total(scenario_ids, arms, args.max_per_scenario)
-    base_done = len(done)
-    # Land the denominator in the DB BEFORE ingest. The monitor reads done/total from
-    # bench_runs, and total stayed 0 until the first triple committed — which made a
-    # 2-triple smoke indistinguishable from a 98-question run for the whole ingest
-    # phase (docs/parallel-bench-runbook.md §3).
-    _patch_run(run_id, base_done, "planning", total=planned)
 
     def bump(stage: str) -> None:
         _patch_run(run_id, base_done + processed, stage, total=planned)
