@@ -4,6 +4,80 @@ Single shared work log for all agents working in this repo. Append-only; each
 section starts with `---`. Newest at top.
 
 ---
+Task ID: M11-complete (2026-09-30)
+Agent: main agent (owner's Windows workstation + WSL2 Ubuntu-24.04)
+Task: complete M11 H-GATE full-power run on real hardware, merge the 5
+    per-scenario parallel-run DBs into one canonical result, run the
+    analyzer, and sync all reader-facing docs to the new state.
+
+Work Log:
+- Discovered the engagement picked up on a Windows machine (not the
+  Linux sandbox the status doc was written for). The sandbox-era
+  192-triple run state (be7b62ea) was not portable (its DB is wiped on
+  every sandbox reset); the committed snapshot in docs/assets/ was a
+  record only.
+- WSL2 Ubuntu-24.04 already had the full backend stack: backend/.venv
+  (Python 3.12.3), the Linux-ELF jev-score binary, backend/.env with
+  the Dashscope key. ONNX Runtime's CUDA provider is unavailable in
+  WSL2 (documented in docs/setup-gpu.md) — embedder + cross-encoder
+  fall back to CPU gracefully; jev-score runs on CPU. Verified via a
+  component-load smoke test.
+- Launched a fresh serial run (b5203ed0, 72 squad triples) then
+  switched to the §6-authorized 5-way parallel pattern: one detached
+  runner per scenario on its own JEVRAG_DATA_DIR (backend/data/ for
+  squad, backend/data_par/<scenario>/ for the other four), each with
+  its own SQLite + Chroma + ONNX cache + jev-score subprocess. ~9 GB
+  RAM peak across 5 workers (15 GB total, ~11 GB free), 12 cores,
+  no sandbox reaper/OOM wall. The Musique worker's first launch died
+  silently at startup (0-byte log, 0 rows) — relaunched, confirmed
+  alive. HotpotQA hit a transient Dashscope retry cycle on one
+  request, recovered on its own backoff.
+- All 5 workers completed in ~2 h wall-clock (~2.5-3× faster than
+  serial). Per-scenario counts: squad 100, hotpotqa 100, triviaqa 64,
+  wiki2 64, musique 64 = 392 unique triples, 0 pipeline errors.
+  One transient Dashscope APITimeoutError on musique mq14/oracle-gate
+  is recorded as an error row and kept visible (objectivity contract);
+  a later micro-retry of just that triple was superseded by the merge
+  step and not needed.
+- New script backend/scripts/_merge_par_run.py: merges the 5
+  per-scenario DBs into one canonical backend/data_merged/app.db
+  (dedupe by scenario/question/arm; picks each scenario's *completed*
+  run so a later in-flight retry cannot win the tie-break; creates
+  one unified bench_runs row). Emits the unified run id + the
+  JEVRAG_DATA_DIR=… analyzer command to run next.
+- Ran the existing backend/scripts/analyze_testbench.py against the
+  merged DB (JEVRAG_DATA_DIR=backend/data_merged, run 67a1dc06-
+  a3bd-4bf1-8f25-092cd5db3eff) → docs/testbench-results-hgate.md
+  (+ .json twin). No analyzer modification needed.
+- Verdict (objective, negatives kept visible):
+  * H-GATE NOT confirmed at full power: gate value (base − gate-none
+    = +4.6pp) is the right direction but not significant at n=98
+    (McNemar p 0.424, FDR q 0.944 after BH across arms). The 20Q
+    pilot's "direction" was correctly read as directional; full
+    power lacks the headroom to call it.
+  * Forced escalation confirmed pure cost: always-hard ties base
+    accuracy (±0.0, p 1.0) at 3.5× median latency and +17% per-
+    question cost.
+  * Oracle gate UNDERCUTS base (−3.4pp, n.s.) — inverting the
+    pilot's "oracle ≥ base" expectation. The MuSiQue rerank-
+    regression interaction is the likely driver and is the M12
+    queue item.
+  * 1 documented error row (musique mq14/oracle-gate APITimeoutError)
+    kept visible: 391 scored + 1 error = 392.
+- Doc-sync pass: README.md (milestone row + doc tour + "in flight"
+  framing removed), docs/rag-upgrade-2026-results.md (new "H-GATE
+  full power" sub-section under the H-GATE ablation; pilot's
+  directional conclusion explicitly marked superseded), docs/
+  project-status-2026-09-30.md §1/§3.7/§4.2/§4.2bis/§5/§8
+  (M11 marked done; historical 192-triple snapshot preserved as
+  §4.2bis; resumption record updated to "complete"), docs/AGENTS.md
+  + scripts/AGENTS.md ownership rows, CHANGELOG.md M11 milestone
+  entry. .gitignore: backend/data_par/ + backend/data_merged/
+  added (generated per-scenario + merged DBs stay local).
+- Pushed to origin/main: 4e704f6 (M11 run + results + merge script
+  + DOX rows), 7174eb5 (reader-facing doc-sync pass). M11 closed;
+  M12/M13/M14 remain queued.
+---
 Task ID: R1
 Agent: research sub-agent (Task R1, research-only)
 Task: survey 2025-2026 production-RAG state-of-the-art; per-technique
