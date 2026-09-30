@@ -4,6 +4,8 @@ node_modules/
 # --- local state & secrets (Jev-RAG) ---
 backend/.env
 backend/data/
+backend/data_par/
+backend/data_merged/
 models/
 vendor/
 logs/
@@ -15,6 +17,19 @@ tool-results/
 .env
 __pycache__/
 *.pyc
+
+# --- ad-hoc scratch / debug scripts (local only) ---
+cuda-keyring_1.1-1_all.deb
+test_cuda_env.sh
+test_gpu_components.py
+test_imports.py
+test_llm.py
+test_onnx_gpu.py
+test_onnx_providers.py
+test_ort_cuda.py
+backend/check_fastembed.py
+backend/test_cuda_diagnostic.py
+backend/test_gpu_embedding.py
 
 # --- platform sandbox (space-z.ai) ---
 download/

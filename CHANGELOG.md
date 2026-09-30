@@ -4,6 +4,53 @@ Milestone history for Jev-RAG. Each entry links to the commit that delivered it.
 Dates are YYYY-MM-DD (commit date). Format is loosely inspired by
 [Keep a Changelog](https://keepachangelog.com/), grouped by project phase.
 
+## 2026-09-30 — M11 H-GATE full-power run complete (parallel x5 on WSL2)
+
+The H-GATE hypothesis (§1.1 of
+[docs/project-status-2026-09-30.md](docs/project-status-2026-09-30.md)) is now
+answered at full power: **98 questions × 4 arms = 392 scored triples** across
+all five public scenarios (SQuAD 100, HotpotQA 100, TriviaQA 64, 2WikiMultHopQA
+64, MuSiQue 64), judged by the independent `kimi-k2.5` LLM judge.
+
+**Execution (the §6 scale-up runbook, in practice):** the sandbox-era 192-triple
+state was not portable (its DB is wiped on every reset), so the run started
+fresh on the owner's Windows workstation under **WSL2 Ubuntu-24.04 + RTX 2070
+Super**. It was run as **5 parallel runners, one per scenario, each on its own
+`JEVRAG_DATA_DIR`** — the §6-authorized "one runner per scenario on separate
+data dirs (~5× wall-clock)" pattern. Each worker is fully isolated (its own
+SQLite + Chroma + ONNX cache + `jev-score` subprocess); the 5 DBs were then
+merged into one canonical `backend/data_merged/app.db` by a new
+`backend/scripts/_merge_par_run.py` (dedupe by scenario/question/arm; picks each
+scenario's *completed* run so a later in-flight retry cannot win the tie-break),
+producing unified run `67a1dc06` (392 rows).
+
+- **New script**: [`backend/scripts/_merge_par_run.py`](backend/scripts/_merge_par_run.py)
+  — merge the per-scenario parallel-run DBs into one analyzer-compatible DB.
+  Repo-committable; emits the unified run id + the exact `JEVRAG_DATA_DIR=…`
+  analyzer command to run next.
+- **Results**: [docs/testbench-results-hgate.md](docs/testbench-results-hgate.md)
+  (+ `.json` twin) — the full-run readout.
+
+**Verdict (objective, negatives kept visible):**
+- **H-GATE not confirmed at full power.** Gate value (base − gate-none = +4.6pp)
+  is the right direction but **not significant** (McNemar p 0.424, FDR q 0.944)
+  at n=98. The pilot and M9 pointed this way; full power is underpowered to
+  call it.
+- **Forced escalation confirmed a pure cost**: always-hard ties base (±0.0,
+  p 1.0) at **3.5× median latency** and +17% per-question cost.
+- **Oracle gate undercuts base** (−3.4pp, n.s.) — inverting the interim
+  "oracle ≥ base" expectation. The hard path *hurts* when applied to questions
+  the cheap path already got right; the MuSiQue rerank-regression interaction is
+  the likely cause (queued for M12).
+- **One documented error** (objectivity contract): `musique/mq14/oracle-gate`
+  hit a transient Dashscope `APITimeoutError` and is recorded as an error row
+  (391 scored + 1 error). It was neither re-run nor dropped.
+
+Why: the gate was the last unvalidated v3 component at full power; running it
+on real hardware (parallel, no sandbox reaper/OOM wall) was the §6-resume
+path and completed in ~2 h instead of the ~5 h the serial run would have
+taken. M11 is now closed; M12/M13/M14 remain queued (§5 of the status report).
+
 ## 2026-09-30 — Session state report + H-GATE interim results pushed
 
 The engagement brief (upgrade both pipelines, re-place jev on evidence, evaluate

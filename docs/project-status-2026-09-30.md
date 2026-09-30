@@ -254,7 +254,51 @@ queued. Interim readout (n=48 questions × 4 arms) in §4.2.
 - jev re-placed on measurement (§3.2); testbench adopted as the standard evidence
   format (§3.3).
 
-### 4.2 M11 H-GATE — interim (run be7b62ea, 192/392 triples, 0 errors, in flight)
+### 4.2 M11 H-GATE — full power (merged run 67a1dc06, 392/392 triples, 1 documented error, complete)
+
+Full readout (98 questions × 4 arms, all five public scenarios, independent
+judge kimi-k2.5, absolute scoring) in [testbench-results-hgate.md](testbench-results-hgate.md)
+and its JSON twin `testbench-results-hgate.json`. Judge-scored correctness by arm:
+
+| arm | corr | Δ vs base | McNemar p | FDR q | escalate | p50 latency |
+|---|---|---|---|---|---|---|
+| base (v3, gate @0.5) | **0.6735** | — | — | — | 19.4% | 20.8 s |
+| always-hard | 0.6735 | ±0.0 | 1.000 | 1.000 | 100% | **73.2 s (3.5×)** |
+| oracle-gate | 0.6392 | −3.4pp | 0.629 | 0.944 | 31.6% | 20.8 s |
+| gate-none | 0.6276 | −4.6pp | 0.424 | 0.944 | 0% | 18.5 s |
+
+Subsets: single-hop (n=41) base 0.890 / gate-none 0.829 / always-hard 0.854 /
+oracle 0.793; multi-hop (n=57) base 0.518 / gate-none 0.483 / always-hard 0.544
+/ oracle 0.527. Gate calibration (features gate vs ground-truth
+answerability): acc 0.857, Brier 0.117, ECE 0.16, FN-on-answerable 0.143.
+
+**Final reading (n is full power — this replaces the interim §4.2 interim
+table and the `be7b62ea` 192-triple snapshot in `docs/assets/`):**
+
+1. **H-GATE is NOT confirmed at full power.** The gate's marginal value over
+   never-escalating (base − gate-none = +4.6pp) is **not significant**
+   (McNemar p 0.424, FDR q 0.944). The direction is the same as the pilot and
+   the M9 6/10-recovery observation, but 98 questions is not enough power to
+   call it — reported honestly, not oversold.
+2. **Forced escalation is a pure cost, confirmed.** always-hard ties base on
+   accuracy (±0.0, p 1.0) at **3.5× median latency** and +17.4% cost per
+   question ($0.188 vs $0.161). The hard path's per-question benefit is eaten
+   by its multi-step token burn when applied unconditionally.
+3. **The oracle gate UNDERCUTS base** (−3.4pp, n.s.). This inverts the
+   interim expectation that "oracle ≥ base": on the full set a perfect
+   escalate-iff-gold-not-in-top-4 policy is *worse* than the learned
+   features gate, because forcing the hard path on questions where the cheap
+   path already succeeded hurts more than it helps (see M12 for the
+   rerank-regression interaction on MuSiQue).
+4. **One documented error** (objectivity contract): `musique/mq14/oracle-gate`
+   hit a transient Dashscope `APITimeoutError` and is recorded as an error row
+   in the merged DB (392 triples, 391 scored + 1 error). It was *not*
+   re-run or dropped — the negative stays visible. Base/gate-none/always-hard
+   on mq14 all scored, so the arm-level table above is computed on the full
+   98-question denominator with that one cell excluded from the oracle-gate
+   column only.
+
+### 4.2bis M11 H-GATE — interim (run be7b62ea, 192/392 triples, historical, superseded)
 
 Judge-scored correctness by arm (n = 48 questions completed; McNemar exact vs base):
 
@@ -270,7 +314,8 @@ multi-hop (n=23) base 0.826 / gate-none 0.739 / always-hard 0.783.
 Gate calibration (features-gate score vs ground-truth answerability):
 acc 0.875, Brier 0.123, ECE 0.157, FN-on-answerable 0.125.
 
-**Interim reading (n is still half the target — not final):**
+**Interim reading (superseded by §4.2 above — kept only as the historical
+192-triple snapshot from the sandbox):**
 
 1. The v3 gate is directionally earning its keep: base > gate-none by +6.2pp at
    equal latency (the gate itself is nearly free; escalations fire ~15% of the
@@ -283,9 +328,10 @@ acc 0.875, Brier 0.123, ECE 0.157, FN-on-answerable 0.125.
    so far, a perfect gate would not have added accuracy over the learned gate.
    The interesting test is whether the remaining scenarios (TriviaQA, 2Wiki,
    MuSiQue — the hardest multi-hop set) open a gap between base and oracle.
-4. Full-run verdicts (significance after all 98Q, per-scenario splits, final gate
-   calibration table) land when the run completes — this section will be replaced
-   by `docs/testbench-results-hgate.md` and the CHANGELOG M11 entry.
+   **This gap did NOT open — the full run found the oracle *below* base (see
+   §4.2 point 3).**
+4. Full-run verdicts now land in `docs/testbench-results-hgate.md` and the
+   CHANGELOG M11 entry (§4.2 above is the readout).
 
 ### 4.3 Known negatives on record (not hidden)
 
@@ -302,7 +348,7 @@ acc 0.875, Brier 0.123, ECE 0.157, FN-on-answerable 0.125.
 
 | milestone | what | why |
 |---|---|---|
-| **M11 (in flight)** | finish the 392-triple H-GATE run; full analysis (per-arm McNemar, per-scenario, final gate calibration: ECE/Brier/FN/FP); CHANGELOG + results doc; push | the gate is the last unvalidated v3 component at full power |
+| ~~M11~~ ✅ **done** (full 392-triple run complete, analyzed, results committed to [testbench-results-hgate.md](testbench-results-hgate.md)) | — | gate verdict: marginal value NOT confirmed at full power (base − gate-none = +4.6pp, n.s.); forced escalation confirmed pure cost; oracle undercuts base |
 | **M12** | H-RERANK e2e ablation: cross vs jev vs none on the multi-hop scenarios; resolve the MuSiQue rerank regression | rerank is on the hot path; the regression is a real cost if it survives e2e |
 | **M13** | "Codifying the judge": distill the cloud judge's binary verdicts into the local features+jev-score gate; report Brier/ECE delta | the judge labels are already persisted per-triple (jev_decisions) — a free calibration set |
 | **M14** | final objective report: consolidate M11–M13 into the README results table + CHANGELOG; push | closes the engagement brief |
@@ -391,3 +437,75 @@ Scaling notes for real hardware:
 | H-GATE interim snapshot (this push) | `docs/assets/testbench-hgate-partial-2026-09-30.{md,json}` |
 | runner / analyzer / export scripts | `backend/scripts/` |
 | fresh-machine setup | [docs/setup.md](setup.md) |
+
+---
+
+## 8. Resumption record — 2026-09-30 (owner's Windows machine, WSL2)
+
+The owner picked up the run on a Windows workstation with WSL2
+(`Ubuntu-24.04`) and an RTX 2070 Super. Key differences from the sandbox:
+
+- **No process reaper, no sandbox resets, no 4 GB OOM wall** — a single
+  uninterrupted foreground/`setsid`-detached process is safe, so the
+  `--window-minutes 8` chained-window protocol is no longer required.
+- **ONNX Runtime CUDA provider is unavailable in WSL2** (documented
+  [setup-gpu.md](setup-gpu.md)): `CUDA failure 100: no CUDA-capable device
+  is detected`. The embedder and cross-encoder gracefully fall back to CPU
+  (verified via the load smoke test). `jev-score` (llama.cpp) is a Linux
+  ELF binary and runs on CPU in WSL2.
+- The sandbox-era 192-triple run state (`be7b62ea`) was **not portable** —
+  it lived in the sandbox's `backend/data/app.db`, which is wiped on every
+  sandbox reset and is not committed. The committed interim snapshot
+  ([testbench-hgate-partial-2026-09-30](assets/testbench-hgate-partial-2026-09-30.md))
+  is a record only, not a resume point.
+
+**Fresh run on this machine:** the first serial attempt
+(`b5203ed0`, 72 squad triples) was superseded by a **5-way parallel run**
+(§6 runbook, one runner per scenario on separate `JEVRAG_DATA_DIR`s),
+launched 2026-09-30 14:35 local via `setsid nohup` inside `Ubuntu-24.04`.
+Arms/scenarios identical to the original H-GATE spec:
+`base,gate-none,always-hard,oracle-gate` ×
+`squad,hotpotqa,triviaqa,wiki2,musique` (392 triples total).
+**COMPLETED ~16:20 local (~2 h wall-clock).** All 5 scenarios `completed`,
+0 pipeline errors; 1 documented transient Dashscope `APITimeoutError`
+(musique `mq14/oracle-gate`), kept visible per the objectivity contract.
+
+The 5 per-scenario DBs were merged into one canonical
+`backend/data_merged/app.db` by `backend/scripts/_merge_par_run.py`
+(dedupe by scenario/question/arm, keep most-recent non-error row; picks
+each scenario's *completed* run so the later in-flight retry run cannot
+win the tie-break) → unified run `67a1dc06-a3bd-4bf1-8f25-092cd5db3eff`
+(392 rows, 391 scored + 1 error). Analysis:
+`JEVRAG_DATA_DIR=backend/data_merged .venv/bin/python scripts/analyze_testbench.py 67a1dc06-… --out ../docs/testbench-results-hgate.md`
+→ [testbench-results-hgate.md](testbench-results-hgate.md).
+
+**The resumption is now complete** — the §4.2 full-run readout above
+replaces this section's "in flight" framing. §8's resume/analyze commands
+are retained for reference only.
+
+**How to check progress / resume:**
+
+```bash
+# from d:\test_jev\jev-rag (Windows PowerShell), one-liner:
+wsl -d Ubuntu-24.04 -- bash -c "bash /mnt/d/test_jev/jev-rag/scripts/_wsl_status.sh"
+
+# or inside WSL:
+cd /mnt/d/test_jev/jev-rag && bash scripts/_wsl_status.sh
+
+# if the process died but the DB has partial triples, resume:
+cd /mnt/d/test_jev/jev-rag/backend && \
+  .venv/bin/python scripts/run_testbench.py --resume b5203ed0-51fe-4dfa-b51a-201208340002 \
+  --window-minutes 60000
+```
+
+**On completion:** run the analyzer and write the results doc:
+
+```bash
+cd /mnt/d/test_jev/jev-rag/backend && \
+  .venv/bin/python scripts/analyze_testbench.py b5203ed0-51fe-4dfa-b51a-201208340002 \
+  --out ../docs/testbench-results-hgate.md
+```
+
+Then replace the §4.2 interim section with the full-run readout, add the
+M11 CHANGELOG entry, and push.
+

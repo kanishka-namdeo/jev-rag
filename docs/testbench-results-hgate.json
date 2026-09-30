@@ -1,0 +1,377 @@
+{
+  "run_id": "67a1dc06-a3bd-4bf1-8f25-092cd5db3eff",
+  "label": "H-GATE full power (par x5, merged 2026-09-30)",
+  "config": {
+    "testbench": true,
+    "arms": [
+      "base",
+      "gate-none",
+      "always-hard",
+      "oracle-gate"
+    ],
+    "scenarios": [
+      "squad",
+      "hotpotqa",
+      "triviaqa",
+      "wiki2",
+      "musique"
+    ],
+    "max_per_scenario": "all",
+    "base": {
+      "retrieval_mode": "hybrid_rrf",
+      "rerank_mode": "cross",
+      "gate_mode": "features",
+      "gate_score_threshold": 0.6,
+      "top_k_use": 4,
+      "llm_default": "qwen3.7-plus"
+    },
+    "merged_from": [
+      "app.db",
+      "app.db",
+      "app.db",
+      "app.db",
+      "app.db"
+    ]
+  },
+  "base_arm": "base",
+  "arms": {
+    "always-hard": {
+      "n": 98,
+      "errors": 0,
+      "correctness": 0.6735,
+      "correctness_ci95_wilson": [
+        0.5756,
+        0.7582
+      ],
+      "abstention": {
+        "answered": 72,
+        "abstained": 26
+      },
+      "escalation_rate": 1.0,
+      "latency_ms": {
+        "p50": 73174.5,
+        "p95": 241922.195
+      },
+      "cost_usd": 0.1881,
+      "tokens": 278405,
+      "vs_base": {
+        "n_paired": 98,
+        "mcnemar_b_arm_better": 10,
+        "mcnemar_c_base_better": 11,
+        "p_mcnemar": 1.0,
+        "accuracy_delta": 0.0,
+        "accuracy_delta_ci95": [
+          -0.0714,
+          0.0714
+        ]
+      }
+    },
+    "base": {
+      "n": 98,
+      "errors": 0,
+      "correctness": 0.6735,
+      "correctness_ci95_wilson": [
+        0.5756,
+        0.7582
+      ],
+      "abstention": {
+        "answered": 70,
+        "abstained": 28
+      },
+      "escalation_rate": 0.1939,
+      "latency_ms": {
+        "p50": 20829.45,
+        "p95": 105887.365
+      },
+      "cost_usd": 0.1607,
+      "tokens": 196684,
+      "gate": {
+        "n": 98,
+        "threshold": 0.5,
+        "accuracy": 0.8571,
+        "brier": 0.1169,
+        "ece": 0.16,
+        "fn_rate_answerable": 0.1429,
+        "fp_rate_unanswerable": null
+      }
+    },
+    "gate-none": {
+      "n": 98,
+      "errors": 0,
+      "correctness": 0.6276,
+      "correctness_ci95_wilson": [
+        0.5287,
+        0.7168
+      ],
+      "abstention": {
+        "answered": 71,
+        "abstained": 27
+      },
+      "escalation_rate": 0.0,
+      "latency_ms": {
+        "p50": 18461.6,
+        "p95": 38008.275
+      },
+      "cost_usd": 0.1491,
+      "tokens": 178457,
+      "gate": {
+        "n": 98,
+        "threshold": 0.5,
+        "accuracy": 0.8367,
+        "brier": 0.1483,
+        "ece": 0.1919,
+        "fn_rate_answerable": 0.1633,
+        "fp_rate_unanswerable": null
+      },
+      "vs_base": {
+        "n_paired": 98,
+        "mcnemar_b_arm_better": 5,
+        "mcnemar_c_base_better": 9,
+        "p_mcnemar": 0.42395,
+        "accuracy_delta": -0.0459,
+        "accuracy_delta_ci95": [
+          -0.1122,
+          0.0153
+        ]
+      }
+    },
+    "oracle-gate": {
+      "n": 98,
+      "errors": 1,
+      "correctness": 0.6392,
+      "correctness_ci95_wilson": [
+        0.54,
+        0.7278
+      ],
+      "abstention": {
+        "answered": 72,
+        "abstained": 25
+      },
+      "escalation_rate": 0.3163,
+      "latency_ms": {
+        "p50": 20830.3,
+        "p95": 96504.88
+      },
+      "cost_usd": 0.1508,
+      "tokens": 199782,
+      "vs_base": {
+        "n_paired": 97,
+        "mcnemar_b_arm_better": 7,
+        "mcnemar_c_base_better": 10,
+        "p_mcnemar": 0.62906,
+        "accuracy_delta": -0.0361,
+        "accuracy_delta_ci95": [
+          -0.1082,
+          0.0361
+        ]
+      }
+    }
+  },
+  "subsets": {
+    "single_hop": {
+      "always-hard": {
+        "n": 41,
+        "errors": 0,
+        "correctness": 0.8537,
+        "correctness_ci95_wilson": [
+          0.7156,
+          0.9312
+        ],
+        "abstention": {
+          "answered": 38,
+          "abstained": 3
+        },
+        "escalation_rate": 1.0,
+        "latency_ms": {
+          "p50": 76375.0,
+          "p95": 243351.3
+        },
+        "cost_usd": 0.0874,
+        "tokens": 126899
+      },
+      "base": {
+        "n": 41,
+        "errors": 0,
+        "correctness": 0.8902,
+        "correctness_ci95_wilson": [
+          0.7594,
+          0.9542
+        ],
+        "abstention": {
+          "answered": 39,
+          "abstained": 2
+        },
+        "escalation_rate": 0.1463,
+        "latency_ms": {
+          "p50": 19943.7,
+          "p95": 79987.7
+        },
+        "cost_usd": 0.0661,
+        "tokens": 83205,
+        "gate": {
+          "n": 41,
+          "threshold": 0.5,
+          "accuracy": 0.878,
+          "brier": 0.1146,
+          "ece": 0.1407,
+          "fn_rate_answerable": 0.122,
+          "fp_rate_unanswerable": null
+        }
+      },
+      "gate-none": {
+        "n": 41,
+        "errors": 0,
+        "correctness": 0.8293,
+        "correctness_ci95_wilson": [
+          0.6874,
+          0.9147
+        ],
+        "abstention": {
+          "answered": 37,
+          "abstained": 4
+        },
+        "escalation_rate": 0.0,
+        "latency_ms": {
+          "p50": 18837.4,
+          "p95": 39237.8
+        },
+        "cost_usd": 0.0658,
+        "tokens": 79550,
+        "gate": {
+          "n": 41,
+          "threshold": 0.5,
+          "accuracy": 0.8537,
+          "brier": 0.13,
+          "ece": 0.156,
+          "fn_rate_answerable": 0.1463,
+          "fp_rate_unanswerable": null
+        }
+      },
+      "oracle-gate": {
+        "n": 41,
+        "errors": 0,
+        "correctness": 0.7927,
+        "correctness_ci95_wilson": [
+          0.6463,
+          0.8889
+        ],
+        "abstention": {
+          "answered": 36,
+          "abstained": 5
+        },
+        "escalation_rate": 0.0732,
+        "latency_ms": {
+          "p50": 17727.7,
+          "p95": 62273.4
+        },
+        "cost_usd": 0.0638,
+        "tokens": 80471
+      }
+    },
+    "multi_hop": {
+      "always-hard": {
+        "n": 57,
+        "errors": 0,
+        "correctness": 0.5439,
+        "correctness_ci95_wilson": [
+          0.4159,
+          0.6663
+        ],
+        "abstention": {
+          "answered": 34,
+          "abstained": 23
+        },
+        "escalation_rate": 1.0,
+        "latency_ms": {
+          "p50": 71372.3,
+          "p95": 226468.72
+        },
+        "cost_usd": 0.1007,
+        "tokens": 151506
+      },
+      "base": {
+        "n": 57,
+        "errors": 0,
+        "correctness": 0.5175,
+        "correctness_ci95_wilson": [
+          0.3909,
+          0.642
+        ],
+        "abstention": {
+          "answered": 31,
+          "abstained": 26
+        },
+        "escalation_rate": 0.2281,
+        "latency_ms": {
+          "p50": 22117.2,
+          "p95": 121557.52
+        },
+        "cost_usd": 0.0946,
+        "tokens": 113479,
+        "gate": {
+          "n": 57,
+          "threshold": 0.5,
+          "accuracy": 0.8421,
+          "brier": 0.1186,
+          "ece": 0.1739,
+          "fn_rate_answerable": 0.1579,
+          "fp_rate_unanswerable": null
+        }
+      },
+      "gate-none": {
+        "n": 57,
+        "errors": 0,
+        "correctness": 0.4825,
+        "correctness_ci95_wilson": [
+          0.358,
+          0.6091
+        ],
+        "abstention": {
+          "answered": 34,
+          "abstained": 23
+        },
+        "escalation_rate": 0.0,
+        "latency_ms": {
+          "p50": 18334.6,
+          "p95": 33537.64
+        },
+        "cost_usd": 0.0833,
+        "tokens": 98907,
+        "gate": {
+          "n": 57,
+          "threshold": 0.5,
+          "accuracy": 0.8246,
+          "brier": 0.1613,
+          "ece": 0.2176,
+          "fn_rate_answerable": 0.1754,
+          "fp_rate_unanswerable": null
+        }
+      },
+      "oracle-gate": {
+        "n": 57,
+        "errors": 1,
+        "correctness": 0.5268,
+        "correctness_ci95_wilson": [
+          0.3986,
+          0.6516
+        ],
+        "abstention": {
+          "answered": 36,
+          "abstained": 20
+        },
+        "escalation_rate": 0.4912,
+        "latency_ms": {
+          "p50": 52497.35,
+          "p95": 121848.55
+        },
+        "cost_usd": 0.087,
+        "tokens": 119311
+      }
+    }
+  },
+  "bh_fdr": {
+    "always-hard": 1.0,
+    "gate-none": 0.94359,
+    "oracle-gate": 0.94359
+  }
+}

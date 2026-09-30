@@ -27,6 +27,13 @@
   stopped — memory discipline)
 - `backend/scripts/export_bench_results.py` — exports a completed bench run to
   `docs/benchmark-results.md` + machine-readable JSON in `backend/data/bench_exports/`
+- `backend/scripts/_merge_par_run.py` — merges the 5 per-scenario parallel-run
+  DBs (`backend/data_par/<scenario>/app.db` + the squad `backend/data/app.db`)
+  into one canonical `backend/data_merged/app.db` (dedupe by scenario/question/
+  arm; picks each scenario's *completed* run so a later in-flight retry cannot
+  win the tie-break; creates one unified `bench_runs` row). Emits the unified
+  run id + the `JEVRAG_DATA_DIR=…` analyzer command to run next. Repo-
+  committable; safe to re-run (idempotent: drops + rebuilds `data_merged/`).
 - `analyze_bench_run.py` / `analyze_per_scenario.py` / `bench_progress.py` / `diagnose_v2_losses.py` /
   `diagnose_public_bench.py` — run analysis/diagnostics over the bench DB (repo-anchored paths)
 - `measure_jev_memory.py` / `verify_jev_flags.py` / `verify_jev_runtime_parity.py` — jev-score
