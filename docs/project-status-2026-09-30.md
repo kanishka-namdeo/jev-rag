@@ -36,9 +36,8 @@ The engagement brief (paraphrased from the owner's instructions, in order given)
    failures, no cherry-picked numbers; negatives stay visible; every milestone lands
    as commits on `main`.
 
-That brief decomposed into 14 milestones (M1–M14). M1–M10 are complete and pushed;
-M11 (the H-GATE hypothesis run) is in flight at the time of this report; M12–M14 are
-queued (§5).
+That brief decomposed into 14 milestones (M1–M14). M1–M11 are complete and pushed
+(M11's full H-GATE run landed in commit `4e704f6`); M12–M14 are queued (§5).
 
 ### 1.1 The question M11 is currently answering
 
@@ -229,7 +228,7 @@ README rewritten around v3 (architecture mermaid, results-with-receipts table, v
 kept as history with its own numbers), CHANGELOG milestone entries, benchmark
 docs, backend restarted on v3 config, 121/121 tests green.
 
-### 3.7 This session (post-4th/5th reset) — environment + M11 in flight
+### 3.7 This session (post-4th/5th reset) — environment + M11 complete
 
 Commits pushed this session family: `aa75203` (gate-calibration metrics: ECE /
 Brier / FN / FP in the analyzer), `5eb65d4` (resume contract fix: bare `--resume`
@@ -237,10 +236,16 @@ adopts the run's recorded arms/scenarios instead of silently widening them),
 `0f6ec7e` (skip-if-ready scenario ingestion — 3.5 min/4-arm question → seconds on
 resume), `71f73a3` (flock-guarded cron window wrapper, for hosts with cron).
 
-M11 H-GATE full-power run `be7b62ea-2eb7-467c-aa38-dc8fbf81eb8f`: restarted from
-zero after the DB was wiped (5th reset), now at **192/392 triples (49%), 0
-errors** — SQuAD complete (100/100), HotpotQA 92/100, TriviaQA/2Wiki/MuSiQue
-queued. Interim readout (n=48 questions × 4 arms) in §4.2.
+M11 H-GATE full-power run: **completed** on the owner's Windows workstation
+under WSL2 Ubuntu-24.04 (RTX 2070 Super) as **5 parallel runners, one per
+scenario on separate `JEVRAG_DATA_DIR`s** (§6 scale-up runbook, the authorized
+"5× wall-clock" pattern). 392/392 unique triples (391 scored + 1 documented
+Dashscope `APITimeoutError` on musique `mq14/oracle-gate`, kept visible per the
+objectivity contract). Per-scenario DBs merged into one canonical
+`backend/data_merged/app.db` by `backend/scripts/_merge_par_run.py` → unified
+run `67a1dc06-a3bd-4bf1-8f25-092cd5db3eff`. Full readout in §4.2 (full power)
+and the historical 192-triple snapshot is retained as §4.2bis. Commit `4e704f6`
+pushed the results doc + merge script + DOX ownership rows.
 
 ---
 

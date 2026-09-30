@@ -78,12 +78,55 @@ disagreements (5): the features gate recovered sq1 (base 1.0 / gate-none 0.0);
 always-hard flipped 3 questions the other way (sq4, tq3, mq3) and added 2
 abstentions + 2.6× latency.
 
-**Conclusion (H-GATE, directional):** the score-feature gate sits at the best
-operating point of the three; never-escalating loses recoverable questions;
-always-escalating loses different ones and pays 2.6× latency. The oracle-gate
-ceiling arm and the jev-gate arm are wired and ready (run_testbench.py) but
-not yet run at this subset size — the full pre-declared matrix
-(docs/testbench-design.md) remains executable as-is.
+**Conclusion (H-GATE, directional at n=20):** the score-feature gate sits at
+the best operating point of the three; never-escalating loses recoverable
+questions; always-escalating loses different ones and pays 2.6× latency.
+
+### H-GATE full power (M11, merged run `67a1dc06`, 98Q × 4 arms = 392 triples)
+
+The pilot's direction was re-tested at full power on the owner's Windows
+workstation under WSL2 (RTX 2070 Super), 5 parallel runners one-per-scenario
+on separate `JEVRAG_DATA_DIR`s (§6 of
+[project-status-2026-09-30.md](project-status-2026-09-30.md)), then merged by
+[`backend/scripts/_merge_par_run.py`](../backend/scripts/_merge_par_run.py).
+Full readout: [testbench-results-hgate.md](testbench-results-hgate.md) +
+[.json](testbench-results-hgate.json) twin. 1 documented error row kept
+visible (musique `mq14/oracle-gate` Dashscope `APITimeoutError`), 391 scored.
+
+| arm | corr | 95% CI | abstain | escalate | p50 ms | cost | Δacc vs base | CI95 | McNemar p | FDR q |
+|---|---|---|---|---|---|---|---|---|---|---|
+| always-hard | 0.6735 | [0.58, 0.76] | 26 | 1.0 | 73174.5 | 0.1881 | +0.000 | [−0.071, +0.071] | 1.000 | 1.000 |
+| **base** | **0.6735** | [0.58, 0.76] | 28 | 0.1939 | 20829.45 | 0.1607 | — | — | — | — |
+| gate-none | 0.6276 | [0.53, 0.72] | 27 | 0.0 | 18461.6 | 0.1491 | −0.046 | [−0.112, +0.015] | 0.424 | 0.944 |
+| oracle-gate | 0.6392 | [0.54, 0.73] | 25 | 0.3163 | 20830.3 | 0.1508 | −0.036 | [−0.108, +0.036] | 0.629 | 0.944 |
+
+Gate calibration (features gate vs ground-truth answerability): base
+acc 0.857 / Brier 0.117 / ECE 0.16 / FN-on-answerable 0.143; gate-none
+acc 0.837 / Brier 0.148 / ECE 0.192 / FN-on-answerable 0.163.
+
+**Verdict at full power (objective, negatives kept visible):**
+
+1. **H-GATE is NOT confirmed.** The pilot's "gate > gate-none" direction
+   holds in sign (+4.6pp base − gate-none) but is **not significant** at
+   n=98 (McNemar p 0.424, FDR q 0.944 after BH across arms). The 20Q pilot's
+   "direction" was correctly read as *directional*; full power lacks the
+   headroom to call it. The honest headline is: the gate's marginal value
+   over never-escalating is small and not statistically established on this
+   benchmark mix.
+2. **Forced escalation is a pure cost, confirmed at full power.**
+   always-hard ties base accuracy (±0.0, p 1.0) at **3.5× median latency**
+   and +17% per-question cost. The hard path's per-question benefit is
+   eaten by its multi-step token burn when applied unconditionally.
+3. **The oracle gate undercuts base** (−3.4pp, n.s.) — inverting the
+   pilot's "oracle ≥ base" expectation. Forcing the hard path on
+   questions the cheap path already got right *hurts* more than it
+   helps; the MuSiQue rerank-regression interaction (see
+   [testbench-results-layer1.md](testbench-results-layer1.md) §"Known
+   negatives") is the likely driver and is the M12 queue item.
+
+The pilot's conclusion is **superseded** by this full-power readout; the
+pilot remains visible here as the directional pre-declaration, with this
+section's verdict as the full-power correction.
 
 ## Cost of the whole M9 session
 
