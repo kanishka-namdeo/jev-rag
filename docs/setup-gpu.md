@@ -196,7 +196,7 @@ Checking ONNX Runtime providers...
 
 ## Performance Comparison
 
-| Component | CPU (2 cores) | GPU (RTX 2070) | Speedup |
+| Component | CPU (2 cores) | GPU (RTX 2070 Super) | Speedup |
 |-----------|---------------|----------------|---------|
 | jev-score | ~1.5s/query | ~0.5s/query | 3x |
 | Embedder (10 docs) | ~0.3s | ~0.1s | 3x |

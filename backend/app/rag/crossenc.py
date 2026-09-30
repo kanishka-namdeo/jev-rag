@@ -160,9 +160,36 @@ class CrossEncoderReranker:
         opts.intra_op_num_threads = self.threads or min(4, os.cpu_count() or 1)
         opts.execution_mode = ort.ExecutionMode.ORT_SEQUENTIAL  # low RAM
         opts.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
-        session = ort.InferenceSession(
-            str(onnx_path), sess_options=opts, providers=["CPUExecutionProvider"]
-        )
+        
+        # Prefer CUDA execution provider for GPU acceleration, fall back to CPU.
+        # Query onnxruntime for actually-available providers: when the CUDA
+        # provider is not installed (e.g. onnxruntime CPU wheel under WSL2,
+        # where GPU passthrough is unavailable), passing it raises ValueError
+        # ("Provider CUDAExecutionProvider is not available"), not the
+        # RuntimeError the CUDA-init path raises.
+        available = set(ort.get_available_providers())
+        providers = [p for p in ("CUDAExecutionProvider", "CPUExecutionProvider") if p in available]
+        if not providers:
+            providers = ["CPUExecutionProvider"]
+        if "CUDAExecutionProvider" in available:
+            logger.info("CUDA execution provider available for cross-encoder")
+        else:
+            logger.info("CUDA execution provider not available, using CPU for cross-encoder")
+        
+        try:
+            session = ort.InferenceSession(
+                str(onnx_path), sess_options=opts, providers=providers
+            )
+        except (RuntimeError, ValueError) as e:
+            # CUDA initialization failed (e.g., WSL2 GPU virtualization limitation)
+            # Fall back to CPU-only
+            if "CUDA" in str(e) or "cuda" in str(e):
+                logger.warning("CUDA provider failed, falling back to CPU: %s", e)
+                session = ort.InferenceSession(
+                    str(onnx_path), sess_options=opts, providers=["CPUExecutionProvider"]
+                )
+            else:
+                raise
 
         names = [i.name for i in session.get_inputs()]
 

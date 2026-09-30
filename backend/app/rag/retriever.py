@@ -61,10 +61,38 @@ class Embedder:
 
             logger.info("loading embedding model %s (cache=%s)",
                         self.settings.embed_model, self.settings.fastembed_cache_dir)
-            self._model = TextEmbedding(
-                model_name=self.settings.embed_model,
-                cache_dir=str(self.settings.fastembed_cache_dir),
-            )
+            # Prefer CUDA execution provider for GPU acceleration, fall back to CPU.
+            # Query onnxruntime for actually-available providers: when the CUDA
+            # provider is not installed (e.g. onnxruntime CPU wheel under WSL2,
+            # where GPU passthrough is unavailable), passing it raises ValueError
+            # ("Provider CUDAExecutionProvider is not available"), not the
+            # RuntimeError the CUDA-init path raises.
+            import onnxruntime as ort
+            available = set(ort.get_available_providers())
+            providers = [p for p in ("CUDAExecutionProvider", "CPUExecutionProvider") if p in available]
+            if not providers:
+                providers = ["CPUExecutionProvider"]
+            if "CUDAExecutionProvider" not in providers:
+                logger.info("CUDA execution provider not available; using CPU for embedder")
+            try:
+                self._model = TextEmbedding(
+                    model_name=self.settings.embed_model,
+                    cache_dir=str(self.settings.fastembed_cache_dir),
+                    providers=providers,
+                )
+            except (RuntimeError, ValueError) as e:
+                # CUDA initialization failed (e.g., WSL2 GPU virtualization
+                # limitation) or an unavailable provider was requested:
+                # Fall back to CPU-only
+                if "CUDA" in str(e) or "cuda" in str(e):
+                    logger.warning("CUDA provider unavailable/failed, falling back to CPU: %s", e)
+                    self._model = TextEmbedding(
+                        model_name=self.settings.embed_model,
+                        cache_dir=str(self.settings.fastembed_cache_dir),
+                        providers=["CPUExecutionProvider"],
+                    )
+                else:
+                    raise
             logger.info("embedding model ready")
             return True
         except Exception as e:  # noqa: BLE001

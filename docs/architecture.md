@@ -202,7 +202,7 @@ Jev-RAG is designed to run entirely on your local machine, with only the cloud L
 **On this system (Windows + WSL2):**
 - The browser runs natively on Windows.
 - Next.js, FastAPI, and all local models run inside **WSL2 Ubuntu-24.04** at `/mnt/d/test_jev/jev-rag`.
-- The GPU (RTX 2070) accelerates `jev-score` via llama.cpp CUDA, but the embedder and cross-encoder fall back to CPU (ONNX Runtime doesn't support WSL2 GPU passthrough — see [setup-gpu.md](setup-gpu.md)).
+- The GPU (RTX 2070 Super) accelerates `jev-score` via llama.cpp CUDA, but the embedder and cross-encoder fall back to CPU (ONNX Runtime doesn't support WSL2 GPU passthrough — see [setup-gpu.md](setup-gpu.md)).
 
 > **Note**: On native Linux or macOS, all components run directly on the host without WSL2. The GPU can accelerate all three local components if ONNX Runtime CUDA is configured.
 
