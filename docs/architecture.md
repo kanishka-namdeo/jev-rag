@@ -1,6 +1,8 @@
 # Architecture
 
-Jev-RAG is a local-first hybrid RAG system: everything except the cloud LLM endpoint runs
+> **TL;DR**: Jev-RAG runs two RAG pipelines side by side: a traditional embedding-retrieval path and a hybrid path where a local decision model ([Jev](glossary.md#jev)) reranks passages, gates context sufficiency, and routes between cloud models. Everything except the cloud LLM endpoint runs on-device.
+
+Jev-RAG is a local-first hybrid [RAG](glossary.md#rag-retrieval-augmented-generation) system: everything except the cloud LLM endpoint runs
 on-device.
 
 ```mermaid
@@ -17,9 +19,9 @@ flowchart LR
     ING[ingestion]
     DB[(SQLite<br/>docs · conversations · traces)]
     VS[(ChromaDB<br/>embedded vectors)]
-    EMB[fastembed ONNX<br/>multilingual MiniLM-L12]
+    EMB[fastembed ONNX<br/>sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2]
     BM25[BM25 lexical index<br/>rebuilt from Chroma]
-    CE[cross-encoder rerank<br/>ONNX CPU]
+    CE[cross-encoder rerank<br/>Xenova/ms-marco-MiniLM-L-6-v2 ONNX CPU]
     JEVL[jev-style 0.8B GGUF<br/>+ jev-score / llama.cpp]
     LLM[Dashscope endpoint<br/>qwen3.7-plus · qwen3.6-plus]
   end
@@ -61,35 +63,102 @@ design rationale and [rag-upgrade-2026-results.md](rag-upgrade-2026-results.md) 
 
 ### Shared retrieval stack (both arms)
 
-```
-INDEX   markitdown → structure-aware split (headings, ~900/140 preserved)
-        → contextual prefix ("doc title — section") into chunk text
-        → dense embed (fastembed) into Chroma (cosine)
-        → BM25 index over the same chunks (rebuilt lazily from Chroma contents)
-QUERY   BM25 top-N ‖ dense top-N → RRF fusion (k=60)
-        → cross-encoder rerank (ONNX, CPU, batched pairs) → top_k_use
+```mermaid
+sequenceDiagram
+    participant User
+    participant FastAPI
+    participant BM25
+    participant Dense
+    participant RRF
+    participant CrossEncoder
+    
+    User->>FastAPI: Query
+    par Parallel retrieval
+        FastAPI->>BM25: BM25 top-N
+        FastAPI->>Dense: Dense top-N
+    end
+    BM25-->>RRF: Candidates
+    Dense-->>RRF: Candidates
+    RRF->>CrossEncoder: Fused candidates
+    CrossEncoder-->>FastAPI: Reranked top_k_use
 ```
 
+**Indexing pipeline:** markitdown → structure-aware split (headings, ~900/140 preserved) → contextual prefix ("doc title — section") into chunk text → [dense embed](glossary.md#dense-embedding) (fastembed) into Chroma (cosine) → [BM25](glossary.md#bm25) index over the same chunks (rebuilt lazily from Chroma contents).
+
+**Query pipeline:** [BM25](glossary.md#bm25) top-N ‖ dense top-N → [RRF](glossary.md#rrf-reciprocal-rank-fusion) fusion (k=60) → [cross-encoder](glossary.md#cross-encoder-reranker) rerank (ONNX, CPU, batched pairs) → top_k_use.
+
 ### Traditional v3 (= 2026 baseline)
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant FastAPI
+    participant Retrieval
+    participant CloudLLM
+    
+    User->>FastAPI: Query
+    FastAPI->>Retrieval: RRF retrieval
+    Retrieval-->>FastAPI: Candidates
+    FastAPI->>FastAPI: Cross-encoder rerank → top-4
+    FastAPI->>CloudLLM: One call with context
+    CloudLLM-->>FastAPI: Answer with citations
+    FastAPI-->>User: Response
+```
 
 RRF retrieval → cross-encoder rerank → top-4 → **one** cloud call → answer with citations.
 No local LLM anywhere.
 
 ### Hybrid v3 (escalation design — the gate inversion)
 
+```mermaid
+sequenceDiagram
+    participant User
+    participant FastAPI
+    participant Jev
+    participant Retrieval
+    participant Gate
+    participant CloudLLM
+    
+    User->>FastAPI: Query
+    par Concurrent
+        FastAPI->>Jev: Effort routing (chat vs doc)
+        FastAPI->>Retrieval: RRF retrieval
+    end
+    Retrieval-->>FastAPI: Candidates
+    FastAPI->>FastAPI: Cross-encoder rerank
+    FastAPI->>Gate: Score-feature gate (top-1 ≥ θ?)
+    
+    alt Easy path (score ≥ θ)
+        Gate-->>FastAPI: Pass
+        FastAPI->>CloudLLM: One call
+        CloudLLM-->>FastAPI: Answer
+        FastAPI->>Jev: Citation verification
+        Jev-->>FastAPI: Verified
+    else Hard path (score < θ)
+        Gate-->>FastAPI: Fail
+        FastAPI->>CloudLLM: Decompose query
+        CloudLLM-->>FastAPI: Sub-queries
+        FastAPI->>Retrieval: Per-sub-query RRF
+        Retrieval-->>FastAPI: Candidates
+        FastAPI->>FastAPI: Rerank
+        Note over FastAPI: Optional battery (OFF by default)
+        FastAPI->>CloudLLM: CRAG corrective retry
+        CloudLLM-->>FastAPI: Retry answer
+        FastAPI->>CloudLLM: Best-of-2 candidates (concurrent)
+        CloudLLM-->>FastAPI: 2 candidates
+        FastAPI->>Jev: Best-of-2 selection
+        Jev-->>FastAPI: Selected candidate
+        FastAPI->>Jev: Citation verification
+        Jev-->>FastAPI: Verified
+    end
+    FastAPI-->>User: Response + composite quality
 ```
-effort_routing (jev, concurrent with retrieval — only decides chat vs doc,
-                P≥0.9 fast path, validated 0.76–0.96 vs ≤0.17 separation)
-   ‖ retrieval (RRF) → cross-encoder rerank
-EASY PATH  (gate passes: top-1 rerank score ≥ θ, calibrated on eval data)
-           → one cloud call → jev citation verification → done
-HARD PATH  (gate fails: score < θ)
-           → cloud decompose → per-sub-query RRF retrieval → rerank
-           → optional passage battery (OFF by default)
-           → CRAG corrective retry (1)
-           → best-of-2 (jev selects — relative judgment) → one cloud call
-           → jev citation verification → composite quality
-```
+
+**Effort routing** ([Jev](glossary.md#jev), concurrent with retrieval): decides chat vs doc, P≥0.9 fast path, validated 0.76–0.96 vs ≤0.17 separation.
+
+**Easy path** ([escalation gate](glossary.md#escalation-gate) passes: top-1 rerank score ≥ θ, calibrated on eval data): one cloud call → Jev citation verification → done.
+
+**Hard path** (gate fails: score < θ): cloud decompose → per-sub-query RRF retrieval → rerank → optional passage battery (OFF by default) → CRAG corrective retry (1) → best-of-2 (Jev selects — relative judgment) → one cloud call → Jev citation verification → composite quality.
 
 **Score-feature escalation gate.** The gate decides whether a question needs the
 expensive hard path *after* cheap retrieval, not before. It uses calibrated signals
@@ -107,6 +176,35 @@ to cross-encoder and score-features respectively.
 
 **Composite quality score** in code: 0.4·answers_request + 0.4·citations_supported +
 0.2·¬contradicts_context; message + full trace persisted, every decision in the UI trace panel.
+
+## What runs where?
+
+Jev-RAG is designed to run entirely on your local machine, with only the cloud LLM endpoint external. Here's the topology:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  Your browser (localhost:3000)                              │
+│    ↓ HTTP/SSE                                               │
+│  Next.js dev server (:3000)                                 │
+│    ↓ /backend-api/* rewrite                                 │
+│  FastAPI backend (:8000)                                    │
+│    ├─→ ChromaDB (embedded vectors, local SQLite)            │
+│    ├─→ fastembed (ONNX CPU, embeddings)                     │
+│    ├─→ BM25 index (in-memory, rebuilt from Chroma)          │
+│    ├─→ cross-encoder (ONNX CPU, reranking)                  │
+│    ├─→ jev-score subprocess (llama.cpp, 0.8B GGUF)          │
+│    └─→ Dashscope endpoint (cloud LLM: qwen3.7-plus)  ←──┐  │
+└───────────────────────────────────────────────────────────┼──┘
+                                                            │
+                              External network (HTTPS) ←─────┘
+```
+
+**On this system (Windows + WSL2):**
+- The browser runs natively on Windows.
+- Next.js, FastAPI, and all local models run inside **WSL2 Ubuntu-24.04** at `/mnt/d/test_jev/jev-rag`.
+- The GPU (RTX 2070) accelerates `jev-score` via llama.cpp CUDA, but the embedder and cross-encoder fall back to CPU (ONNX Runtime doesn't support WSL2 GPU passthrough — see [setup-gpu.md](setup-gpu.md)).
+
+> **Note**: On native Linux or macOS, all components run directly on the host without WSL2. The GPU can accelerate all three local components if ONNX Runtime CUDA is configured.
 
 ## Process topology (sandbox)
 

@@ -1,8 +1,10 @@
 # Setting up Jev-RAG on another system
 
+> **TL;DR**: One-command setup: clone → copy `.env` → run setup scripts → `dev.sh`. Total time: ~15 min on a 2-core/4GB machine.
+
 This guide takes a **fresh machine** — a clean Linux/macOS/WSL2 box with nothing but a
 shell, a C++ compiler and internet access — to a running Jev-RAG stack: both RAG
-pipelines, the local Jev-style decision model, the streaming UI and the benchmark lab.
+pipelines, the local [Jev](glossary.md#jev)-style decision model, the streaming UI and the benchmark lab.
 
 Everything on this page was re-validated on a wiped environment on 2026-09-28: the
 setup scripts ran end-to-end from an empty state (venv → models → backend boot, 35/35
@@ -80,6 +82,8 @@ git clone https://github.com/kanishka-namdeo/jev-rag.git
 cd jev-rag
 ```
 
+> **What you should see:** A new `jev-rag/` directory with `backend/`, `src/`, `scripts/`, `docs/` subdirectories.
+
 ### Step 1 — backend configuration
 
 ```bash
@@ -103,6 +107,8 @@ generator to avoid self-preference bias; keep that separation if you swap either
 bash scripts/setup_local_models.sh
 ```
 
+> **What you should see:** `STATUS: SUCCESS` at the end, plus a list of `jev-score*` binaries (expect `models/jev-style/build/jev-score`). The GGUF download is ~505 MB and the llama.cpp compile is the longest step (~5–10 min on 2 cores).
+
 What it does, in phases (each resumable):
 
 1. toolchain check (g++/clang++ mandatory; cmake auto-bootstraps via pip if missing)
@@ -120,6 +126,8 @@ Look for `STATUS: SUCCESS` at the end. Network-restricted? See
 bash scripts/setup_backend.sh
 ```
 
+> **What you should see:** `STATUS: SUCCESS — backend/.venv ready`. This creates `backend/.venv` (Python 3.12 via [uv](glossary.md)) and installs all dependencies (~1.5 GB).
+
 Creates `backend/.venv` (Python 3.12 via uv) and installs `backend/requirements.txt`,
 then sanity-imports fastapi/chromadb/fastembed/jev_style. Ends with
 `STATUS: SUCCESS — backend/.venv ready`.
@@ -130,11 +138,15 @@ then sanity-imports fastapi/chromadb/fastembed/jev_style. Ends with
 bun install
 ```
 
+> **What you should see:** `bun install` completes with a summary like `+ XXX packages` and a `node_modules/` directory created.
+
 ### Step 5 — run everything
 
 ```bash
 bash scripts/dev.sh
 ```
+
+> **What you should see:** Two log streams — Uvicorn running on `http://0.0.0.0:8000` and Next.js on `http://localhost:3000`. Open **http://localhost:3000** in your browser.
 
 `dev.sh` is self-healing: it auto-runs steps 1–3 if their outputs are missing, starts
 uvicorn on `:8000`, then the Next.js dev server on `:3000`. Open **http://localhost:3000**,

@@ -1,6 +1,12 @@
 """
 Generate high-quality diagrams for Jev-RAG documentation.
 Uses matplotlib for professional, publication-quality charts.
+
+v3 Architecture (2026-09-29):
+- Single generator: qwen3.7-plus (no model routing)
+- Score-feature escalation gate (calibrated retrieval scores)
+- 3 Jev decision points: effort routing, best-of-2, citation verification
+- Cross-encoder reranker (ONNX CPU)
 """
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
@@ -118,47 +124,40 @@ def create_results_chart():
     metrics = ['Answer\nRelevance', 'Context\nPrecision', 'Groundedness', 
                'Citation\nAccuracy', 'Latency\n(ms)']
     
-    # Raw scores
+    # Raw scores (v3 actual data from rag-upgrade-2026-results.md)
     v1_raw = [0.72, 0.65, 0.58, 0.52, 850]
     v2_raw = [0.78, 0.71, 0.71, 0.65, 720]
     v3_raw = [0.88, 0.85, 0.91, 0.86, 600]
-    hybrid_raw = [0.92, 0.89, 0.94, 0.90, 550]
     
     # Normalize latency (invert: lower ms = higher score)
     max_latency = 1000
     v1_scores = v1_raw.copy()
     v2_scores = v2_raw.copy()
     v3_scores = v3_raw.copy()
-    hybrid_scores = hybrid_raw.copy()
     
     v1_scores[4] = (max_latency - v1_raw[4]) / max_latency * 100
     v2_scores[4] = (max_latency - v2_raw[4]) / max_latency * 100
     v3_scores[4] = (max_latency - v3_raw[4]) / max_latency * 100
-    hybrid_scores[4] = (max_latency - hybrid_raw[4]) / max_latency * 100
     
     x = np.arange(len(metrics))
-    width = 0.16
+    width = 0.22
     
     # Create gradient-like bars
     bar_colors = {
         'v1': '#64748B',
         'v2': COLORS['primary'],
         'v3': COLORS['success'],
-        'hybrid': COLORS['accent']
     }
     
-    bars1 = ax.bar(x - 1.5*width, v1_scores, width, label='v1 (Baseline)', 
+    bars1 = ax.bar(x - width, v1_scores, width, label='v1 (Baseline)', 
                    color=bar_colors['v1'], alpha=0.7, edgecolor='white', 
                    linewidth=1, zorder=3)
-    bars2 = ax.bar(x - 0.5*width, v2_scores, width, label='v2 (7-slot Pipeline)', 
+    bars2 = ax.bar(x, v2_scores, width, label='v2 (7-slot Pipeline)', 
                    color=bar_colors['v2'], alpha=0.85, edgecolor='white', 
                    linewidth=1, zorder=3)
-    bars3 = ax.bar(x + 0.5*width, v3_scores, width, label='v3 (Escalation Gate)', 
+    bars3 = ax.bar(x + width, v3_scores, width, label='v3 (Escalation Gate)', 
                    color=bar_colors['v3'], alpha=0.9, edgecolor='white', 
                    linewidth=1, zorder=3)
-    bars4 = ax.bar(x + 1.5*width, hybrid_scores, width, label='Hybrid (Current)', 
-                   color=bar_colors['hybrid'], alpha=1.0, edgecolor='white', 
-                   linewidth=2, zorder=3)
     
     # Add value labels
     def add_value_labels(bars, values, raw_values):
@@ -182,7 +181,6 @@ def create_results_chart():
     add_value_labels(bars1, v1_scores, v1_raw)
     add_value_labels(bars2, v2_scores, v2_raw)
     add_value_labels(bars3, v3_scores, v3_raw)
-    add_value_labels(bars4, hybrid_scores, hybrid_raw)
     
     # Styling
     ax.set_ylabel('Score / Normalized Latency', fontsize=13, fontweight='bold', 
@@ -217,7 +215,15 @@ def create_results_chart():
 
 
 def create_escalation_gate_diagram():
-    """Create a professional escalation gate flow diagram."""
+    """Create v3 score-feature escalation gate flow diagram.
+    
+    v3 changes from v2:
+    - Score-feature gate (not Jev absolute sufficiency)
+    - Features: top1, margin, mean, above_floor
+    - Single threshold: gate_score_threshold = 0.5
+    - Both paths use qwen3.7-plus (no model routing)
+    - Hard path: decompose → multi-step retrieval → CRAG retry → best-of-2
+    """
     fig, ax = plt.subplots(figsize=(16, 11), dpi=200)
     ax.set_xlim(0, 16)
     ax.set_ylim(0, 11)
@@ -226,14 +232,14 @@ def create_escalation_gate_diagram():
     ax.axis('off')
     
     # Title
-    style_text(ax, 'Jev-RAG Escalation Gate', 8, 10.3, fontsize=26, 
+    style_text(ax, 'Jev-RAG v3 Escalation Gate', 8, 10.3, fontsize=26, 
               color=COLORS['text'], fontweight='bold')
-    style_text(ax, 'Context Sufficiency Decision Flow', 8, 9.8, fontsize=14, 
+    style_text(ax, 'Score-Feature Decision Flow (No Model Router)', 8, 9.8, fontsize=14, 
               color=COLORS['text_secondary'])
     
-    # Input section
+    # Input section - Reranked Passages
     draw_card(ax, 1, 7.5, 3.5, 1.5, 'Reranked Passages', 
-             'After jev-score reranking', color=COLORS['primary_dark'],
+             'After cross-encoder rerank', color=COLORS['primary_dark'],
              border_color=COLORS['primary'])
     
     # Arrow down
@@ -241,7 +247,7 @@ def create_escalation_gate_diagram():
     
     # Score Features
     draw_card(ax, 1, 4.8, 3.5, 1.5, 'Score Features', 
-             'top_score · score_gap · coverage',
+             'top1 · margin · mean · above_floor',
              color=COLORS['bg_elevated'], border_color=COLORS['accent'])
     
     # Arrow to decision
@@ -252,42 +258,42 @@ def create_escalation_gate_diagram():
                      facecolor=COLORS['warning'], edgecolor='white', 
                      linewidth=3, zorder=5)
     ax.add_patch(diamond)
-    style_text(ax, 'CONTEXT', 8, 5.8, fontsize=11, color='white', fontweight='bold')
-    style_text(ax, 'SUFFICIENT?', 8, 5.4, fontsize=11, color='white', fontweight='bold')
+    style_text(ax, 'TOP-1', 8, 5.8, fontsize=11, color='white', fontweight='bold')
+    style_text(ax, '≥ θ?', 8, 5.4, fontsize=11, color='white', fontweight='bold')
     
-    # YES path (up-right)
+    # YES path (up-right) - Easy Path
     draw_connector(ax, 9.3, 6.2, 11.5, 7.5, color=COLORS['success'], lw=3)
     style_text(ax, 'YES', 10.2, 7.1, fontsize=12, color=COLORS['success'], 
               fontweight='bold')
     
-    # Sufficient box
-    draw_card(ax, 11.5, 7.5, 3.5, 1.5, 'Context Sufficient', 
-             'Route to qwen3.7-plus (fast)',
+    # Easy path box
+    draw_card(ax, 11.5, 7.5, 3.5, 1.5, 'Easy Path', 
+             'One qwen3.7-plus call',
              color=COLORS['success_dark'], border_color=COLORS['success'],
              glow=True)
     
-    # NO path (down-right)
+    # NO path (down-right) - Hard Path
     draw_connector(ax, 9.3, 4.9, 11.5, 2.5, color=COLORS['warning'], lw=3)
     style_text(ax, 'NO', 10.2, 3.5, fontsize=12, color=COLORS['warning'], 
               fontweight='bold')
     
-    # Insufficient box
-    draw_card(ax, 11.5, 1, 3.5, 1.5, 'Context Insufficient', 
-             'Route to qwen3.6-plus (reasoning)',
+    # Hard path box
+    draw_card(ax, 11.5, 1, 3.5, 1.5, 'Hard Path', 
+             'Decompose → Multi-step → CRAG → Best-of-2',
              color=COLORS['warning_dark'], border_color=COLORS['warning'],
              glow=True)
     
-    # Arrows to Model Router
-    draw_connector(ax, 13.25, 7.5, 13.25, 5.8, color=COLORS['text_secondary'])
-    draw_connector(ax, 13.25, 2.5, 13.25, 4.2, color=COLORS['text_secondary'])
+    # Both paths converge to Citation Verification
+    draw_connector(ax, 13.25, 7.5, 13.25, 5.8, color=COLORS['success'])
+    draw_connector(ax, 13.25, 2.5, 13.25, 4.2, color=COLORS['warning'])
     
-    # Model Router
-    draw_card(ax, 10.5, 4.5, 2.5, 1.2, 'Model Router', 
-             'Select LLM based on gate',
+    # Citation Verification
+    draw_card(ax, 11.5, 4.5, 3.5, 1.2, 'Citation Verification', 
+             'Jev verifies each [n] citation',
              color=COLORS['accent'], border_color=COLORS['accent_light'])
     
     # Arrow to Final Answer
-    draw_connector(ax, 10.5, 5.1, 5.5, 5.1, color=COLORS['text_secondary'])
+    draw_connector(ax, 11.5, 5.1, 5.5, 5.1, color=COLORS['accent'])
     
     # Final Answer
     draw_card(ax, 2, 4.2, 3.5, 1.8, 'Final Answer', 
@@ -302,22 +308,22 @@ def create_escalation_gate_diagram():
                             edgecolor=COLORS['border'], linewidth=2)
     ax.add_patch(info_bg)
     
-    style_text(ax, 'Gate Thresholds', 2.5, 1.8, fontsize=12, 
+    style_text(ax, 'Gate Threshold (v3)', 2.5, 1.8, fontsize=12, 
               color=COLORS['text'], fontweight='bold')
-    style_text(ax, 'score_threshold = 0.75', 2.5, 1.35, fontsize=10, 
+    style_text(ax, 'gate_score_threshold = 0.5', 2.5, 1.35, fontsize=10, 
               color=COLORS['text_secondary'])
-    style_text(ax, 'gap_threshold = 0.15', 2.5, 0.95, fontsize=10, 
-              color=COLORS['text_secondary'])
-    style_text(ax, 'coverage_min = 0.60', 2.5, 0.55, fontsize=10, 
-              color=COLORS['text_secondary'])
+    style_text(ax, 'Calibrated on eval data (Youden J)', 2.5, 0.95, fontsize=9, 
+              color=COLORS['text_muted'])
+    style_text(ax, 'Single generator: qwen3.7-plus', 2.5, 0.55, fontsize=9, 
+              color=COLORS['text_muted'])
     
     # Legend
     legend_y = 0.8
     legend_items = [
         (COLORS['primary'], 'Input'),
-        (COLORS['accent'], 'Processing'),
-        (COLORS['success'], 'Success Path'),
-        (COLORS['warning'], 'Escalation Path'),
+        (COLORS['accent'], 'Jev Decision'),
+        (COLORS['success'], 'Easy Path'),
+        (COLORS['warning'], 'Hard Path'),
     ]
     
     for i, (color, label) in enumerate(legend_items):
@@ -336,7 +342,17 @@ def create_escalation_gate_diagram():
 
 
 def create_architecture_diagram():
-    """Create a professional v3 architecture diagram."""
+    """Create v3 architecture diagram.
+    
+    v3 Architecture:
+    - Document Ingestion: markitdown → chunk → fastembed → ChromaDB + BM25
+    - Query Processing: embed → retrieve (BM25 || Dense) → cross-encoder rerank
+    - Effort Routing (Jev choice: no_retrieval/single_pass/multi_step) - concurrent
+    - Score-feature escalation gate (top-1 score vs θ)
+    - Traditional path: Top-4 → single cloud call (qwen3.7-plus)
+    - Hybrid hard path: decompose → multi-step → CRAG → best-of-2 → citation verify
+    - NO Model Router - single generator qwen3.7-plus
+    """
     fig, ax = plt.subplots(figsize=(18, 10), dpi=200)
     ax.set_xlim(0, 18)
     ax.set_ylim(0, 10)
@@ -347,7 +363,7 @@ def create_architecture_diagram():
     # Title
     style_text(ax, 'Jev-RAG v3 Architecture', 9, 9.5, fontsize=28, 
               color=COLORS['text'], fontweight='bold')
-    style_text(ax, 'Local-First Hybrid RAG System', 9, 9.0, fontsize=14, 
+    style_text(ax, 'Local-First Hybrid RAG · Single Generator · Score-Feature Gate', 9, 9.0, fontsize=14, 
               color=COLORS['text_secondary'])
     
     # Section 1: Document Ingestion (left)
@@ -368,7 +384,7 @@ def create_architecture_diagram():
     draw_connector(ax, 2.25, 4.6, 2.25, 4.0, color=COLORS['text_secondary'])
     
     draw_card(ax, 0.5, 2.7, 3.5, 1.3, 'fastembed (ONNX)', 
-             'Local CPU embeddings', color=COLORS['bg_elevated'])
+             'paraphrase-multilingual-MiniLM-L12-v2', color=COLORS['bg_elevated'])
     
     # ChromaDB
     draw_card(ax, 0.5, 0.8, 3.5, 1.5, 'ChromaDB', 
@@ -390,11 +406,11 @@ def create_architecture_diagram():
     draw_connector(ax, 6.75, 6.5, 6.75, 5.9, color=COLORS['text_secondary'])
     
     draw_card(ax, 5, 4.6, 3.5, 1.3, 'Embed + Retrieve', 
-             'Hybrid BM25 || Dense', color=COLORS['bg_elevated'])
+             'Hybrid BM25 || Dense + RRF', color=COLORS['bg_elevated'])
     draw_connector(ax, 6.75, 4.6, 6.75, 4.0, color=COLORS['text_secondary'])
     
     draw_card(ax, 5, 2.7, 3.5, 1.3, 'Cross-Encoder Rerank', 
-             'Top-10 → Top-4 passages', color=COLORS['bg_elevated'])
+             'ms-marco-MiniLM-L-6-v2 → Top-4', color=COLORS['bg_elevated'])
     
     # Connection from ingestion to query
     draw_connector(ax, 4, 1.55, 5, 1.55, color=COLORS['text_secondary'])
@@ -409,7 +425,7 @@ def create_architecture_diagram():
     draw_connector(ax, 8.5, 3.35, 10.2, 5.2, color=COLORS['text_secondary'])
     
     # Traditional Pipeline (top path)
-    draw_card(ax, 11.5, 7.5, 3, 1.5, 'Traditional Pipeline', 
+    draw_card(ax, 11.5, 7.5, 3, 1.5, 'Traditional v3', 
              'Top-4 → Cloud LLM',
              color=COLORS['primary_dark'], border_color=COLORS['primary'],
              title_size=11)
@@ -417,8 +433,8 @@ def create_architecture_diagram():
     draw_connector(ax, 10.8, 5.8, 11.8, 7.2, color=COLORS['primary'], lw=2.5)
     style_text(ax, 'Simple', 11.0, 6.6, fontsize=9, color=COLORS['primary'])
     
-    draw_card(ax, 15, 7.5, 2.5, 1.5, 'Cloud LLM', 
-             'qwen3.7-plus\nSystem Two',
+    draw_card(ax, 15, 7.5, 2.5, 1.5, 'qwen3.7-plus', 
+             'Single generator\n(no router)',
              color='#1e1b4b', border_color=COLORS['accent'],
              title_size=11)
     
@@ -431,18 +447,18 @@ def create_architecture_diagram():
                               edgecolor=COLORS['success'], linewidth=3, alpha=0.3)
     ax.add_patch(hybrid_bg)
     
-    style_text(ax, 'Hybrid Pipeline (Jev-Style)', 13.4, 5.7, fontsize=13, 
+    style_text(ax, 'Hybrid v3 (Jev-Style)', 13.4, 5.7, fontsize=13, 
               color=COLORS['success_light'], fontweight='bold')
     
     draw_connector(ax, 10.8, 5.2, 11.8, 4.2, color=COLORS['success'], lw=2.5)
     style_text(ax, 'Complex', 11.0, 4.6, fontsize=9, color=COLORS['success'])
     
-    # Steps in hybrid
+    # v3 Hybrid steps
     steps = [
-        ('1. Rerank Passages', 4.8),
-        ('2. Escalation Gate', 3.8),
-        ('3. Model Router', 2.8),
-        ('4. Verify Groundedness', 1.8),
+        ('1. Effort Routing', 4.8),
+        ('2. Score-feature Gate', 3.8),
+        ('3. Best-of-2 (hard path)', 2.8),
+        ('4. Citation Verify', 1.8),
     ]
     
     for text, y_pos in steps:
@@ -471,7 +487,7 @@ def create_architecture_diagram():
     legend_items = [
         (COLORS['primary'], 'Traditional'),
         (COLORS['success'], 'Hybrid (Jev-Style)'),
-        (COLORS['accent'], 'Cloud'),
+        (COLORS['accent'], 'Cloud LLM'),
         (COLORS['bg_elevated'], 'Local'),
     ]
     
@@ -483,7 +499,7 @@ def create_architecture_diagram():
         style_text(ax, label, x_pos + 0.6, 0.45, fontsize=10, 
                   color=COLORS['text_secondary'], va='center')
     
-    style_text(ax, 'Everything except Cloud LLM runs locally', 16.5, 0.45, 
+    style_text(ax, 'Single generator: qwen3.7-plus · No model router', 16.5, 0.45, 
               fontsize=9, color=COLORS['text_muted'], ha='right')
     
     plt.tight_layout(pad=0.3)
@@ -494,7 +510,7 @@ def create_architecture_diagram():
 
 
 if __name__ == '__main__':
-    print("Generating Jev-RAG diagrams...")
+    print("Generating Jev-RAG v3 diagrams...")
     print()
     
     create_results_chart()
@@ -502,4 +518,10 @@ if __name__ == '__main__':
     create_architecture_diagram()
     
     print()
-    print("All diagrams generated successfully!")
+    print("All v3 diagrams generated successfully!")
+    print()
+    print("Key v3 changes reflected:")
+    print("  - Score-feature escalation gate (no Jev absolute sufficiency)")
+    print("  - Single generator: qwen3.7-plus (no model router)")
+    print("  - 3 Jev decision points: effort routing, best-of-2, citation verify")
+    print("  - Cross-encoder reranker (ONNX CPU)")

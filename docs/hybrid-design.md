@@ -1,5 +1,7 @@
 # Hybrid design: Jev-style System One + cloud System Two
 
+> **TL;DR (v3 design):** The hybrid pipeline uses a local 0.8B decision model ([Jev](glossary.md#jev)) for fast, calibrated decisions — effort routing, best-of-2 selection, citation verification — while the cloud LLM (qwen3.7-plus) writes the final prose. A score-feature escalation gate decides whether a question needs the expensive hard path (decompose → multi-step retrieval → best-of-2) after cheap retrieval, not before. This replaces the v2 absolute sufficiency gate, which the 0.8B model could not do reliably.
+
 > **v3 (2026-09-29):** the hybrid pipeline was redesigned around a score-feature escalation gate.
 > The absolute sufficiency gate (v2) was replaced with calibrated retrieval scores, limiting Jev
 > to 3 relative judgments (effort routing, best-of-2, citations). The v2 7-slot design is documented
@@ -119,6 +121,9 @@ P(evidence) collapses to ~0.03 on near-duplicate KBs — over-abstention 39.5%, 
 [docs/benchmark-v2-ablation.md](benchmark-v2-ablation.md)) recovered 50% → 100% with the
 battery off. Re-enable only after per-corpus threshold calibration against labeled data.
 
+<details>
+<summary>Historical: v2 pipeline (superseded)</summary>
+
 ## v2 pipeline: seven decision slots (historical, 2026-09-28)
 
 The v2 pipeline used Jev for 7 decision slots. This design caused a single-hop regression
@@ -143,6 +148,11 @@ query
 
 The v2 knobs are still present in the code as testbench arms but are OFF by default.
 
+</details>
+
+<details>
+<summary>Historical: v1 decision points (superseded)</summary>
+
 ## v1 decision points (superseded, kept for trace continuity)
 
 | Step | Primitive | State | Question |
@@ -153,6 +163,8 @@ The v2 knobs are still present in the code as testbench arms but are OFF by defa
 | Verification | noul | question + passages + answer | "The proposed answer is fully supported by the passages above." |
 
 Old conversations still render their v1 traces (`routing` decision records without effort).
+
+</details>
 
 ## Validated decision patterns (experiments in `backend/scripts/`)
 

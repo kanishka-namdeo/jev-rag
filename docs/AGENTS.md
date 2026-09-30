@@ -14,6 +14,12 @@
 - `setup-gpu.md` — GPU acceleration setup: WSL2 configuration, CUDA toolkit installation,
   onnxruntime-gpu package selection, cuDNN installation, and WSL2 GPU limitations.
   Documents the ONNX Runtime + WSL2 incompatibility and workarounds.
+- `glossary.md` — key terms and concepts (RAG, System One/Two, Jev, escalation gate, BM25, 
+  cross-encoder, nDCG, McNemar, etc.) organized by category with plain-English definitions 
+  and cross-references to source docs. Entry point for newcomers.
+- `results.md` — **single entry point for all benchmark results**: v3 headline numbers, 
+  key findings in plain English, results by area (retrieval ablations, H-GATE, public benchmarks, 
+  v2 ablation), v1→v2→v3 progression, and reproducibility notes. Links to detailed per-run reports.
 - `architecture.md` — system components and data flow
 - `hybrid-design.md` — the Jev / System-One design rationale: v3 score-feature escalation gate (current),
   v2 seven-slot pipeline (historical), v1 decision points (superseded), validated decision patterns,

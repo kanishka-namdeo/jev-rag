@@ -1,4 +1,6 @@
-# Benchmark Results — Traditional vs Hybrid (Jev) RAG
+# Public Benchmark Results — Wave 1
+
+> **TL;DR (v3 headline):** Across five public benchmarks (98 questions), hybrid 66.8% vs traditional 59.2% (**+7.6pp**). Multi-hop subset **+18.4pp**, single-hop **−7.3pp**. The hybrid is a multi-hop specialist, not a universal upgrade. See [results.md](results.md) for the full v3 analysis.
 
 - **Run**: `4dc6c46e-a566-4134-ab9d-a59a653564e5` — public RAG benchmarks: SQuAD v1.1 + HotpotQA dev-distractor (hybrid v2 battery-off vs traditional)
 - **Status**: completed · 100 result rows · 50 questions × 2 systems
@@ -55,6 +57,9 @@
 - **pairwise**: hybrid win rate 46.0% (W3/T17/L5)
 
 ## Per-question detail
+
+<details>
+<summary>Click to expand: Per-question detail (100 rows)</summary>
 
 | scenario | q | system | correctness | faithfulness | verdict | hit@4 | model | latency |
 |---|---|---|---|---|---|---|---|---|
@@ -158,6 +163,8 @@
 | squad | sq8 | traditional | 0.00 | 1.00 | abstained | 0 | qwen3.7-plus | 19.6s |
 | squad | sq9 | hybrid | 1.00 | 1.00 | answered | 1 | qwen3.7-plus | 63.7s |
 | squad | sq9 | traditional | 1.00 | 1.00 | answered | 1 | qwen3.7-plus | 13.0s |
+
+</details>
 
 _Methodology: docs/benchmarking.md · machine-readable artifact: backend/data/bench_exports/4dc6c46e-a566-4134-ab9d-a59a653564e5.json · generated 2026-09-28T12:56:20.645596+00:00._
 ---
