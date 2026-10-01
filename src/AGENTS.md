@@ -8,8 +8,11 @@
 
 ## Ownership
 
-- `app/page.tsx` — page shell: header, view switch (Chat | Benchmarks), sidebar, chat, trace panel
-- `app/layout.tsx` — fonts, metadata, theme provider, toasters
+- `app/page.tsx` — page shell: header, view switch (Chat | Benchmarks), sidebar, chat, trace panel;
+  footer copy names both halves honestly ("System One (local decisions) + System Two (cloud LLM)")
+- `app/layout.tsx` — fonts, metadata, theme provider, toasters; favicon is the local
+  `public/logo.svg` (`icons.icon: "/logo.svg"`) — no third-party icon URL may come back here, the
+  app makes no non-localhost request on load
 - `app/api/ensure-backend/route.ts` — self-healing backend launcher (spawns uvicorn detached)
 - `lib/jevrag/api.ts` — backend client; ALL backend calls go through `/backend-api/*` (Next rewrite)
 - `lib/jevrag/store.ts` — zustand store: messages, SSE event application, uploads, status
@@ -22,7 +25,10 @@
 - `components/jevrag/sidebar.tsx` — conversations + documents + upload dropzone
 - `components/jevrag/status-pill.tsx` — cloud/jev/docs health indicator
 - `components/jevrag/ui-bits.tsx` — shared atoms (ModeBadge, ProbabilityBar, CitationChip…)
-- `components/jevrag/bench/bench-view.tsx` — benchmark lab layout: header, scenario grid, run controls, progress
+- `components/jevrag/bench/bench-view.tsx` — benchmark lab layout: header, scenario grid, run controls, progress.
+  **Known stale string (a defect, not behavior):** its subtitle says "six document scenarios" while
+  11 ship (`:63`, count from `app/bench/scenarios.py`); `docs/usage.md` §Known gaps discloses it to
+  users until someone fixes the copy
 - `components/jevrag/bench/results-dashboard.tsx` — metric cards, per-scenario charts (recharts),
   pairwise/gate/abstention panels; `liveSummary` client-side aggregation while a run is in flight
 - `components/jevrag/bench/results-table.tsx` — per-question table with filters and drill-down
@@ -37,6 +43,10 @@
   and `done` may add `quality_score`, `best_of`, `retried` — see `lib/jevrag/types.ts`
 - Keep the backend mount symmetrical: FastAPI serves both `/api/*` and `/backend-api/*`
 - One user-visible route only: `/` (sandbox constraint)
+- UI copy is user-facing documentation. It may not claim a "fully local" stack while the cloud
+  generation call exists — name what runs on-device and name the one call that leaves (root
+  `AGENTS.md` local-first contract); and no third-party asset URL (icons, fonts, scripts) enters
+  `app/` or `public/`
 - No blue/indigo palette: hybrid = emerald, traditional = sky/amber accents, neutrals = zinc
   (bench charts: traditional #0ea5e9, hybrid #10b981)
 - All state flows through the zustand store; components stay presentational where possible

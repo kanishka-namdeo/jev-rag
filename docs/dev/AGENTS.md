@@ -19,6 +19,8 @@
   rules belong in the nearest owning doc (docs/AGENTS.md "stable contracts only").
 - A dated snapshot is never rewritten; add a newer snapshot instead.
 
+## Work Guidance
+
 ## Verification
 
 - `python3 scripts/validate_docs.py` (links out of this folder must resolve)
@@ -27,4 +29,4 @@
 
 | Child | Scope |
 | --- | --- |
-| (none) | Two files |
+| (none) | Flat diary folder: two append-only records, no sub-boundaries |

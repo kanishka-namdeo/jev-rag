@@ -136,6 +136,11 @@ instructions mention them. No child doc may weaken them.
   do not re-invent wheels unless absolutely necessary. State the library choice in the PR/commit.
 - **Ground claims with search.** Before assuming a library version, API shape, model capability,
   or "best practice", verify with a web search when feasible; cite sources in docs/PRs.
+- **Docs serve the user first.** `docs/README.md` is the human index; `usage.md`,
+  `configuration.md` and `troubleshooting.md` are the end-user layer and must match code
+  behavior, not aspiration. Claims in `README.md` and `docs/` carry a run id, a file:line,
+  or a documented default — or they are stated as unmeasured. `python3 scripts/validate_docs.py`
+  runs in CI and gates every markdown link and anchor.
 - **Local-first.** All data and inference except the Dashscope LLM endpoint must run on-device:
   no external vector DB, no external embedding APIs, no telemetry.
 - **Secrets never enter git.** API keys only in `backend/.env` (gitignored). Keep
@@ -196,7 +201,7 @@ instructions mention them. No child doc may weaken them.
 | [backend/AGENTS.md](backend/AGENTS.md) | FastAPI service, RAG pipelines, Jev-style engine, ingestion, storage, benchmark harness, tests |
 | [src/AGENTS.md](src/AGENTS.md) | Next.js frontend: chat UI, trace panel, documents, benchmarks dashboard, store and API client |
 | [scripts/AGENTS.md](scripts/AGENTS.md) | Setup, build and run scripts for models, backend, dev workflow, bench export |
-| [docs/AGENTS.md](docs/AGENTS.md) | Durable design docs: architecture, hybrid pipeline, API protocol, benchmarking methodology & results |
+| [docs/AGENTS.md](docs/AGENTS.md) | Durable design docs: architecture, hybrid pipeline, API protocol, benchmarking methodology & results — plus the end-user layer (`docs/README.md` hub, `usage.md`, `configuration.md`, `troubleshooting.md`) and the `docs/dev/` diaries |
 
 Intentionally unindexed local or generated roots: `node_modules/`, `.next/`, `backend/.venv/`,
 `backend/data/`, `models/`, `vendor/`, `logs/`, `mini-services/`, `download/`, `upload/`,

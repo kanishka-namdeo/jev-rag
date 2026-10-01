@@ -2,12 +2,27 @@
 
 ## Purpose
 
-- Durable design documentation: architecture, hybrid pipeline design (with research grounding),
-  the SSE API protocol shared by backend and frontend, and the benchmarking methodology +
+- The documentation surface of the project: the end-user layer (hub + day-to-day, configuration,
+  troubleshooting), the durable design docs (architecture, hybrid pipeline with research grounding,
+  the SSE API protocol shared by backend and frontend), and the benchmarking methodology +
   exported results.
 
 ## Ownership
 
+**User layer** — written for the person using the app, in second person; see the Local Contract below.
+
+- `README.md` (this folder) — the human hub: three lanes **Use it / Understand it / Measure it**, and
+  every durable doc in this folder sits in exactly one of them. The repo-root `README.md` mirrors the
+  lanes. Add, move or delete a doc here first — an orphan doc is a hub bug
+- `usage.md` — day-to-day end-user tasks: upload, ask, choose a mode, read an answer and its trace,
+  run the Benchmark Lab, read the logs. Includes its honest `## Known gaps` list — current defects and
+  missing affordances stated plainly, because that list is what the page promises
+- `configuration.md` — the whole settings surface: all 64 `app/config.py` fields with the **real code
+  default** (dumped from `Settings.model_fields`), whether the knob has a `backend/.env.example` line,
+  when to touch it and what it costs. Defaults here must equal the code; drift is a defect
+- `troubleshooting.md` — symptom-first recovery for an installed app (symptom → Check → Fix),
+  including that `/api/system/health` proves nothing. Install-level causes link
+  `setup.md`'s troubleshooting table instead of duplicating it
 - `setup.md` — BINDING fresh-system setup guide: requirements, the five-step setup path,
   the path-anchoring/portability contract, verification, day-2 operations, troubleshooting.
   Keep it current with every setup-script or configuration-interface change
@@ -69,10 +84,14 @@
 - `benchmark-results.md` — full run history: v1, v2 (battery on/off), and v3 headline.
   Export-script tables + curated statistical analysis, loss taxonomy, objectivity/confound disclosures.
   Regenerate tables after every full run, then refresh curated sections — never leave them contradicting.
+  **The trailing `## Run notes` section is curated prose too**: `export_bench_results.py` writes the
+  whole file (`dest.write_text`, `:180`), so a full export wipes it — re-apply it after every export
+  alongside the other curated sections.
   v3 is the current default; v2 is historical context for the gate-inversion narrative
-- `benchmark-v2-ablation.md` — finance-scenario battery-off ablation (run e98907aa):
-  attribution of the v2 regression to the passage-screening battery; supports the
-  `hybrid_passage_battery=false` default
+- `benchmark-v2-ablation.md` — the **full 6-scenario** battery-off ablation (run `bf05f585`,
+  48Q × 2 arms): attribution of the v2 −20.8pp regression to the passage-screening battery;
+  supports the `hybrid_passage_battery=false` default. Its finance-only preliminary
+  (run `e98907aa`) is the closing section of this page, not its subject
 - `benchmark-public.md` + `benchmark-public-wave2.md` — the two public-benchmark run
   reports (SQuAD/HotpotQA wave 1; TriviaQA/2Wiki/MuSiQue wave 2) with statistics and
   loss taxonomy; regenerated curated sections after each public run
@@ -100,9 +119,18 @@
   snapshots); own DOX in `dev/AGENTS.md`. Not durable docs and not end-user docs. The
   repo-root `worklog.md` was deliberately relocated here — it is intentionally absent from
   the durable-doc list above; do not re-add a diary to `docs/` proper or to the root.
+- `superpowers/` — agent artifacts, not user-facing docs: dated design specs in `specs/` and
+  their implementation plans in `plans/`, one pair per brainstorm (`<date>-<topic>.md` /
+  `<date>-<topic>-design.md`). They are committed records of a decision process, so amend them
+  in place only where execution overruled them (keep the reasoning visible), never to track
+  current behavior — current behavior lives in the owning doc above.
 
 ## Local Contracts
 
+- The user layer (`README.md`, `usage.md`, `configuration.md`, `troubleshooting.md`) never restates
+  install steps — `setup.md` owns them — and never restates a default outside `configuration.md`,
+  whose defaults must equal `app/config.py`. Every published claim in the user layer traces to a
+  run id, a `file:line`, or a documented default; anything that cannot trace says it is unmeasured
 - Docs describe stable contracts only; changelogs and diary entries do not belong here
   (they live in `dev/`)
 - Every external claim (model facts, prices, metric definitions, links) must carry its source URL

@@ -10,7 +10,9 @@
 
 - `app/main.py` — app factory, lifespan (model warm-up), router mounting (`/api/*` and `/backend-api/*`)
 - `app/config.py` — all settings (env prefix `JEVRAG_`, `backend/.env`), LLM price table, bench knobs;
-  resolves relative paths and locates `backend/.env` against the repo root (CWD-independent —
+  server fields `host` (default `127.0.0.1` — loopback, because the app has no auth) and
+  `frontend_origin` (+ its `cors_origins` property, never a wildcard) back the shipped reachability
+  default; resolves relative paths and locates `backend/.env` against the repo root (CWD-independent —
   see docs/setup.md §“Where paths resolve”)
 - `app/db.py` — SQLAlchemy models: Document, Conversation, Message (+trace JSON), BenchRun, BenchResult
 - `app/schemas.py` — pydantic request/response models
@@ -67,7 +69,11 @@ ONNX Runtime's CUDA provider does **not** work with WSL2's GPU virtualization la
 
 ## Local Contracts
 
-- All configuration via `JEVRAG_*` env vars; defaults must match `backend/.env.example`
+- All configuration via `JEVRAG_*` env vars. Adding (or re-defaulting) a setting is a three-way
+  same-commit obligation: the `app/config.py` default **+** a `backend/.env.example` line **+** the
+  `docs/configuration.md` row. `backend/tests/test_server_defaults.py` fails on code↔template drift
+  (and checks the declared defaults, never a live `Settings()`, so a developer's own `.env` cannot
+  decide the outcome); only the doc row is outside its reach — keep it honest by hand
 - Configured paths resolve relative to the repo root (never the process CWD) — keep that
   anchoring intact in `app/config.py` when adding new path settings
 - SSE event types are a frontend contract: `meta | status | retrieval | decision | rerank |
