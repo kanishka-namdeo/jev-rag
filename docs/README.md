@@ -34,7 +34,10 @@ Numbers, how they were produced, and how to reproduce them.
 - [testbench-results-layer2-full9.md](testbench-results-layer2-full9.md) — the full 9-arm record
 - [testbench-results-hgate.md](testbench-results-hgate.md) — the earlier 4-arm draw (reproducibility contrast)
 - [benchmark-results.md](benchmark-results.md) — complete run history
-- [benchmark-public.md](benchmark-public.md) · [benchmark-public-wave2.md](benchmark-public-wave2.md) · [benchmark-v2-ablation.md](benchmark-v2-ablation.md) · [rag-upgrade-2026-results.md](rag-upgrade-2026-results.md)
+- [benchmark-public.md](benchmark-public.md) — public wave 1 (run 4dc6c46e): SQuAD + HotpotQA, hybrid vs traditional, 50 questions
+- [benchmark-public-wave2.md](benchmark-public-wave2.md) — public wave 2 (run bcfdd120): TriviaQA + 2WikiMultiHopQA + MuSiQue, completing the five-benchmark 98-question set
+- [benchmark-v2-ablation.md](benchmark-v2-ablation.md) — the v2 regression attributed to the passage battery: battery off recovers v1-level numbers across all 6 scenarios (run bf05f585)
+- [rag-upgrade-2026-results.md](rag-upgrade-2026-results.md) — the v3 headline run (16814bd5): upgraded traditional vs hybrid on 98 public questions, plus the H-GATE ablation
 - [parallel-bench-runbook.md](parallel-bench-runbook.md) — multi-worker runs on a workstation
 
 ## Contribute
