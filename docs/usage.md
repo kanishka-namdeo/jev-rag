@@ -55,8 +55,9 @@ data directory). Restarting the backend alone changes nothing for stored vectors
 Type in the composer at the bottom and press **Enter** to send; **Shift+Enter** inserts a
 newline. The default mode is Traditional.
 
-- A message must be **1–8000 characters**. Over 8000 the backend rejects it with HTTP 422 and
-  you get a red error box — see [Known gaps](#known-gaps) for what it actually shows.
+- A message must be **1–8000 characters**. Send more and the backend rejects it with HTTP 422;
+  the red box that appears reads `Error: [object Object]`, not the validation detail — see
+  [Known gaps](#known-gaps).
 - Follow-ups work: the last **8 messages** of the current conversation are replayed to the
   model as history. Older turns are not — the model genuinely forgets them.
 - Conversations are titled automatically from your first question and can't be renamed. The
@@ -198,10 +199,14 @@ These are real today — no euphemisms:
 - **You cannot stop a running stream.** The send button swaps to a stop (square) glyph while
   streaming, but it's disabled and unwired — clicking it does nothing. Mode tabs, the composer
   and history clicks all lock until the answer completes.
-- **An over-8000-character message is opaque.** You get one pointless "backend waking up…
-  retrying" attempt, then a red box reading `Error: [object Object]` instead of the 422
-  validation detail. Stay under 8000 characters.
+- **An over-8000-character message is opaque.** The 422 carries a real validation detail, but
+  the client stringifies it into nothing — the red box reads `Error: [object Object]`. The
+  store's generic self-heal path can also re-fire the same doomed request once internally;
+  that's an implementation detail, not something you're meant to watch. Stay under
+  8000 characters.
 - The dropzone hint advertises 7 formats; 11 are accepted (see [Add documents](#add-documents)).
+- **No per-document scoping.** Every question searches your whole corpus — you can't limit one
+  to a subset of files.
 - The lab's own subtitle still says "six document scenarios" — there are eleven.
 - **No copy-answer button**, and the trace panel isn't copyable. The only clipboard action in
   the app is "Copy status JSON" in the status popover.
