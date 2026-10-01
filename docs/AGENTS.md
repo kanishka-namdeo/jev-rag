@@ -77,8 +77,12 @@
   reports (SQuAD/HotpotQA wave 1; TriviaQA/2Wiki/MuSiQue wave 2) with statistics and
   loss taxonomy; regenerated curated sections after each public run
 - `assets/img/` — README banner + UI screenshots + architecture/benchmark visualizations.
-  UI shots (`bench-lab.png`, `bench-charts.png`, `chat-compare.png`, `trace-panel.png`,
-  `v2-*.png`) are regenerable only from the live app (live-browser capture, not mocks);
+  Inventory: `banner.svg`, the four live-browser UI shots (`bench-lab.png`,
+  `bench-charts.png`, `chat-compare.png`, `trace-panel.png`), the three
+  `generate_diagrams.py` PNGs (`v3-architecture-v2.png`, `escalation-gate-v2.png`,
+  `v3-results-chart.png`) and their `.mmd`/`.svg` siblings, `layer2-arm-results.png`,
+  and `social-preview.png` (rendered by `scripts/render_social_preview.py`).
+  UI shots are regenerable only from the live app (live-browser capture, not mocks);
   refresh them after any UI change that alters what the README shows.
   Diagram PNGs (`v3-architecture-v2.png`, `escalation-gate-v2.png`, `v3-results-chart.png`)
   are produced by `assets/img/generate_diagrams.py` — a reproducible matplotlib script
@@ -89,9 +93,9 @@
   renders it from a merged testbench run's DB, so every number on it is measured — unlike the
   three `generate_diagrams.py` PNGs above, whose literals are illustrative. It currently
   illustrates Layer-2 run `36abefc6`; regenerate it from the run it documents, never hand-edit it.
-  The sibling `.mmd` files are documentation-only — nothing in the repo renders them
-  (no `mmdc`/graphviz on this box), so treat the PNG as the source of truth and keep the
-  `.mmd` text consistent with `generate_diagrams.py` by hand when either changes.
+  The sibling `.mmd`/`.svg` files are documentation-only — nothing in the repo renders
+  them (no `mmdc`/graphviz on this box), so treat the PNG as the source of truth and keep
+  the `.mmd` text consistent with `generate_diagrams.py` by hand when either changes.
 - `dev/` — append-only engineering diaries (the per-task `worklog.md`, dated status
   snapshots); own DOX in `dev/AGENTS.md`. Not durable docs and not end-user docs. The
   repo-root `worklog.md` was deliberately relocated here — it is intentionally absent from
