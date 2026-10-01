@@ -6,8 +6,6 @@ from __future__ import annotations
 import os
 import tempfile
 
-import pytest
-
 _TMP = tempfile.mkdtemp(prefix="jevrag-sd-")
 os.environ.setdefault("JEVRAG_LAZY_MODELS", "1")
 os.environ.setdefault("JEVRAG_DATA_DIR", _TMP)
@@ -42,19 +40,22 @@ def test_default_host_is_loopback(monkeypatch):
     assert Settings(_env_file=None).host == "127.0.0.1"
 
 
-def test_cors_never_allows_wildcard_by_default():
+def test_cors_never_allows_wildcard_by_default(monkeypatch):
     from fastapi.middleware.cors import CORSMiddleware
 
     from app.config import Settings
     from app.main import create_app
 
+    monkeypatch.delenv("JEVRAG_FRONTEND_ORIGIN", raising=False)
     mw = [m for m in create_app().user_middleware if m.cls is CORSMiddleware]
     assert mw, "CORSMiddleware missing"
     assert "*" not in mw[0].kwargs["allow_origins"], mw[0].kwargs["allow_origins"]
     # The middleware check above reflects the *effective* config — a developer's own
     # backend/.env (gitignored, real on a dev box) can set JEVRAG_FRONTEND_ORIGIN and decide
-    # its outcome. Construct Settings(_env_file=None) to prove the SHIPPED default excludes
-    # the wildcard regardless of ambient files or env.
+    # its outcome. _env_file=None bypasses only the dotenv file (pydantic-settings still
+    # reads the process env), so delenv the origin first, then construct Settings
+    # (_env_file=None) to prove the SHIPPED default excludes the wildcard regardless of
+    # ambient files or env.
     assert "*" not in Settings(_env_file=None).cors_origins
 
 
