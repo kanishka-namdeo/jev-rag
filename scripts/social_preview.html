@@ -44,6 +44,8 @@
   .stat.sky .n { color: #38bdf8; }
   .stat .l { font-size: 17.5px; color: #94a3b8; margin-top: 6px; line-height: 1.35; }
 
+  .footnote { margin-top: 20px; font-size: 15.5px; color: #64748b; line-height: 1.4; }
+
   .footer { margin-top: auto; display: flex; align-items: center; gap: 14px;
     font-size: 19px; color: #64748b; }
   .chip { border: 1.5px solid #334155; border-radius: 999px; padding: 7px 18px;
@@ -61,10 +63,11 @@
       exactly what the <b>hybrid</b> adds.</div>
 
     <div class="stats">
-      <div class="stat"><div class="n">+8.4pp</div><div class="l">correctness on the internal suite (48 Q, independent judge)</div></div>
-      <div class="stat"><div class="n">+18.4pp</div><div class="l">pooled on public multi-hop benchmarks (SQuAD · HotpotQA · MuSiQue …)</div></div>
-      <div class="stat sky"><div class="n">0</div><div class="l">fabrications · over-abstention 14% → 2.3% · $0.0004 per query</div></div>
+      <div class="stat"><div class="n">+5.1pp</div><div class="l">correctness vs traditional RAG, pooled on 98 public questions (p = 0.065)</div></div>
+      <div class="stat"><div class="n">+9.8pp</div><div class="l">significant single-hop win (n = 41, p = 0.048) · multi-hop +1.8pp, n.s.</div></div>
+      <div class="stat sky"><div class="n">0 / 9</div><div class="l">Layer-2 arms beat base at FDR q &lt; 0.05 · 882-triple null, published</div></div>
     </div>
+    <div class="footnote">Runs 16814bd5 &amp; 36abefc6 · the hybrid also abstains less (25.5% vs 35.7%) and costs less ($0.148 vs $0.165 / suite) · full record: docs/results.md</div>
 
     <div class="footer">
       <span class="dot" style="background:#38bdf8"></span><span>Traditional</span>
