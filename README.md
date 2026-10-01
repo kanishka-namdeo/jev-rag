@@ -23,7 +23,7 @@ Drop documents on your machine, ask questions about them, and get streamed answe
 
 Built for **one person on one machine** (or one trusted team on a shared workstation) who wants their corpus to never leave their disk and their answers to be checkable.
 
-It is **not** multi-tenant: no user accounts, no per-user ACLs — one SQLite database holds a single shared knowledge base. It is **not** fully offline: exactly one call leaves your machine per answer, the cloud LLM generation (see [Privacy](#privacy-what-stays-local)). And it ships **no authentication** — the server listens on loopback only, which is the safety model (see [SECURITY.md](SECURITY.md)).
+It is **not** multi-tenant: no user accounts, no per-user ACLs — one SQLite database holds a single shared knowledge base. It is **not** fully offline: your document content goes to exactly **one** destination outside your machine — the cloud LLM endpoint in `backend/.env` — but on the hybrid path that endpoint may be called more than once per answer (see [Privacy](#privacy-what-stays-local)). And it ships **no authentication** — the server listens on loopback only, which is the safety model (see [SECURITY.md](SECURITY.md)).
 
 ## Screenshots
 
@@ -42,7 +42,7 @@ It is **not** multi-tenant: no user accounts, no per-user ACLs — one SQLite da
 | --- | --- | --- |
 | CPU | 2 cores | 4+ cores |
 | RAM | 4 GB | 8 GB |
-| Disk | ~5 GB | ~8 GB |
+| Disk | ~5 GB free | 8 GB |
 | OS | Linux, macOS, Windows via WSL2 | — |
 | GPU | not required — jev-score uses CUDA when present; embedder and reranker fall back to CPU (ONNX Runtime does not support WSL2 GPU passthrough) | |
 
@@ -67,7 +67,7 @@ Open http://localhost:3000 — allow ~15 min total on a 2-core/4 GB machine. **F
 | Mode | What runs | What you get | Rough latency |
 | --- | --- | --- | --- |
 | **Traditional** | hybrid retrieval → cross-encoder rerank → one cloud call | cited answer | ~20 s p50 measured on 2 cores |
-| **Hybrid · Jev** | the above plus effort routing, an escalation gate, sub-query decomposition, corrective retry, best-of-2 and citation verification | cited answer + groundedness and quality badges + full decision trace | ~41 s p50, only on the ~10 % of questions that escalate |
+| **Hybrid · Jev** | the above plus effort routing, an escalation gate, sub-query decomposition, corrective retry, best-of-2 and citation verification | cited answer + groundedness and quality badges + full decision trace | ~41 s p50 overall (same 2-core sandbox); only ~1 in 5 questions take the heavy path, and those cost more |
 | **Compare** | both of the above, concurrently, in one browser request pair | the two answers side by side | both at once |
 
 Compare is not a third pipeline: the frontend runs the other two side by side (`src/lib/jevrag/store.ts`). The groundedness badge only ever appears on hybrid answers, because the traditional path does not run citation verification.
@@ -84,14 +84,14 @@ flowchart LR
     V --> R
     R --> F{escalation gate<br/>score features}
     F -->|easy| T[cloud LLM]
-    F -->|hard ~10%| H[decompose -> retry -> best-of-2 -> citation check] --> T
+    F -->|hard ~1-in-5| H[decompose -> retry -> best-of-2 -> citation check] --> T
     T --> S[stream + citations + trace]
     F -.decisions.-> J[local 0.8B model]
 ```
 
 *Both pipelines share the retrieval stack; the hybrid gates on calibrated retrieval scores and only spends the heavy path where it might pay.*
 
-**The escalation gate** decides whether a question needs the expensive path *after* cheap retrieval, not before: it reads score features (top-1 score, margin, mean) from the reranked passages, routes easy questions to a single LLM call, and sends the hard ~10 % through decomposition, retry, best-of-2 selection and citation verification.
+**The escalation gate** decides whether a question needs the expensive path *after* cheap retrieval, not before: it reads score features (top-1 score, margin, mean) from the reranked passages, routes easy questions to a single LLM call, and sends the roughly 1-in-5 hard questions (at the shipped gate threshold) through decomposition, retry, best-of-2 selection and citation verification.
 
 **The local decision model** is a 0.8B Jev-style GGUF running on llama.cpp. It makes typed, calibrated decisions — "is this passage relevant?", "which candidate is better?", "is this citation supported?" — and never generates prose; the cloud LLM writes the answer. [Learn more in the glossary](docs/glossary.md).
 
@@ -109,7 +109,7 @@ Conditions: 98 questions × 5 public scenarios; independent judge (`kimi-k2.5`, 
 
 **A single Layer-2 draw is not a finding** — re-running the four M11 arms a day apart flipped `oracle-gate`'s delta from −3.6 pp to +2.5 pp. Quote both draws or neither.
 
-Fabrication is only measured on the five unanswerable questions in the internal `outofscope` scenario: 0/5 in the last two internal runs (v2 pipeline, runs `9d894b6c` and `bf05f585`), after one draw measured 1/5 for a different reason (run `0314ac0a`). **The v3 pipeline has not had its fabrication rate published.** The public benchmark suites contain no unanswerable questions, so no public run can produce this metric — see [docs/benchmarking.md](docs/benchmarking.md).
+Fabrication is only measured on the five unanswerable questions in the internal `outofscope` scenario, and the two 0/5 runs bracket the bad draw rather than closing it: the first internal run, `9d894b6c` (hybrid v1), and the last one that measured it, `bf05f585` (hybrid v2 with the passage battery off), both scored 0/5; the intervening `0314ac0a` (v2, battery on) measured 1/5 — the no-retrieval fast path answered one question from parametric knowledge. **The v3 pipeline has not had its fabrication rate published.** The public benchmark suites contain no unanswerable questions, so no public run can produce this metric — see [docs/benchmarking.md](docs/benchmarking.md).
 
 **Full record:** [docs/results.md](docs/results.md) · **Methodology:** [docs/benchmarking.md](docs/benchmarking.md) · **9-arm suite:** [docs/testbench-results-layer2-full9.md](docs/testbench-results-layer2-full9.md)
 
@@ -117,8 +117,11 @@ Fabrication is only measured on the five unanswerable questions in the internal 
 
 Everything that touches your documents runs on your machine: parsing, chunking,
 embeddings, the vector store, BM25, the reranker, the local decision model, and the
-SQLite database. **One** call leaves your computer: the cloud LLM that writes the
-answer, to the OpenAI-compatible endpoint in `backend/.env`.
+SQLite database. What leaves is cloud LLM traffic, and it goes to exactly **one**
+destination: the OpenAI-compatible endpoint in `backend/.env`. A traditional answer
+makes one call there; a hybrid answer can make several — the hard path generates two
+best-of-2 candidates concurrently and a corrective retry may add another — all to
+that same endpoint.
 
 The backend binds to `127.0.0.1` by default and has **no authentication**. Set
 `JEVRAG_HOST=0.0.0.0` only if you deliberately want other devices on your network to
