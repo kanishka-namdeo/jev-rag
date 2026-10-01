@@ -26,6 +26,11 @@
 - `setup.md` — BINDING fresh-system setup guide: requirements, the five-step setup path,
   the path-anchoring/portability contract, verification, day-2 operations, troubleshooting.
   Keep it current with every setup-script or configuration-interface change
+- `windows-setup.md` — the Windows 10/11 + WSL2 (Ubuntu-24.04) walkthrough of the same install
+  path for this specific machine: PowerShell WSL setup, `wsl -d Ubuntu-24.04 -- bash -ic` command
+  prefixes, `/mnt/d` paths, WSL2-specific troubleshooting and this hardware's performance notes.
+  Complements `setup.md` and never replaces it — `setup.md` stays the binding cross-platform guide;
+  its dated "Current System State" snapshot section is history, not a live claim
 - `setup-gpu.md` — GPU acceleration setup: WSL2 configuration, CUDA toolkit installation,
   onnxruntime-gpu package selection, cuDNN installation, and WSL2 GPU limitations.
   Documents the ONNX Runtime + WSL2 incompatibility and workarounds.
