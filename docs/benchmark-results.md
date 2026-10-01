@@ -2,7 +2,7 @@
 
 > **TL;DR (v3 headline):** Across five public benchmarks (98 questions), hybrid 66.8% vs traditional 59.2% (**+7.6pp**). Multi-hop subset **+18.4pp**, single-hop **−7.3pp**. The hybrid is a multi-hop specialist, not a universal upgrade. See [results.md](results.md) for the full v3 analysis.
 
-**Jump to:** [v3 battery-off (current)](#run-bf05f585-configuration-battery-off-ablation) · [v3 public wave 1](#run-4dc6c46e-public-benchmarks) · [v3 public wave 2](#run-bcfdd120-public-benchmarks-wave-2) · [v2 battery-on (archived)](#run-0314ac0a-archived-battery-on--the-motivating-negative-result) · [v1 (archived)](#archived-run-9d894b6c--hybrid-v1-four-slot-pipeline)
+**Jump to:** [v3 battery-off (current)](#run-bf05f585-configuration-battery-off-ablation) · [v3 public wave 1](benchmark-public.md#headline-all-scenarios-pooled) · [v3 public wave 2](benchmark-public-wave2.md#headline-all-three-wave-2-scenarios-pooled) · [v2 battery-on (archived)](#run-0314ac0a-archived-battery-on--the-motivating-negative-result) · [v1 (archived)](#archived-run-9d894b6c--hybrid-v1-four-slot-pipeline)
 
 Five full runs are documented here — three on the internal 6-scenario suite, two
 on popular public benchmarks:
