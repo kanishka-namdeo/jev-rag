@@ -84,15 +84,19 @@
   under `backend/app/bench/corpora/` and the unindexed roots, because those are test data and
   generated trees, not docs): relative link and image existence (including the outer target
   of a badge link, `[![alt](img)](target)`), heading anchors for **both** same-page `#frag`
-  links and `page.md#frag` deep links, `<details>` balance, secret-pattern scan. Anchor slugs
+  links and `page.md#frag` deep links, `<details>` balance, and a hardcoded secret-prefix
+  check (`SECRET_PATTERNS` — three literal prefixes at `validate_docs.py:21`; it is **not**
+  a general secret detector: a generic `sk-…` key or a classic `ghp_` PAT passes it. The
+  real protection is the root AGENTS.md secrets contract: keys only ever in gitignored
+  `backend/.env`, and scan staged content before pushing). Anchor slugs
   reproduce GitHub's own rule — lowercase, punctuation and emoji dropped, **every** remaining
   space becomes a hyphen with no collapsing or trimming (`## A — B` → `a--b`,
   `## 📸 Screenshots` → `-screenshots`, ``## Run `bf05f585` config`` keeps `bf05f585`), with a
   deliberate leniency for the leading-hyphen-stripped form. Measured against GitHub's render
   of the in-scope docs: 160/161 ids; the one deviation (an emoji plus U+FE0F keeps GitHub's
   invisible variation selector) is explained in the script. Markup is read from prose only
-  (fences and inline code are not links), but anchor slugs keep inline-code text; the secret
-  scan still reads raw text. An unreadable or undecodable file becomes an `ERROR:` line, never
+  (fences and inline code are not links), but anchor slugs keep inline-code text; the prefix
+  check still reads raw text. An unreadable or undecodable file becomes an `ERROR:` line, never
   a traceback. Exit 1 on any error. Run it before pushing any docs change — it is a CI job,
   not an optional check. Formerly README-only (`validate_readme.py`), then briefly every
   tracked `.md`.

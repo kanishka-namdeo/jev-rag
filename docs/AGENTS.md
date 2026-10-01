@@ -153,10 +153,11 @@
   `docs/**`, `.github/**`, and every `AGENTS.md`; the benchmark corpora and the unindexed
   generated/vendored roots are out of scope) for links, anchors, images, `<details>` balance
   and secret patterns. Anchors are checked against GitHub's own slug rule for same-page
-  `#frag` links and `page.md#frag` deep links alike, so a hand-written anchor must be the
-  anchor GitHub actually emits (emoji headings keep a leading hyphen; inline code keeps its
-  text in the slug); CI job `docs` runs it, so a docs change that breaks a link fails the
-  pipeline
+  `#frag` links and `page.md#frag` deep links alike, with one deliberate leniency: the
+  leading-hyphen-stripped form also passes (`anchors_of`, `validate_docs.py:127-131`), so
+  the gate accepts e.g. `#screenshots` even though GitHub actually emits `-screenshots` for
+  an emoji heading — write the anchor GitHub emits (inline code keeps its text in the slug);
+  CI job `docs` runs it, so a docs change that breaks a link fails the pipeline
 - Manual review on change; cross-check protocol tables against `backend/app/rag/pipelines.py`
   and `src/lib/jevrag/types.ts` after any protocol change
 - Cross-check `benchmarking.md` metric formulas against `backend/app/bench/metrics.py` and

@@ -75,7 +75,9 @@ The header tabs pick the pipeline per question:
   one cloud LLM call writes the cited answer. No local model does any reasoning here.
 - **Hybrid · Jev** — everything Traditional does, plus the local System One: effort routing,
   a score-feature escalation gate that decides easy vs hard path (the calibrated top-1 rerank
-  score against a threshold, 0.6 by default), and on the hard path sub-question decomposition,
+  score against a threshold — the default lives in
+  [configuration.md — Hybrid pipeline and escalation gate](configuration.md#hybrid-pipeline-and-escalation-gate)),
+  and on the hard path sub-question decomposition,
   corrective query rewrite and retry, best-of-2 candidate generation with Jev selection, and
   batched citation verification that produces a composite quality score. Hybrid needs the
   local `jev-score` engine; if it's down you'll see "Local Jev-style engine unavailable" as a
