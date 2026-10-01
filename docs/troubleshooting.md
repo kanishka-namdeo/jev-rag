@@ -141,12 +141,12 @@ Hybrid answers take tens of seconds and you want to know what's actually eating 
 
 **Check.** Open the trace panel (**View trace**) and read the **Timings** section —
 per-stage milliseconds, sorted by cost. What normally dominates, in the published v3
-profile measured on a 2-core sandbox: cloud LLM streaming (~15–20 s of every answer), then
+profile measured on a 2-core sandbox: cloud LLM streaming (~20 s of every answer), then
 the local decisions — each Jev `decide()` call costs a second or two on CPU, and the hard
 path stacks more of them (decompose, corrective retry, best-of-2 doubles the cloud
 generation). Numbers: traditional p50 ≈ 20 s, hybrid p50 ≈ 41 s on the 2-core sandbox
-([hybrid-design.md — Latency profile](hybrid-design.md)); the same suite measured on a
-12-core workstation came in around 20 s p50
+([hybrid-design.md — Latency profile](hybrid-design.md)); the `base` arm of Layer-2 run
+`36abefc6` on a 12-core workstation came in around 20 s p50
 ([testbench-results-layer2-full9.md](testbench-results-layer2-full9.md)). The escalation
 gate keeps this machine-dependent: at the default threshold roughly 1-in-5 public-benchmark
 questions took the multi-step hard path in the published run — the other ~80% answered on
@@ -185,8 +185,8 @@ Answers start erroring, the status pill goes red, and the UI briefly shows
 backend under memory pressure (the engine alone wants ~1.5 GB RSS). Look in `logs/backend.log`
 (or the `dev.sh` terminal) for the process going quiet mid-request, and on Linux check the
 kernel log (`dmesg | tail`) for a "Killed process" line. Two side effects confirm a restart
-happened: any benchmark run that was in flight is marked failed with
-`run orphaned by backend restart (was running X/Y)` — that's the startup reaper in
+happened: any benchmark run that was in flight is marked failed with a message starting
+`run orphaned by backend restart` — that's the startup reaper in
 `backend/app/main.py` doing bookkeeping, not data corruption — and per-question bench
 results that were already committed survive.
 
