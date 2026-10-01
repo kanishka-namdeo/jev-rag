@@ -95,9 +95,14 @@
   not an optional check. Formerly README-only (`validate_readme.py`), then briefly every
   tracked `.md`.
 - `render_social_preview.py` + `social_preview.html` — regenerates the repo social
-  preview card (Playwright, 1280×640 @2x) into `docs/assets/img/social-preview.png`;
-  update the HTML source, re-render, then upload via repo Settings (the REST upload
-  endpoint is closed to PATs)
+  preview card (Playwright, 1280×640 at **1×**) into `docs/assets/img/social-preview.png`.
+  1× is required, not cosmetic: GitHub caps the social preview under 1 MB and recommends
+  1280×640, and the old `device_scale_factor=2` render came out 2560×1280 / 1.07 MB.
+  The script anchors both its HTML input and its PNG output to the repo root via
+  `Path(__file__).resolve().parents[1]` (no hardcoded absolute paths). Run it with a
+  Playwright-enabled interpreter (`playwright` is not in `backend/.venv`).
+  Update the HTML source, re-render, then upload via repo Settings (the REST upload
+  endpoint is closed to PATs) — that upload is a manual maintainer step
 - `test-assets/` — sample documents for manual testing (unindexed)
 
 ## Local Contracts
