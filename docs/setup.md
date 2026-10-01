@@ -1,6 +1,6 @@
 # Setting up Jev-RAG on another system
 
-> **TL;DR**: One-command setup: clone → copy `.env` → run setup scripts → `dev.sh`. Total time: ~15 min on a 2-core/4GB machine.
+> **TL;DR**: One-command setup: clone → copy `.env` → run setup scripts → `dev.sh`. Total time: ~15 min on a 2-core/4 GB machine with decent bandwidth, dominated by the llama.cpp compile.
 
 This guide takes a **fresh machine** — a clean Linux/macOS/WSL2 box with nothing but a
 shell, a C++ compiler and internet access — to a running Jev-RAG stack: both RAG
@@ -30,7 +30,7 @@ Related guides, for after you're up and running:
 | --- | --- | --- | --- |
 | CPU | 2 cores x86_64/arm64 | 4+ cores | llama.cpp compiles & runs the 0.8B decision model on CPU |
 | RAM | 4 GB | 8 GB | `jev-score` needs ~1.2 GB RSS (with the shipped context/buffer trims); the full stack idles at ~2 GB |
-| Disk | ~5 GB free | 8 GB | repo + `backend/.venv` (~1.5 GB) + GGUF + llama.cpp build (~2 GB) + embedding model cache (~0.3 GB) |
+| Disk | ~5 GB free | 8 GB | repo + `backend/.venv` (~1.5 GB) + GGUF (0.53 GB) + llama.cpp build (~2 GB) + embedding model cache (~0.3 GB) |
 
 ### Operating system
 
@@ -58,7 +58,7 @@ Related guides, for after you're up and running:
 
 The setup needs to reach:
 
-- `huggingface.co` — the [Jev-Style GGUF model](https://huggingface.co/chaoliangUNSW/Jev-Style-0.8B-Decision-v3-GGUF) (~505 MB) and runtime files
+- `huggingface.co` — the [Jev-Style GGUF model](https://huggingface.co/chaoliangUNSW/Jev-Style-0.8B-Decision-v3-GGUF) (0.53 GB, 529,296,864 bytes) and runtime files
 - `github.com` — [llama.cpp](https://github.com/ggml-org/llama.cpp) source (shallow clone)
 - `pypi.org` (or a mirror, see [troubleshooting](#troubleshooting)) — Python wheels via uv
 - `registry.npmjs.org` equivalents via bun install
@@ -71,9 +71,9 @@ no other external services are contacted (local-first contract, `AGENTS.md`).
 
 ## Setup, step by step
 
-Total time on a 2-core/4 GB machine with decent bandwidth: **~10 minutes**, of which
-the llama.cpp compile is the longest block. Every step is **idempotent** — safe to
-re-run; finished phases are skipped.
+The time budget is the single total stated at the top of this page; within it, the
+llama.cpp compile in step 2 is the longest block. Every step is **idempotent** —
+safe to re-run; finished phases are skipped.
 
 ### Step 0 — clone
 
@@ -94,7 +94,7 @@ cp backend/.env.example backend/.env
 ```
 
 `backend/.env` is gitignored — keys never enter git. All variables and their defaults
-are documented in the file itself and in [backend/.env.example](../backend/.env.example).
+are documented in the file itself and in [configuration.md](configuration.md).
 
 **Model choices:** `JEVRAG_LLM_MODEL_DEFAULT` is the generator used by both pipelines
 (default `qwen3.7-plus`). `JEVRAG_BENCH_JUDGE_MODEL` is the benchmark judge
@@ -107,7 +107,7 @@ generator to avoid self-preference bias; keep that separation if you swap either
 bash scripts/setup_local_models.sh
 ```
 
-> **What you should see:** `STATUS: SUCCESS` at the end, plus a list of `jev-score*` binaries (expect `models/jev-style/build/jev-score`). The GGUF download is ~505 MB and the llama.cpp compile is the longest step (~5–10 min on 2 cores).
+> **What you should see:** `STATUS: SUCCESS` at the end, plus a list of `jev-score*` binaries (expect `models/jev-style/build/jev-score`). The GGUF download is 0.53 GB (529,296,864 bytes) and the llama.cpp compile is the longest step (~5–10 min on 2 cores).
 
 What it does, in phases (each resumable):
 
@@ -146,12 +146,14 @@ bun install
 bash scripts/dev.sh
 ```
 
-> **What you should see:** Two log streams — Uvicorn running on `http://0.0.0.0:8000` and Next.js on `http://localhost:3000`. Open **http://localhost:3000** in your browser.
+> **What you should see:** Two log streams — Uvicorn running on `http://127.0.0.1:8000` and Next.js on `http://localhost:3000`. Open **http://localhost:3000** in your browser.
 
 `dev.sh` is self-healing: it auto-runs steps 1–3 if their outputs are missing, starts
 uvicorn on `:8000`, then the Next.js dev server on `:3000`. Open **http://localhost:3000**,
 upload a document in the sidebar, and ask a question in any of the three modes
-(Traditional / Hybrid · Jev / Compare).
+(Traditional / Hybrid · Jev / Compare). The backend binds loopback only by default;
+sharing it on your LAN is a deliberate opt-in (`JEVRAG_HOST`) with real exposure —
+see [configuration.md](configuration.md).
 
 First boot notes:
 
@@ -205,7 +207,7 @@ bash scripts/probe_public_gateway.sh
 #      benchmark run past it.
 
 # 3) hermetic test suite (no models, no network — same as CI)
-cd backend && .venv/bin/python -m pytest tests -v    # 144 passed
+cd backend && .venv/bin/python -m pytest tests -v    # 158 passed
 
 # 4) frontend lint
 cd .. && bun run lint                                # no output = clean
@@ -214,6 +216,10 @@ cd .. && bun run lint                                # no output = clean
 Then one **end-to-end smoke**: in the UI, upload any of the sample documents under
 `scripts/test-assets/`, ask a question in Compare mode, and confirm both columns
 answer with citations and the hybrid shows its Jev decision trace.
+
+Day 2: how to use the app is in [usage.md](usage.md); every knob is in
+[configuration.md](configuration.md); when something is wrong,
+[troubleshooting.md](troubleshooting.md).
 
 ---
 
@@ -283,8 +289,9 @@ deployment, `bun run build` produces a standalone Next.js server.
 | First document upload is slow | One-time embedding-model download (~225 MB) into `backend/data/fastembed_cache/` |
 | macOS: scripts complain about `stat`/arrays | Fixed in the current scripts (size checks use `python3`); ensure you're on the latest `main` |
 
-If nothing helps, the backend log names its module loggers (`jevrag.*`) — include the
-relevant section in any issue.
+This table is the install-level reference; the full symptom-ordered guide is
+[troubleshooting.md](troubleshooting.md). If nothing helps, the backend log names its
+module loggers (`jevrag.*`) — include the relevant section in any issue.
 
 ---
 
