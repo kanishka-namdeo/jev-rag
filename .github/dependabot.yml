@@ -3,7 +3,10 @@ updates:
   - package-ecosystem: npm
     directory: "/"
     schedule: { interval: weekly }
-    groups: { minor-and-patch: { patterns: ["*"] } }
+    # patterns: ["*"] matches every dependency and, without update-types, a group
+    # "will include updates for all semantic versions" — majors included.
+    # https://docs.github.com/en/code-security/reference/supply-chain-security/dependabot-options-reference#update-types-groups
+    groups: { minor-and-patch: { patterns: ["*"], update-types: [minor, patch] } }
   - package-ecosystem: pip
     directory: "/backend"
     schedule: { interval: weekly }
