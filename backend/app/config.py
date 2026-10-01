@@ -164,9 +164,20 @@ class Settings(BaseSettings):
     jev_citation_confidence: float = 0.8  # confidence >= this auto-accepts a citation
 
     # --- Server ---
+    # Bind address. Default loopback: this app has NO auth, so a 0.0.0.0 default
+    # would hand anyone on the LAN the ability to read conversations, upload and
+    # DELETE documents. Set JEVRAG_HOST=0.0.0.0 deliberately to share an instance.
+    host: str = "127.0.0.1"
     port: int = 8000
     log_level: str = "INFO"
+    # Comma-separated browser origins allowed to call the API. No wildcard: any web
+    # page the user visits could otherwise drive (and wipe) the local backend.
+    frontend_origin: str = "http://localhost:3000,http://127.0.0.1:3000"
     lazy_models: bool = False           # True: skip eager model loading at startup (tests)
+
+    @property
+    def cors_origins(self) -> list[str]:
+        return [o.strip() for o in self.frontend_origin.split(",") if o.strip()]
 
     # --- Benchmarking (app.bench) ---
     # Judge model is deliberately INDEPENDENT from both pipelines' generators

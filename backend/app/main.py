@@ -1,6 +1,6 @@
 """FastAPI application entrypoint.
 
-Run: cd backend && uvicorn app.main:app --host 0.0.0.0 --port 8000
+Run: cd backend && .venv/bin/python -m app.main   (host/port/log level come from backend/.env)
 """
 from __future__ import annotations
 
@@ -99,9 +99,10 @@ def create_app() -> FastAPI:
         version=__version__,
         lifespan=lifespan,
     )
+    settings = get_settings()
     application.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],  # local demo: gateway-proxied, no cookies/auth
+        allow_origins=settings.cors_origins,
         allow_methods=["*"],
         allow_headers=["*"],
     )
@@ -121,4 +122,5 @@ if __name__ == "__main__":  # pragma: no cover
     import uvicorn
 
     settings = get_settings()
-    uvicorn.run("app.main:app", host="0.0.0.0", port=settings.port, log_level="info")
+    uvicorn.run("app.main:app", host=settings.host, port=settings.port,
+                log_level=settings.log_level.lower())

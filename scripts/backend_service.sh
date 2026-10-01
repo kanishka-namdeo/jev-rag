@@ -16,4 +16,4 @@ if [ ! -x "$BACKEND_DIR/.venv/bin/python" ]; then
 fi
 
 cd "$BACKEND_DIR"
-exec "$BACKEND_DIR/.venv/bin/python" -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --log-level info
+exec "$BACKEND_DIR/.venv/bin/python" -m app.main

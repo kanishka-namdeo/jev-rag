@@ -17,8 +17,8 @@ if [ ! -f "$ROOT/models/jev-style/build/jev-score" ]; then
   bash "$ROOT/scripts/setup_local_models.sh"
 fi
 
-log "starting backend (uvicorn :8000)"
-( cd "$ROOT/backend" && exec .venv/bin/python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 ) &
+log "starting backend (uvicorn via app.main — host/port from backend/.env)"
+( cd "$ROOT/backend" && exec .venv/bin/python -m app.main ) &
 BACKEND_PID=$!
 trap 'kill "$BACKEND_PID" 2>/dev/null || true' EXIT INT TERM
 
