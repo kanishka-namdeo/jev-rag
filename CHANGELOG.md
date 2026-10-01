@@ -4,6 +4,64 @@ Milestone history for Jev-RAG. Each entry links to the commit that delivered it.
 Dates are YYYY-MM-DD (commit date). Format is loosely inspired by
 [Keep a Changelog](https://keepachangelog.com/), grouped by project phase.
 
+## Unreleased — end-user docs layer, and defaults that match the privacy claim
+
+The docs were accurate but written for the person who built them. This branch put an end-user
+layer in front of the same content — and changed three shipped defaults so the README's
+privacy sentence describes the code, not the template. Spec and 17-task plan:
+[docs/superpowers/specs/2026-10-01-end-user-docs-readme-design.md](docs/superpowers/specs/2026-10-01-end-user-docs-readme-design.md),
+[docs/superpowers/plans/2026-10-01-end-user-docs-readme.md](docs/superpowers/plans/2026-10-01-end-user-docs-readme.md).
+
+- **New user layer** (existing doc paths untouched, nothing renamed):
+  [docs/README.md](docs/README.md) — the human hub, three lanes (Use it / Understand it /
+  Measure it) · [docs/usage.md](docs/usage.md) — day-to-day tasks plus an honest
+  "Known gaps" list · [docs/configuration.md](docs/configuration.md) — all 64 `app/config.py`
+  settings with their real defaults, template membership, and the cost/risk of each ·
+  [docs/troubleshooting.md](docs/troubleshooting.md) — symptom → check → fix, with install
+  causes left to `setup.md`'s table instead of duplicated.
+- **README rewritten user-first** (231 → 159 lines): mode table, and a results panel that
+  reports the mechanism and its cost while citing the Layer-2 null (0/9 arms beat `base` at
+  FDR q < 0.05). The `0` fabrications headline was **deleted**: that metric only exists on the
+  five unanswerable `outofscope` questions, the v3 headline run `16814bd5` never measured it,
+  and `0314ac0a` measured 1/5. The surviving sentence brackets the two full runs that did
+  measure 0/5 (`9d894b6c`, `bf05f585`) and names the n=8 do-no-harm smoke `db23b949`.
+- **Behavior changes — migration notes**:
+  - `JEVRAG_HOST` is new and defaults to **`127.0.0.1`** ([`616cb2b`](https://github.com/kanishka-namdeo/jev-rag/commit/616cb2b));
+    `scripts/dev.sh`, `scripts/backend_service.sh` and `app/main.py` read it instead of binding
+    `0.0.0.0`. **Set `JEVRAG_HOST=0.0.0.0` to restore the LAN reachability the old default gave** —
+    the app ships no auth, so binding outward hands every device on the network read/write/delete
+    over documents and conversations.
+  - CORS no longer allows `*`; allowed origins come from the new
+    `JEVRAG_FRONTEND_ORIGIN` (default `http://localhost:3000,http://127.0.0.1:3000`). Serve the UI
+    somewhere else and add that origin, or the browser blocks every call.
+  - `JEVRAG_GATE_SCORE_THRESHOLD` default **0.5 → 0.6** ([`4f7e458`](https://github.com/kanishka-namdeo/jev-rag/commit/4f7e458)):
+    anyone who never copied `backend/.env.example` now runs the gate at the θ the template and the
+    published calibration tables describe. Smoke on `outofscope` (8Q, run `db23b949`, throwaway
+    `JEVRAG_DATA_DIR`): both arms 8/8, 0 error rows — a do-no-harm check, no statistical power.
+  - UI copy/asset: favicon is the local `public/logo.svg` (was a third-party CDN URL) and the
+    footer reads "System One (local decisions) + System Two (cloud LLM)" instead of
+    "Fully local stack" ([`2a2f0f5`](https://github.com/kanishka-namdeo/jev-rag/commit/2a2f0f5)).
+- **Docs harness**: `scripts/validate_readme.py` generalized and renamed to
+  `scripts/validate_docs.py` — documentation markdown only (repo root, `docs/**`, `.github/**`,
+  every `AGENTS.md`; the 779-file benchmark corpora and generated roots are out of scope) —
+  checking link/image existence, GitHub-accurate heading anchors for same-page and deep links,
+  `<details>` balance and secret patterns; new CI job `docs`. The dead
+  `docs/setup.md` → `README.md#configuration-backendenv` anchor it surfaced was fixed in the
+  same commit.
+- **Repo tidying**: dev diaries relocated to `docs/dev/` with their own child DOX (root
+  `worklog.md` gone from the front door) · `.github/dependabot.yml`, `.github/release.yml` and a
+  setup-problem issue template · `SECURITY.md` rewritten against the loopback default (and stating
+  plainly that no auth/TLS ships) · social preview re-rendered at 1280×640 **1×** inside GitHub's
+  1 MB cap, with its generator anchored to the repo root · 3.9 MB of superseded diagram images
+  pruned ([`8315f57`](https://github.com/kanishka-namdeo/jev-rag/commit/8315f57)).
+- **Declined on evidence** (documented in the spec, so it does not get re-proposed):
+  `CODE_OF_CONDUCT.md`, a demo GIF, a hosted docs site, and a second link checker.
+
+Why: the README's strongest claims were the least defensible against the repo's own records — a
+fabrication number quoted from a run with no unanswerable questions, and "local-first,
+privacy-preserving" while the backend bound `0.0.0.0` with wildcard CORS. The prose fix had to
+come with the defaults it described.
+
 ## 2026-09-30 — M11 H-GATE full-power run complete (parallel x5 on WSL2)
 
 The H-GATE hypothesis (§1.1 of
