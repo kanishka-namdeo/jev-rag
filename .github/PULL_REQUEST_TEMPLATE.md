@@ -17,7 +17,7 @@ measured claims, both directions, no secrets in diffs, docs updated.
 - [ ] Tests green: `cd backend && .venv/bin/python -m pytest tests -v`
 - [ ] Lint green: `bun run lint`
 - [ ] If pipelines/config changed: benchmark scenario(s) run, numbers reported **in both directions** (hybrid can lose)
-- [ ] If behavior changed: docs updated ([docs/setup.md](docs/setup.md) / [docs/hybrid-design.md](docs/hybrid-design.md) / `backend/.env.example`)
+- [ ] If behavior changed: docs updated ([docs/setup.md](../docs/setup.md) / [docs/hybrid-design.md](../docs/hybrid-design.md) / `backend/.env.example`)
 
 ## Safety
 

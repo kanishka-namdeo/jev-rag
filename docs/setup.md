@@ -4,7 +4,7 @@
 
 This guide takes a **fresh machine** — a clean Linux/macOS/WSL2 box with nothing but a
 shell, a C++ compiler and internet access — to a running Jev-RAG stack: both RAG
-pipelines, the local [Jev](glossary.md#jev)-style decision model, the streaming UI and the benchmark lab.
+pipelines, the local [Jev](glossary.md)-style decision model, the streaming UI and the benchmark lab.
 
 Everything on this page was re-validated on a wiped environment on 2026-09-28: the
 setup scripts ran end-to-end from an empty state (venv → models → backend boot, 35/35
@@ -94,7 +94,7 @@ cp backend/.env.example backend/.env
 ```
 
 `backend/.env` is gitignored — keys never enter git. All variables and their defaults
-are documented in the file itself and in the [README configuration table](../README.md#configuration-backendenv).
+are documented in the file itself and in [backend/.env.example](../backend/.env.example).
 
 **Model choices:** `JEVRAG_LLM_MODEL_DEFAULT` is the generator used by both pipelines
 (default `qwen3.7-plus`). `JEVRAG_BENCH_JUDGE_MODEL` is the benchmark judge

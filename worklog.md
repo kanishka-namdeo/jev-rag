@@ -391,7 +391,7 @@ Work Log:
 - README rewritten 302→336 lines but ~60% less visible text: centered banner →
   pitch → badges (+PRs Welcome) → stat strip → hero screenshot → emoji section
   nav; screenshots moved to top; interpretation prose, full config table,
-  milestones, DOX/agent notes moved into 5 <details> collapsibles; all numbers,
+  milestones, DOX/agent notes moved into 5 `<details>` collapsibles; all numbers,
   caveats and negative results preserved (objectivity contract intact)
 - New community files: CONTRIBUTING.md, SECURITY.md
 - New .github: ISSUE_TEMPLATE/bug_report.md + feature_request.md + config.yml

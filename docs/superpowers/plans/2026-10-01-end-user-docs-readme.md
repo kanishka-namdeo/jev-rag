@@ -107,7 +107,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 os.chdir(REPO_ROOT)
 
-SECRET_PATTERNS = ["sk-sp-", "github_pat_", "a1b32acc"]
+SECRET_PATTERNS = [...]  # credential prefixes carried over verbatim from validate_readme.py; the live list is in scripts/validate_docs.py
 ANCHOR_RE = re.compile(r"^#{1,6}\s+(.+)$", re.M)
 MD_LINK_RE = re.compile(r"\[([^\]]*)\]\(([^)]+)\)")
 MD_IMG_RE = re.compile(r"!\[[^\]]*\]\(([^)]+)\)")
@@ -1006,12 +1006,12 @@ measure it."
 - Disk: keep `~5 GB minimum / 8 GB comfortable` (`:33`) and make sure no other line says otherwise; state the breakdown once (venv ~1.5 GB, GGUF 0.53 GB, llama.cpp build ~2 GB, embedding cache ~0.3 GB).
 - Duration: one figure. Use the measured/observed one — check both `:3` ("~15 min") and `:74` ("~10 minutes") and keep a single value with the qualifier "on a fast connection; the llama.cpp build dominates".
 - GGUF: `0.53 GB (529,296,864 B)` — the exact byte count is what `setup_local_models.sh:70-79` verifies, so show it beside one readable rounding; remove the `~505 MB` variant.
-- `:97` was parked on `backend/.env.example` by Task 1 (it used to point at the never-existing `README.md#configuration-backendenv`) → retarget it to [configuration.md](configuration.md), which now exists.
+- `:97` was parked on `backend/.env.example` by Task 1 (it used to point at the never-existing `README.md#configuration-backendenv`) → retarget it to `configuration.md`, which now exists.
 - `:149` tells users the expected output is `Uvicorn running on http://0.0.0.0:8000`. After Task 2 it is `http://127.0.0.1:8000`. Update it, and add one sentence on the LAN opt-in pointing at `configuration.md`.
 
 - [ ] **Step 2: Point at the new pages instead of absorbing them**
 
-At the end of the verification section, add: "Day 2: how to use the app is in [usage.md](usage.md); every knob is in [configuration.md](configuration.md); when something is wrong, [troubleshooting.md](troubleshooting.md)." Do **not** move the 12-row troubleshooting table — it stays the install-level reference.
+At the end of the verification section, add: `Day 2: how to use the app is in [usage.md](usage.md); every knob is in [configuration.md](configuration.md); when something is wrong, [troubleshooting.md](troubleshooting.md).` Do **not** move the 12-row troubleshooting table — it stays the install-level reference.
 
 - [ ] **Step 3: Verify commands still copy-paste**
 

@@ -107,6 +107,9 @@
 
 ## Verification
 
+- `python3 scripts/validate_docs.py` — repo-wide Markdown check (links, anchors, images,
+  `<details>` balance, secret patterns) over every tracked `.md`; CI job `docs` runs it, so a
+  docs change that breaks a link fails the pipeline
 - Manual review on change; cross-check protocol tables against `backend/app/rag/pipelines.py`
   and `src/lib/jevrag/types.ts` after any protocol change
 - Cross-check `benchmarking.md` metric formulas against `backend/app/bench/metrics.py` and

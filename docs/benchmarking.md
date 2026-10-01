@@ -1,6 +1,6 @@
 # Benchmarking & Evaluation Methodology
 
-> **TL;DR**: Jev-RAG benchmarks two pipelines — **traditional** (embedding retrieval → cloud LLM) and **hybrid** (broad retrieval → local [Jev](glossary.md#jev)-style [System One](glossary.md#system-one) rerank/sufficiency/routing → cloud LLM → groundedness verification) — using metric definitions and judge protocols from **RAGAS**, **DeepEval**, **TruLens**, **MT-Bench** and **AbstentionBench**. A lightweight custom harness (`backend/app/bench/`) implements them without heavyweight framework dependencies. Everything except generation and judging runs locally on 2 CPU cores.
+> **TL;DR**: Jev-RAG benchmarks two pipelines — **traditional** (embedding retrieval → cloud LLM) and **hybrid** (broad retrieval → local [Jev](glossary.md)-style [System One](glossary.md) rerank/sufficiency/routing → cloud LLM → groundedness verification) — using metric definitions and judge protocols from **RAGAS**, **DeepEval**, **TruLens**, **MT-Bench** and **AbstentionBench**. A lightweight custom harness (`backend/app/bench/`) implements them without heavyweight framework dependencies. Everything except generation and judging runs locally on 2 CPU cores.
 
 This document defines how Jev-RAG's two pipelines are benchmarked and compared. The methodology borrows metric definitions and judge protocols from the
 de-facto standard RAG evaluation stack: **RAGAS** (0.4.3), **DeepEval (Confident AI)** (4.2.6),
@@ -62,9 +62,9 @@ and isolates retrieval with a Chroma `doc_id` filter.
 Standard definitions (TREC / BeIR):
 
 - **hit@k** — 1 if any of the top-k chunks is from a gold file. *(Did we find the right document in the top-k results?)*
-- **MRR@10** ([Mean Reciprocal Rank](glossary.md#mrr10-mean-reciprocal-rank)) — mean reciprocal rank of the first gold chunk. *(On average, how early does the first correct result appear? 1.0 = always first.)*
+- **MRR@10** ([Mean Reciprocal Rank](glossary.md)) — mean reciprocal rank of the first gold chunk. *(On average, how early does the first correct result appear? 1.0 = always first.)*
 - **recall@k** — distinct gold files found in top-k / total gold files (multi-hop coverage). *(Of all the documents we needed, what fraction did we retrieve?)*
-- **nDCG@10** ([Normalized Discounted Cumulative Gain](glossary.md#ndcg10-normalized-discounted-cumulative-gain)) — DCG/IDCG with binary, file-level relevance; a gold file counts once at
+- **nDCG@10** ([Normalized Discounted Cumulative Gain](glossary.md)) — DCG/IDCG with binary, file-level relevance; a gold file counts once at
   its first occurrence so duplicate chunks cannot inflate the score. *(Measures how well the top-10 results are ranked, where 1.0 is perfect. Penalizes relevant docs appearing late.)*
 
 Both systems are scored on their **final context** (what the LLM actually saw) under a
@@ -75,7 +75,7 @@ Hybrid-specific stage metrics:
 
 - **Rerank lift** — final top-4 metrics minus naive embedding top-4 metrics (the
   counterfactual "what traditional would have gotten" from the same candidate pool). *(How much did reranking help? Positive = improvement over raw retrieval.)*
-- **Gate accuracy / [Brier score](glossary.md#brier-score)** — the Jev sufficiency gate's `P(sufficient)` vs
+- **Gate accuracy / [Brier score](glossary.md)** — the Jev sufficiency gate's `P(sufficient)` vs
   ground-truth answerability; Brier measures calibration
   (`mean((p − answerable)²)`). *(How well does the gate's confidence match reality? Lower Brier = better calibrated.)*
 
@@ -162,9 +162,9 @@ These metrics diagnose **WHERE** retrieval failures occur — ranking quality vs
 
 We report multiple statistical tests to quantify uncertainty honestly:
 
-- **[McNemar's test](glossary.md#mcnemars-test)** (exact binomial on discordant pairs) — for binary outcomes (correct/incorrect). Tests whether the two pipelines differ significantly on the same questions.
-- **[Wilcoxon signed-rank test](glossary.md#wilcoxon-signed-rank-test)** — for graded outcomes (e.g., correctness scores 0–1). Non-parametric paired test with rank-biserial effect size.
-- **[Paired bootstrap CI](glossary.md#bootstrap-confidence-interval)** (50k samples, seed 42) — estimates the uncertainty of a metric delta. Reported as 95% CI; if it includes 0, the difference is not statistically significant.
+- **[McNemar's test](glossary.md)** (exact binomial on discordant pairs) — for binary outcomes (correct/incorrect). Tests whether the two pipelines differ significantly on the same questions.
+- **[Wilcoxon signed-rank test](glossary.md)** — for graded outcomes (e.g., correctness scores 0–1). Non-parametric paired test with rank-biserial effect size.
+- **[Paired bootstrap CI](glossary.md)** (50k samples, seed 42) — estimates the uncertainty of a metric delta. Reported as 95% CI; if it includes 0, the difference is not statistically significant.
 
 Known limitations (documented, by design of scope): single judge model (no human
 panel); one run per condition (no repetition/CI bands yet); pairwise win-rate on 48

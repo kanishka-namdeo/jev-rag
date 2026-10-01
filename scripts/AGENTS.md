@@ -77,8 +77,11 @@
   `diagnose_public_bench.py` — run analysis/diagnostics over the bench DB (repo-anchored paths)
 - `measure_jev_memory.py` / `verify_jev_flags.py` / `verify_jev_runtime_parity.py` — jev-score
   memory/parity probes (repo-anchored paths)
-- `validate_readme.py` — README hygiene audit: link/anchor/image existence, `<details>`
-  balance, secret-pattern scan (run before pushing README changes)
+- `validate_docs.py` — repo-wide Markdown hygiene audit (every tracked `.md`): relative link
+  and image existence, GitHub anchor rules (lowercase, punctuation stripped, spaces→hyphens,
+  emoji leading-hyphen tolerance), `<details>` balance, secret-pattern scan. Exit 1 on any
+  error. Run it before pushing any docs change — it is a CI job, not an optional check.
+  Formerly README-only (`validate_readme.py`).
 - `render_social_preview.py` + `social_preview.html` — regenerates the repo social
   preview card (Playwright, 1280×640 @2x) into `docs/assets/img/social-preview.png`;
   update the HTML source, re-render, then upload via repo Settings (the REST upload

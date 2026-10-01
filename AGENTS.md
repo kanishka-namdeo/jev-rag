@@ -176,7 +176,8 @@ instructions mention them. No child doc may weaken them.
   0 error rows ([docs/testbench-results-layer2-full9.md](docs/testbench-results-layer2-full9.md));
   the earlier 4-arm M11 draw (392 triples, ~2 h) is the smaller precedent in
   [docs/testbench-results-hgate.md](docs/testbench-results-hgate.md).
-- **Tests and lint stay green.** Backend pytest and `bun run lint` must pass before every push.
+- **Tests and lint stay green.** Backend pytest, `bun run lint` and the repo-wide Markdown
+  validator (`python3 scripts/validate_docs.py`, CI job `docs`) must pass before every push.
 - **Commit and push at milestones.** Small, descriptive commits; push to `origin/main` after each
   meaningful milestone (feature, fix, docs).
 

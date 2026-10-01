@@ -1,6 +1,6 @@
 # Hybrid design: Jev-style System One + cloud System Two
 
-> **TL;DR (v3 design):** The hybrid pipeline uses a local 0.8B decision model ([Jev](glossary.md#jev)) for fast, calibrated decisions — effort routing, best-of-2 selection, citation verification — while the cloud LLM (qwen3.7-plus) writes the final prose. A score-feature escalation gate decides whether a question needs the expensive hard path (decompose → multi-step retrieval → best-of-2) after cheap retrieval, not before. This replaces the v2 absolute sufficiency gate, which the 0.8B model could not do reliably.
+> **TL;DR (v3 design):** The hybrid pipeline uses a local 0.8B decision model ([Jev](glossary.md)) for fast, calibrated decisions — effort routing, best-of-2 selection, citation verification — while the cloud LLM (qwen3.7-plus) writes the final prose. A score-feature escalation gate decides whether a question needs the expensive hard path (decompose → multi-step retrieval → best-of-2) after cheap retrieval, not before. This replaces the v2 absolute sufficiency gate, which the 0.8B model could not do reliably.
 
 > **v3 (2026-09-29):** the hybrid pipeline was redesigned around a score-feature escalation gate.
 > The absolute sufficiency gate (v2) was replaced with calibrated retrieval scores, limiting Jev

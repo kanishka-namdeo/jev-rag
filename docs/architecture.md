@@ -1,8 +1,8 @@
 # Architecture
 
-> **TL;DR**: Jev-RAG runs two RAG pipelines side by side: a traditional embedding-retrieval path and a hybrid path where a local decision model ([Jev](glossary.md#jev)) reranks passages, gates context sufficiency, and routes between cloud models. Everything except the cloud LLM endpoint runs on-device.
+> **TL;DR**: Jev-RAG runs two RAG pipelines side by side: a traditional embedding-retrieval path and a hybrid path where a local decision model ([Jev](glossary.md)) reranks passages, gates context sufficiency, and routes between cloud models. Everything except the cloud LLM endpoint runs on-device.
 
-Jev-RAG is a local-first hybrid [RAG](glossary.md#rag-retrieval-augmented-generation) system: everything except the cloud LLM endpoint runs
+Jev-RAG is a local-first hybrid [RAG](glossary.md) system: everything except the cloud LLM endpoint runs
 on-device.
 
 ```mermaid
@@ -83,9 +83,9 @@ sequenceDiagram
     CrossEncoder-->>FastAPI: Reranked top_k_use
 ```
 
-**Indexing pipeline:** markitdown → structure-aware split (headings, ~900/140 preserved) → contextual prefix ("doc title — section") into chunk text → [dense embed](glossary.md#dense-embedding) (fastembed) into Chroma (cosine) → [BM25](glossary.md#bm25) index over the same chunks (rebuilt lazily from Chroma contents).
+**Indexing pipeline:** markitdown → structure-aware split (headings, ~900/140 preserved) → contextual prefix ("doc title — section") into chunk text → [dense embed](glossary.md) (fastembed) into Chroma (cosine) → [BM25](glossary.md) index over the same chunks (rebuilt lazily from Chroma contents).
 
-**Query pipeline:** [BM25](glossary.md#bm25) top-N ‖ dense top-N → [RRF](glossary.md#rrf-reciprocal-rank-fusion) fusion (k=60) → [cross-encoder](glossary.md#cross-encoder-reranker) rerank (ONNX, CPU, batched pairs) → top_k_use.
+**Query pipeline:** [BM25](glossary.md) top-N ‖ dense top-N → [RRF](glossary.md) fusion (k=60) → [cross-encoder](glossary.md) rerank (ONNX, CPU, batched pairs) → top_k_use.
 
 ### Traditional v3 (= 2026 baseline)
 
@@ -154,9 +154,9 @@ sequenceDiagram
     FastAPI-->>User: Response + composite quality
 ```
 
-**Effort routing** ([Jev](glossary.md#jev), concurrent with retrieval): decides chat vs doc, P≥0.9 fast path, validated 0.76–0.96 vs ≤0.17 separation.
+**Effort routing** ([Jev](glossary.md), concurrent with retrieval): decides chat vs doc, P≥0.9 fast path, validated 0.76–0.96 vs ≤0.17 separation.
 
-**Easy path** ([escalation gate](glossary.md#escalation-gate) passes: top-1 rerank score ≥ θ, calibrated on eval data): one cloud call → Jev citation verification → done.
+**Easy path** ([escalation gate](glossary.md) passes: top-1 rerank score ≥ θ, calibrated on eval data): one cloud call → Jev citation verification → done.
 
 **Hard path** (gate fails: score < θ): cloud decompose → per-sub-query RRF retrieval → rerank → optional passage battery (OFF by default) → CRAG corrective retry (1) → best-of-2 (Jev selects — relative judgment) → one cloud call → Jev citation verification → composite quality.
 
