@@ -191,9 +191,9 @@ export default function Home() {
 
       {/* Footer (sticky, pushed down naturally on overflow) */}
       <footer className="flex shrink-0 items-center justify-between gap-2 border-t bg-background px-4 py-1.5 text-[10px] text-muted-foreground">
-        <span>Jev-RAG · System One (local Jev-style) + System Two (cloud LLM)</span>
+        <span>Jev-RAG · System One (local decisions) + System Two (cloud LLM)</span>
         <span className="hidden sm:inline">
-          Fully local stack — ChromaDB · fastembed · llama.cpp · FastAPI · Next.js
+          Retrieval, reranking and decisions run on your machine · one cloud call writes the answer
         </span>
       </footer>
     </div>

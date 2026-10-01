@@ -23,7 +23,7 @@ export const metadata: Metadata = {
     "Hybrid retrieval-augmented QA: a local Jev-style System One decision engine reranks, gates and routes; a cloud LLM writes cited answers.",
   keywords: ["RAG", "Jev", "hybrid AI", "retrieval", "ChromaDB", "local inference"],
   icons: {
-    icon: "https://z-cdn.chatglm.cn/z-ai/static/logo.svg",
+    icon: "/logo.svg",
   },
 };
 
