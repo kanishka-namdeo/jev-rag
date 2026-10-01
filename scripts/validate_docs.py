@@ -94,6 +94,11 @@ def github_anchor(heading: str) -> str:
     """GitHub's heading-id rule: lowercase, drop every character that is not a word
     character, a space or a hyphen, then turn **each** remaining space into a hyphen.
 
+    Docs: "Letters are converted to lower-case. Spaces are replaced by hyphens (-). Any
+    other whitespace or punctuation characters are removed. Leading and trailing
+    whitespace are removed." —
+    https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax
+
     No whitespace collapsing and no trimming, because GitHub does neither: `## 📸
     Screenshots` gets the id `-screenshots` (emoji dropped, the space that followed it
     survives as a leading hyphen), and ``## Run `0314ac0a` (archived: battery ON — the
