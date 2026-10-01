@@ -1,8 +1,14 @@
 blank_issues_enabled: false
 contact_links:
-  - name: 📖 Setup guide & troubleshooting
+  - name: 📚 Docs hub — usage, configuration, troubleshooting
+    url: https://github.com/kanishka-namdeo/jev-rag/blob/main/docs/README.md
+    about: Start here for how the app works and what each setting does.
+  - name: 📖 Setup guide
     url: https://github.com/kanishka-namdeo/jev-rag/blob/main/docs/setup.md
-    about: Most install/run problems are already answered in the setup guide's troubleshooting table.
+    about: The binding fresh-machine install steps, verified on WSL2 Ubuntu-24.04.
+  - name: 🛠 Troubleshooting common failures
+    url: https://github.com/kanishka-namdeo/jev-rag/blob/main/docs/troubleshooting.md
+    about: Most install/run/upload problems are already answered here with copy-paste fixes.
   - name: 📊 Benchmark methodology & results
     url: https://github.com/kanishka-namdeo/jev-rag/blob/main/docs/benchmarking.md
     about: How the two pipelines are compared and scored — read before filing result-discrepancy issues.
