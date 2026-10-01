@@ -16,7 +16,7 @@ Model files (verified live via huggingface_hub.list_repo_files during task I3):
 what ``load()`` downloads via snapshot_download(allow_patterns=["onnx/model.onnx",
 "tokenizer.json"]). If a repo layout ever differs, the loader falls back to
 ``onnx/model_quantized.onnx`` before giving up. First use downloads ~91 MB from
-the HF CDN (seconds-to-a-minute; egress verified in worklog); afterwards the
+the HF CDN (seconds-to-a-minute; egress verified in docs/dev/worklog.md); afterwards the
 HF disk cache (~/.cache/huggingface by default, ``cache_dir`` to override)
 makes loads instant. A repo-local ``models/`` dir exists for local artifacts;
 wiring it as cache_dir happens at integration time (M4), default stays None.

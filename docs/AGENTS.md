@@ -92,10 +92,15 @@
   The sibling `.mmd` files are documentation-only — nothing in the repo renders them
   (no `mmdc`/graphviz on this box), so treat the PNG as the source of truth and keep the
   `.mmd` text consistent with `generate_diagrams.py` by hand when either changes.
+- `dev/` — append-only engineering diaries (the per-task `worklog.md`, dated status
+  snapshots); own DOX in `dev/AGENTS.md`. Not durable docs and not end-user docs. The
+  repo-root `worklog.md` was deliberately relocated here — it is intentionally absent from
+  the durable-doc list above; do not re-add a diary to `docs/` proper or to the root.
 
 ## Local Contracts
 
 - Docs describe stable contracts only; changelogs and diary entries do not belong here
+  (they live in `dev/`)
 - Every external claim (model facts, prices, metric definitions, links) must carry its source URL
 - `setup.md` commands must stay copy-pasteable and idempotent — they mirror the scripts,
   not aspirational variants; when a script's interface changes, update the guide in the same
@@ -124,4 +129,4 @@
 
 | Child | Scope |
 | --- | --- |
-| (none) | Flat docs directory |
+| [dev/AGENTS.md](dev/AGENTS.md) | Append-only engineering diaries: worklog + dated status snapshot |

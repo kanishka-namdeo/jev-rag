@@ -157,7 +157,7 @@ def main() -> int:
         # resume-contract: when --arms/--scenarios are left at their CLI defaults,
         # adopt the RUN's recorded sets instead — a bare `--resume RUN_ID` must
         # never silently widen/narrow the experiment (same contract as the
-        # bench_resume.py fix in the wave-2 worklog). Explicit flags always win.
+        # bench_resume.py fix in the wave-2 docs/dev/worklog.md entries). Explicit flags always win.
         recorded = _cfg.get("arms")
         if recorded and "base,gate-none,gate-jev,always-hard,oracle-gate" == args.arms:
             arms = [a for a in recorded if a in ARM_OVERRIDES]

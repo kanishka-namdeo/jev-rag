@@ -112,7 +112,7 @@ def github_anchor(heading: str) -> str:
     selector, e.g. `## 🏗️ Architecture`) gets an id that keeps that invisible mark,
     because JS word-class regexes keep Unicode marks and Python's `\\w` does not. Its
     real anchor therefore cannot be typed by hand — which is why
-    `worklog.md:399` fixed such a link by swapping 🗂️ for 📁. The leading `.strip()`
+    `docs/dev/worklog.md:399` fixed such a link by swapping 🗂️ for 📁. The leading `.strip()`
     only mirrors Markdown's own trimming of heading-content whitespace."""
     t = heading.strip().lower()
     t = re.sub(r"[^\w\s-]", "", t, flags=re.UNICODE)

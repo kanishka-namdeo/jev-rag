@@ -7,7 +7,7 @@ Dates are YYYY-MM-DD (commit date). Format is loosely inspired by
 ## 2026-09-30 — M11 H-GATE full-power run complete (parallel x5 on WSL2)
 
 The H-GATE hypothesis (§1.1 of
-[docs/project-status-2026-09-30.md](docs/project-status-2026-09-30.md)) is now
+[docs/dev/project-status-2026-09-30.md](docs/dev/project-status-2026-09-30.md)) is now
 answered at full power: **98 questions × 4 arms = 392 scored triples** across
 all five public scenarios (SQuAD 100, HotpotQA 100, TriviaQA 64, 2WikiMultHopQA
 64, MuSiQue 64), judged by the independent `kimi-k2.5` LLM judge.
@@ -56,7 +56,7 @@ taken. M11 is now closed; M12/M13/M14 remain queued (§5 of the status report).
 The engagement brief (upgrade both pipelines, re-place jev on evidence, evaluate
 a hypothesis testbench, objective reporting, milestone pushes) is now fully
 documented in a single self-contained report —
-[docs/project-status-2026-09-30.md](docs/project-status-2026-09-30.md) — covering
+[docs/dev/project-status-2026-09-30.md](docs/dev/project-status-2026-09-30.md) — covering
 mission, exact setup (models/roles/endpoint, local artifacts, versions), the
 sandbox execution protocol (OOM/reaper/window constraints and how the runner was
 engineered around them), the full M1–M11 narrative with the reasoning behind each

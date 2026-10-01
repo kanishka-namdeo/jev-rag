@@ -377,4 +377,4 @@ wsl --install -d Ubuntu-24.04
 - Main setup guide: [docs/setup.md](setup.md)
 - Architecture: [docs/architecture.md](architecture.md)
 - Benchmarking: [docs/benchmarking.md](benchmarking.md)
-- Project status: [docs/project-status-2026-09-30.md](project-status-2026-09-30.md)
+- Project status: [docs/dev/project-status-2026-09-30.md](dev/project-status-2026-09-30.md)

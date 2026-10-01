@@ -8,7 +8,7 @@ Research note (2026-09-28). Two questions drove this pass:
    Jev-style model do then?**
 
 Grounding: two research passes over TypeSafe's official docs/cookbooks, the open Jev-style
-ecosystem, and the adaptive/agentic-RAG literature (task 6-a / 6-b in `worklog.md`), plus our
+ecosystem, and the adaptive/agentic-RAG literature (task 6-a / 6-b in `docs/dev/worklog.md`), plus our
 own validation experiments on the local model
 (`backend/scripts/experiment_single_model_routing.py`). Every external claim carries its
 source URL; every local claim carries a measured number.
@@ -106,7 +106,7 @@ Ranked by evidence strength for *our* pipeline:
 ## 3. Our validation experiments (local Jev-Style-0.8B, 2026-09-28)
 
 Script: `backend/scripts/experiment_single_model_routing.py` (run with the backend stopped —
-memory discipline; results in `worklog.md` task 6). 12 labeled queries spanning the
+memory discipline; results in `docs/dev/worklog.md` task 6). 12 labeled queries spanning the
 Adaptive-RAG taxonomy (4 no-retrieval, 4 single-pass, 4 multi-step):
 
 | Test | Pattern | Result | Read |
@@ -125,7 +125,7 @@ Latency: 0.7–1.9 s per decide() call at these small states — the effort-rout
 > **Status: IMPLEMENTED (2026-09-28)** — this proposal ships as the hybrid pipeline
 > (`backend/app/rag/pipelines.py`, mirrored in `app/bench/runner.py`; design + measured
 > latencies in `docs/hybrid-design.md`). Live-verified on all three effort paths; see
-> `worklog.md` task 7. Every slot below maps 1:1 to code.
+> `docs/dev/worklog.md` task 7. Every slot below maps 1:1 to code.
 
 What we would build next, in priority order (each item names the decision slot, the call
 budget, and the evidence):
@@ -186,5 +186,5 @@ Speculative RAG 2407.08223 · RAGTruth 2401.00396 · HyDE 2212.10496 · RAG-Fusi
 35-method benchmark 2501.12835 · Sufficient Context 2411.06037 · adaptive top-k 2609.13489 ·
 ALCE 2305.14627 · AIS 2112.12870 · Chain-of-Note 2311.09210 · knowledge-conflict survey
 2403.08319 · Grain-of-Salt 2605.06919 · adaptive-budget evaluation 2607.24010 ·
-planner-fails-to-beat-retrieval 2609.26976. Full research transcripts: `worklog.md` tasks
+planner-fails-to-beat-retrieval 2609.26976. Full research transcripts: `docs/dev/worklog.md` tasks
 6-a and 6-b.

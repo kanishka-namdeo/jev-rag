@@ -6,8 +6,8 @@
 > work up on a more powerful machine. It is written for two audiences: the repo owner
 > reviewing progress, and any engineer (human or agent) resuming the run elsewhere.
 >
-> Companion artifacts: [worklog.md](../worklog.md) (raw per-task log, full detail),
-> [CHANGELOG.md](../CHANGELOG.md) (milestone entries), [docs/](.) (design docs and
+> Companion artifacts: [worklog.md](worklog.md) (raw per-task log, full detail),
+> [CHANGELOG.md](../../CHANGELOG.md) (milestone entries), [docs/](..) (design docs and
 > results), `docs/assets/testbench-hgate-partial-2026-09-30.{md,json}` (H-GATE
 > interim snapshot pushed with this doc).
 
@@ -98,7 +98,7 @@ pre-declared: McNemar exact vs base, paired bootstrap CIs, BH-FDR across arms.
 - Everything is reproducible from the repo:
   `scripts/setup_backend.sh` (venv+deps via uv), `scripts/setup_local_models.sh`
   (GGUF download + llama.cpp build, idempotent/resumable), `backend/.env.example`.
-  Full fresh-machine steps: [docs/setup.md](setup.md).
+  Full fresh-machine steps: [docs/setup.md](../setup.md).
 
 ### 2.4 The execution environment (why things are slow here)
 
@@ -135,7 +135,7 @@ runner per scenario on separate data dirs, RAM permitting) for up to ~5× on a
 ## 3. What has been done, and why — milestone by milestone
 
 All M-milestones below are pushed to `origin/main`. Commit IDs in parentheses.
-Raw detail per task: [worklog.md](../worklog.md).
+Raw detail per task: [worklog.md](worklog.md).
 
 ### 3.1 M1–M6 — the v3 upgrade (both pipelines)
 
@@ -262,7 +262,7 @@ pushed the results doc + merge script + DOX ownership rows.
 ### 4.2 M11 H-GATE — full power (merged run 67a1dc06, 392/392 triples, 1 documented error, complete)
 
 Full readout (98 questions × 4 arms, all five public scenarios, independent
-judge kimi-k2.5, absolute scoring) in [testbench-results-hgate.md](testbench-results-hgate.md)
+judge kimi-k2.5, absolute scoring) in [testbench-results-hgate.md](../testbench-results-hgate.md)
 and its JSON twin `testbench-results-hgate.json`. Judge-scored correctness by arm:
 
 | arm | corr | Δ vs base | McNemar p | FDR q | escalate | p50 latency |
@@ -353,7 +353,7 @@ acc 0.875, Brier 0.123, ECE 0.157, FN-on-answerable 0.125.
 
 | milestone | what | why |
 |---|---|---|
-| ~~M11~~ ✅ **done** (full 392-triple run complete, analyzed, results committed to [testbench-results-hgate.md](testbench-results-hgate.md)) | — | gate verdict: marginal value NOT confirmed at full power (base − gate-none = +4.6pp, n.s.); forced escalation confirmed pure cost; oracle undercuts base |
+| ~~M11~~ ✅ **done** (full 392-triple run complete, analyzed, results committed to [testbench-results-hgate.md](../testbench-results-hgate.md)) | — | gate verdict: marginal value NOT confirmed at full power (base − gate-none = +4.6pp, n.s.); forced escalation confirmed pure cost; oracle undercuts base |
 | **M12** | H-RERANK e2e ablation: cross vs jev vs none on the multi-hop scenarios; resolve the MuSiQue rerank regression | rerank is on the hot path; the regression is a real cost if it survives e2e |
 | **M13** | "Codifying the judge": distill the cloud judge's binary verdicts into the local features+jev-score gate; report Brier/ECE delta | the judge labels are already persisted per-triple (jev_decisions) — a free calibration set |
 | **M14** | final objective report: consolidate M11–M13 into the README results table + CHANGELOG; push | closes the engagement brief |
@@ -433,15 +433,15 @@ Scaling notes for real hardware:
 
 | artifact | path |
 |---|---|
-| raw task log (per-task, append-only) | [worklog.md](../worklog.md) |
-| milestone entries | [CHANGELOG.md](../CHANGELOG.md) |
-| v3 design + research | [docs/rag-upgrade-2026.md](rag-upgrade-2026.md), [docs/rag-upgrade-2026-results.md](rag-upgrade-2026-results.md) |
-| testbench design (pre-declared hypotheses) | [docs/testbench-design.md](testbench-design.md) |
-| Layer-1 results | [docs/testbench-results-layer1.md](testbench-results-layer1.md) |
-| public-benchmark results (v2→v3 headline) | [docs/benchmark-results.md](benchmark-results.md) |
+| raw task log (per-task, append-only) | [worklog.md](worklog.md) |
+| milestone entries | [CHANGELOG.md](../../CHANGELOG.md) |
+| v3 design + research | [docs/rag-upgrade-2026.md](../rag-upgrade-2026.md), [docs/rag-upgrade-2026-results.md](../rag-upgrade-2026-results.md) |
+| testbench design (pre-declared hypotheses) | [docs/testbench-design.md](../testbench-design.md) |
+| Layer-1 results | [docs/testbench-results-layer1.md](../testbench-results-layer1.md) |
+| public-benchmark results (v2→v3 headline) | [docs/benchmark-results.md](../benchmark-results.md) |
 | H-GATE interim snapshot (this push) | `docs/assets/testbench-hgate-partial-2026-09-30.{md,json}` |
 | runner / analyzer / export scripts | `backend/scripts/` |
-| fresh-machine setup | [docs/setup.md](setup.md) |
+| fresh-machine setup | [docs/setup.md](../setup.md) |
 
 ---
 
@@ -454,14 +454,14 @@ The owner picked up the run on a Windows workstation with WSL2
   uninterrupted foreground/`setsid`-detached process is safe, so the
   `--window-minutes 8` chained-window protocol is no longer required.
 - **ONNX Runtime CUDA provider is unavailable in WSL2** (documented
-  [setup-gpu.md](setup-gpu.md)): `CUDA failure 100: no CUDA-capable device
+  [setup-gpu.md](../setup-gpu.md)): `CUDA failure 100: no CUDA-capable device
   is detected`. The embedder and cross-encoder gracefully fall back to CPU
   (verified via the load smoke test). `jev-score` (llama.cpp) is a Linux
   ELF binary and runs on CPU in WSL2.
 - The sandbox-era 192-triple run state (`be7b62ea`) was **not portable** —
   it lived in the sandbox's `backend/data/app.db`, which is wiped on every
   sandbox reset and is not committed. The committed interim snapshot
-  ([testbench-hgate-partial-2026-09-30](assets/testbench-hgate-partial-2026-09-30.md))
+  ([testbench-hgate-partial-2026-09-30](../assets/testbench-hgate-partial-2026-09-30.md))
   is a record only, not a resume point.
 
 **Fresh run on this machine:** the first serial attempt
@@ -482,7 +482,7 @@ each scenario's *completed* run so the later in-flight retry run cannot
 win the tie-break) → unified run `67a1dc06-a3bd-4bf1-8f25-092cd5db3eff`
 (392 rows, 391 scored + 1 error). Analysis:
 `JEVRAG_DATA_DIR=backend/data_merged .venv/bin/python scripts/analyze_testbench.py 67a1dc06-… --out ../docs/testbench-results-hgate.md`
-→ [testbench-results-hgate.md](testbench-results-hgate.md).
+→ [testbench-results-hgate.md](../testbench-results-hgate.md).
 
 **The resumption is now complete** — the §4.2 full-run readout above
 replaces this section's "in flight" framing. §8's resume/analyze commands

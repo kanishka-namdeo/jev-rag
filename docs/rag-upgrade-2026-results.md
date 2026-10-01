@@ -87,7 +87,7 @@ questions; always-escalating loses different ones and pays 2.6× latency.
 The pilot's direction was re-tested at full power on the owner's Windows
 workstation under WSL2 (RTX 2070 Super), 5 parallel runners one-per-scenario
 on separate `JEVRAG_DATA_DIR`s (§6 of
-[project-status-2026-09-30.md](project-status-2026-09-30.md)), then merged by
+[docs/dev/project-status-2026-09-30.md](dev/project-status-2026-09-30.md)), then merged by
 [`backend/scripts/_merge_par_run.py`](../backend/scripts/_merge_par_run.py).
 Full readout: [testbench-results-hgate.md](testbench-results-hgate.md) +
 [.json](testbench-results-hgate.json) twin. 1 documented error row kept
