@@ -362,7 +362,7 @@ wsl --install -d Ubuntu-24.04
 **On this system (Windows + WSL2):**
 - llama.cpp build: ~10-15 minutes
 - Backend startup: ~15 seconds (once caches are warm; a first boot adds the one-time embedding-model download)
-- Hybrid pipeline query: ~30 seconds (2 cores)
+- Hybrid pipeline query: ~41 s p50, measured on the 2-core sandbox (run `16814bd5`, see [results.md](results.md)); this 12-core workstation came in around 20 s p50 ([testbench-results-layer2-full9.md](testbench-results-layer2-full9.md))
 - Full benchmark suite: ~2-4 hours
 
 **Optimization tips:**

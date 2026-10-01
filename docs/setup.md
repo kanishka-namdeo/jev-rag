@@ -160,7 +160,9 @@ First boot notes:
 - backend startup loads the GGUF eagerly — expect **~15 s** to healthy once caches are warm (a first boot adds the one-time embedder download below)
 - the embedding model (~225 MB, `paraphrase-multilingual-MiniLM-L12-v2`) downloads on
   first use into `backend/data/fastembed_cache/` — one-time
-- answers via the hybrid pipeline take ~30 s on 2 cores (three local decision calls);
+- answers via the hybrid pipeline measure **~41 s p50 on the 2-core sandbox** (v3 headline
+  run `16814bd5`, [results.md](results.md) — the same figure the README publishes; traditional
+  is ~20 s p50, and only ~1-in-5 questions take the escalated hard path);
   see latency knobs in [hybrid-design.md](hybrid-design.md)
 
 ---
