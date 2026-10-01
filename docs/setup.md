@@ -157,7 +157,7 @@ see [configuration.md](configuration.md).
 
 First boot notes:
 
-- backend startup loads the GGUF eagerly — expect **~15 s** to healthy
+- backend startup loads the GGUF eagerly — expect **~15 s** to healthy once caches are warm (a first boot adds the one-time embedder download below)
 - the embedding model (~225 MB, `paraphrase-multilingual-MiniLM-L12-v2`) downloads on
   first use into `backend/data/fastembed_cache/` — one-time
 - answers via the hybrid pipeline take ~30 s on 2 cores (three local decision calls);
@@ -207,7 +207,7 @@ bash scripts/probe_public_gateway.sh
 #      benchmark run past it.
 
 # 3) hermetic test suite (no models, no network — same as CI)
-cd backend && .venv/bin/python -m pytest tests -v    # 158 passed
+cd backend && .venv/bin/python -m pytest tests -v    # all tests pass, command exits 0
 
 # 4) frontend lint
 cd .. && bun run lint                                # no output = clean

@@ -121,7 +121,7 @@ bash scripts/setup_local_models.sh
 ```
 
 **What this does:**
-1. Downloads Jev-Style GGUF model (~505 MB) from HuggingFace
+1. Downloads Jev-Style GGUF model (0.53 GB, 529,296,864 bytes) from HuggingFace
 2. Clones llama.cpp repository
 3. Builds `jev-score` binary (takes 5-15 minutes)
 4. Applies memory optimization patches
@@ -260,7 +260,7 @@ This starts:
 - Frontend UI on `http://localhost:3000`
 
 **First startup notes:**
-- Backend loads the GGUF model (~15 seconds)
+- Backend loads the GGUF model (~15 seconds once caches are warm; a first boot adds the one-time embedding-model download)
 - Embedding model downloads on first use (~225 MB, one-time)
 - Hybrid pipeline queries take ~30 seconds on 2 cores
 
@@ -311,7 +311,7 @@ cd /mnt/d/test_jev/jev-rag/backend
 - ✅ uv v0.12.21 installed at `/root/.local/bin/uv`
 - ✅ bun v1.4.2 installed at `/root/.bun/bin/bun`
 - ✅ System dependencies (build-essential, cmake, git, curl, unzip) installed
-- ✅ Jev-Style GGUF model downloaded (~505 MB)
+- ✅ Jev-Style GGUF model downloaded (0.53 GB, 529,296,864 bytes)
 - ✅ jev-score binary built (250K at `models/jev-style/build/jev-score`)
 - ✅ Backend venv created with 132 packages (FastAPI 0.142.0)
 - ✅ Frontend dependencies installed (827 packages)
@@ -361,7 +361,7 @@ wsl --install -d Ubuntu-24.04
 
 **On this system (Windows + WSL2):**
 - llama.cpp build: ~10-15 minutes
-- Backend startup: ~15 seconds
+- Backend startup: ~15 seconds (once caches are warm; a first boot adds the one-time embedding-model download)
 - Hybrid pipeline query: ~30 seconds (2 cores)
 - Full benchmark suite: ~2-4 hours
 
