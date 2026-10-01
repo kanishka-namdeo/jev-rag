@@ -110,7 +110,10 @@
 - `python3 scripts/validate_docs.py` — documentation-Markdown check (repo-root `.md`,
   `docs/**`, `.github/**`, and every `AGENTS.md`; the benchmark corpora and the unindexed
   generated/vendored roots are out of scope) for links, anchors, images, `<details>` balance
-  and secret patterns; CI job `docs` runs it, so a docs change that breaks a link fails the
+  and secret patterns. Anchors are checked against GitHub's own slug rule for same-page
+  `#frag` links and `page.md#frag` deep links alike, so a hand-written anchor must be the
+  anchor GitHub actually emits (emoji headings keep a leading hyphen; inline code keeps its
+  text in the slug); CI job `docs` runs it, so a docs change that breaks a link fails the
   pipeline
 - Manual review on change; cross-check protocol tables against `backend/app/rag/pipelines.py`
   and `src/lib/jevrag/types.ts` after any protocol change

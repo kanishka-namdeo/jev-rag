@@ -80,11 +80,20 @@
 - `validate_docs.py` — Markdown hygiene audit scoped to **documentation only** (repo-root
   `.md`, `docs/**`, `.github/**`, and every `AGENTS.md`; it excludes the benchmark corpora
   under `backend/app/bench/corpora/` and the unindexed roots, because those are test data and
-  generated trees, not docs): relative link and image existence, GitHub anchor rules
-  (lowercase, punctuation stripped, spaces→hyphens, emoji leading-hyphen tolerance),
-  `<details>` balance, secret-pattern scan. Exit 1 on any error. Run it before pushing any
-  docs change — it is a CI job, not an optional check. Formerly README-only
-  (`validate_readme.py`), then briefly every tracked `.md`.
+  generated trees, not docs): relative link and image existence (including the outer target
+  of a badge link, `[![alt](img)](target)`), heading anchors for **both** same-page `#frag`
+  links and `page.md#frag` deep links, `<details>` balance, secret-pattern scan. Anchor slugs
+  reproduce GitHub's own rule — lowercase, punctuation and emoji dropped, **every** remaining
+  space becomes a hyphen with no collapsing or trimming (`## A — B` → `a--b`,
+  `## 📸 Screenshots` → `-screenshots`, ``## Run `bf05f585` config`` keeps `bf05f585`), with a
+  deliberate leniency for the leading-hyphen-stripped form. Measured against GitHub's render
+  of the in-scope docs: 160/161 ids; the one deviation (an emoji plus U+FE0F keeps GitHub's
+  invisible variation selector) is explained in the script. Markup is read from prose only
+  (fences and inline code are not links), but anchor slugs keep inline-code text; the secret
+  scan still reads raw text. An unreadable or undecodable file becomes an `ERROR:` line, never
+  a traceback. Exit 1 on any error. Run it before pushing any docs change — it is a CI job,
+  not an optional check. Formerly README-only (`validate_readme.py`), then briefly every
+  tracked `.md`.
 - `render_social_preview.py` + `social_preview.html` — regenerates the repo social
   preview card (Playwright, 1280×640 @2x) into `docs/assets/img/social-preview.png`;
   update the HTML source, re-render, then upload via repo Settings (the REST upload
