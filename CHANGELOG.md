@@ -41,6 +41,10 @@ privacy sentence describes the code, not the template. Spec and 17-task plan:
   - UI copy/asset: favicon is the local `public/logo.svg` (was a third-party CDN URL) and the
     footer reads "System One (local decisions) + System Two (cloud LLM)" instead of
     "Fully local stack" ([`2a2f0f5`](https://github.com/kanishka-namdeo/jev-rag/commit/2a2f0f5)).
+  - Next.js telemetry is now disabled by default — `NEXT_TELEMETRY_DISABLED=1` in `scripts/dev.sh`
+    and the `dev`/`build`/`start` scripts in `package.json`. Before this, the dev server's
+    shutdown still flushed an anonymous Next.js ping, so the README's "no telemetry" was not
+    true of the shipped workflow.
 - **Docs harness**: `scripts/validate_readme.py` generalized and renamed to
   `scripts/validate_docs.py` — documentation markdown only (repo root, `docs/**`, `.github/**`,
   every `AGENTS.md`; the 779-file benchmark corpora and generated roots are out of scope) —

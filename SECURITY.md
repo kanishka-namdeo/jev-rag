@@ -43,6 +43,11 @@ credential immediately, then report so the history can be scrubbed.
   browser-driven surface as narrowed, not closed.
 - Cloud calls go only to the OpenAI-compatible endpoint you configure in
   `backend/.env`. Uploaded documents and the vector store stay on your disk.
+- Next.js telemetry is disabled on every shipped launch path
+  (`NEXT_TELEMETRY_DISABLED=1` in `scripts/dev.sh` and the `dev`/`build`/`start`
+  scripts in `package.json`), so the README's "no telemetry" holds for the frontend
+  toolchain too. Running `next` any other way re-enables it unless you set the
+  variable yourself.
 - Private vulnerability reporting must be **enabled in repo Settings** — it is a
   setting, not a file. The form above ("Security → Report a vulnerability") exists
   only while Settings → Security and insights keeps "Report a vulnerability"

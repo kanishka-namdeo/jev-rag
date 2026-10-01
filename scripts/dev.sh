@@ -24,4 +24,8 @@ trap 'kill "$BACKEND_PID" 2>/dev/null || true' EXIT INT TERM
 
 log "starting frontend (next dev :3000)"
 cd "$ROOT"
+# Local-first contract: no telemetry. Next.js pings home by default in dev;
+# NEXT_TELEMETRY_DISABLED=1 also prefixes the dev/build/start scripts in
+# package.json, so bare `bun run dev` is covered too.
+export NEXT_TELEMETRY_DISABLED=1
 bun run dev

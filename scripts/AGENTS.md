@@ -10,7 +10,9 @@
   from llama.cpp (idempotent phases; safe to re-run)
 - `setup_backend.sh` — creates `backend/.venv` via uv and installs requirements
 - `backend_service.sh` — runs uvicorn (used by mini-services and the self-healing launcher)
-- `dev.sh` — starts backend + frontend together for local development
+- `dev.sh` — starts backend + frontend together for local development; exports
+  `NEXT_TELEMETRY_DISABLED=1` (local-first contract — the same var prefixes the
+  `dev`/`build`/`start` scripts in `package.json`)
 - `init-fullstack-reference.sh` — reference copy of the sandbox init script (documentation only)
 - `probe_public_gateway.sh` — endpoint reachability probe (models list, one chat per model,
   judge json_object smoke); reads key/base-url from env or `backend/.env` — never hardcodes
