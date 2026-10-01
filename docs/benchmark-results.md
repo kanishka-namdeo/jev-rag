@@ -445,3 +445,20 @@ No passage battery, no conflict blocks, no effort routing, no fast path.
 Read the *Confounds* section before comparing v1 and v2 numbers directly: the cloud
 endpoint drifted between the two runs (the traditional arm itself moved 85.4% →
 83.3% overall and 100% → 62.5% on outofscope with identical code).
+
+## Run notes
+
+- **2026-10-01 — gate-default smoke (`db23b949`, label "gate-default-0.6 smoke")**. Change
+  under test: `gate_score_threshold` default 0.5 → 0.6, so a user who never copied
+  `backend/.env.example` now gets the escalation gate at the θ the template and the published
+  calibration tables describe. One scenario (`outofscope`, 8 questions), both arms, executed
+  on a throwaway `JEVRAG_DATA_DIR`; the run persisted `gate_mode=features, θ=0.6`. Result:
+  both arms 8/8 binary-correct (traditional 100%, hybrid 100%), faithfulness 100% both arms,
+  pairwise 8 ties (position-consistency 0.875), judge self-test 8/8, **0 error rows**, cloud
+  cost $0.024, 690 s wall clock. Against `bf05f585` above: traditional was already 8/8 on this
+  scenario; hybrid's single recorded binary loss here — the `o5` judge-noise abstention flip —
+  scored 1.0 in this smoke, a +1-question difference inside the run-to-run noise *Confounds*
+  documents. The hybrid abstained on the five out-of-scope questions `o2/o3/o5/o6/o8` with
+  sufficiency P = 0.0 and fabricated none, matching the recorded zero-fabrication baseline.
+  **n=8 has no statistical power for a delta this small — this is a do-no-harm check, not a
+  finding.**

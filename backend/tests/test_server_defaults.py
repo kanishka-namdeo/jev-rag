@@ -45,11 +45,17 @@ def test_default_host_is_loopback(monkeypatch):
 def test_cors_never_allows_wildcard_by_default():
     from fastapi.middleware.cors import CORSMiddleware
 
+    from app.config import Settings
     from app.main import create_app
 
     mw = [m for m in create_app().user_middleware if m.cls is CORSMiddleware]
     assert mw, "CORSMiddleware missing"
     assert "*" not in mw[0].kwargs["allow_origins"], mw[0].kwargs["allow_origins"]
+    # The middleware check above reflects the *effective* config — a developer's own
+    # backend/.env (gitignored, real on a dev box) can set JEVRAG_FRONTEND_ORIGIN and decide
+    # its outcome. Construct Settings(_env_file=None) to prove the SHIPPED default excludes
+    # the wildcard regardless of ambient files or env.
+    assert "*" not in Settings(_env_file=None).cors_origins
 
 
 def test_cors_origins_follow_env(monkeypatch):
@@ -58,9 +64,6 @@ def test_cors_origins_follow_env(monkeypatch):
     assert s.cors_origins == ["http://example.test:3000", "http://localhost:3000"]
 
 
-@pytest.mark.xfail(reason="backend/.env.example declares JEVRAG_GATE_SCORE_THRESHOLD=0.6 "
-                          "while app/config.py defaults to 0.5; removed in the next commit",
-                   strict=True)
 def test_env_example_defaults_match_code():
     """backend/AGENTS.md: template and code defaults must agree — they had drifted
     (gate threshold 0.6 in the template vs 0.5 in code).

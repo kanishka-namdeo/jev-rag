@@ -176,6 +176,15 @@ treating the gate as a multi-hop-only component.
 - Public scenarios are all answerable, so `FP(unans)` is undefined throughout and the gate's
   fabrication-risk side is untested here — the internal `outofscope` scenario covers it.
 - Latency and cost are cloud-endpoint dominated, so they carry the endpoint's own variance.
+- **2026-10-01 — the shipped default now matches this page's θ.** `app/config.py`'s
+  `gate_score_threshold` moved 0.5 → 0.6 to match `backend/.env.example` and the gate
+  calibration tables above, so a user who never copied the template runs the gate the published
+  tables describe. Do-no-harm smoke (`db23b949`, `outofscope` only, 8 questions, both arms,
+  throwaway data dir): completed with **0 error rows**, both arms 8/8 correct, hybrid abstained
+  on the five out-of-scope questions with zero fabrications — within one question of the
+  `bf05f585` baseline recorded in `benchmark-results.md`. At n=8 this has no statistical power
+  for a delta this small; it makes the shipped default and the published calibration agree in
+  writing, not a new inference result.
 
 ## Reproducibility against M11 (`67a1dc06`, same four arms, same knobs, one day apart)
 

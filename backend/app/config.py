@@ -131,7 +131,10 @@ class Settings(BaseSettings):
     #           (testbench arm — literature contradicts it for 0.5B zero-shot)
     # none:     never escalate (bounder arm)
     gate_mode: str = "features"
-    gate_score_threshold: float = 0.5    # calibrated on eval data (M8 refits)
+    gate_score_threshold: float = 0.6    # Youden-J operating point on eval data (θ=0.6); the
+    # published gate-calibration tables in docs/testbench-results-*.md are computed at this
+    # threshold. Must equal JEVRAG_GATE_SCORE_THRESHOLD in backend/.env.example so a user who
+    # skips the template still runs the gate the docs describe.
     jev_sufficiency_threshold: float = 0.5  # was hard-coded SUFFICIENCY_THRESHOLD
 
     # --- Hybrid v2 pipeline (single-generator design; docs/jev-improvements-research.md §4) ---
