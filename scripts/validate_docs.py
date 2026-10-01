@@ -1,6 +1,11 @@
 #!/usr/bin/env python3
-"""Validate every Markdown file in the repo: links, images, anchors, details blocks,
-and secret patterns. Exit 1 on any error, 0 otherwise."""
+"""Documentation Markdown validator.
+
+Audits *documentation* Markdown only — the repo-root pages (README, CHANGELOG, …),
+everything under `docs/` and `.github/`, and every `AGENTS.md` (the DOX chain) anywhere
+in the tree — for relative link and image existence, GitHub anchor rules, `<details>`
+balance and secret patterns. The benchmark corpora and the generated/vendored roots are
+out of scope; see `NON_DOCUMENTATION_ROOTS`. Exit 1 on any error, 0 otherwise."""
 import os
 import re
 import subprocess
@@ -17,7 +22,34 @@ ANCHOR_RE = re.compile(r"^#{1,6}\s+(.+)$", re.M)
 MD_LINK_RE = re.compile(r"\[([^\]]*)\]\(([^)]+)\)")
 MD_IMG_RE = re.compile(r"!\[[^\]]*\]\(([^)]+)\)")
 HTML_IMG_RE = re.compile(r'<img\s+[^>]*src="([^"]+)"')
-SKIP_ROOTS = ("node_modules/", ".next/", "vendor/", "models/", "backend/.venv/")
+
+# --- documentation scope -------------------------------------------------------
+# This audit covers *documentation*, not every tracked `.md`. The 818 tracked Markdown
+# files here are dominated by `backend/app/bench/corpora/**` (779 of them): ground-truth
+# benchmark *documents* — i.e. test data, not prose. Auditing those would couple docs
+# hygiene to benchmark content, and `backend/AGENTS.md` warns that editing a corpus
+# document invalidates the questions that reference it, so a docs check has no business
+# failing a corpus page or being held hostage by one. Documentation lives at the repo
+# root, under `docs/`, under `.github/`, and in the `AGENTS.md` DOX chain anywhere.
+DOCUMENTATION_DIRS = ("docs/", ".github/")   # durable doc trees
+DOX_FILENAME = "AGENTS.md"                     # a DOX file is documentation wherever it sits
+
+# The directory-scope EXCLUSION. One constant, so the reason survives: these roots are
+# never documentation. `backend/app/bench/corpora/` is benchmark ground-truth test data
+# (see the block above); the rest are the generated / vendored / local roots the root
+# `AGENTS.md` lists as "intentionally unindexed". The exclusion WINS over the include, so
+# an `AGENTS.md` under one of them (e.g. `skills/AGENTS.md`) is skipped too and the scope
+# stays documentation-only as those trees grow. This is a path-prefix rule, NOT a
+# per-file allow-list of link strings — nothing here names an individual document.
+NON_DOCUMENTATION_ROOTS = (
+    "backend/app/bench/corpora/",   # bench ground-truth documents = test data, not docs
+    "node_modules/", ".next/", "backend/.venv/",
+    "backend/data",                 # covers data/, data_merged/, data_par/
+    "models/", "vendor/", "logs/", "mini-services/",
+    "download/", "upload/", "skills/", ".zscripts/",
+    "scripts/research/", "scripts/test-assets/",
+)
+
 # GitHub renders nothing inside a fenced block or an inline code span, so a `[x](y)`
 # there is literal text, never a link, and a `<details>` there never opens a block.
 # README-only scanning never hit this; the repo-wide walk does — the plan/spec docs
@@ -48,11 +80,30 @@ def anchors_of(text: str) -> set[str]:
     return out
 
 
+def is_documentation(path: Path) -> bool:
+    """True when `path` (repo-relative) is documentation Markdown.
+
+    In scope: repo-root `.md`, everything under `docs/` and `.github/`, and any
+    `AGENTS.md`. Anything under `NON_DOCUMENTATION_ROOTS` — the benchmark corpora and
+    the unindexed roots — is excluded, and that exclusion wins over the include."""
+    posix = path.as_posix()
+    if posix.startswith(NON_DOCUMENTATION_ROOTS):
+        return False
+    if posix.endswith(".md"):
+        if "/" not in posix:                       # repo-root markdown (README.md, …)
+            return True
+        if posix.startswith(DOCUMENTATION_DIRS):    # docs/ and .github/
+            return True
+        if path.name == DOX_FILENAME:               # AGENTS.md anywhere in the tree
+            return True
+    return False
+
+
 def markdown_files() -> list[Path]:
     raw = subprocess.run(["git", "ls-files", "-z", "--", "*.md"],
                          capture_output=True, check=True).stdout.split(b"\0")
     files = [Path(p.decode()) for p in raw if p]
-    return [f for f in files if not f.as_posix().startswith(SKIP_ROOTS)]
+    return [f for f in files if is_documentation(f)]
 
 
 def resolve(source: Path, target: str) -> Path:
@@ -102,7 +153,7 @@ def main() -> int:
     files = markdown_files()
     lines = sum(check_file(f, errors) for f in files)
     readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8").count("\n") + 1
-    print(f"stats: {len(files)} markdown files, {lines} lines, README {readme}")
+    print(f"stats: {len(files)} documentation markdown files, {lines} lines, README {readme}")
     for e in errors:
         print("ERROR:", e)
     return 1 if errors else 0
