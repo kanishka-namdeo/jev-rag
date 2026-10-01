@@ -54,7 +54,7 @@ The repo's docs are accurate but written for the person who built it. Concretely
 | Restructure depth | **Stable paths** — no existing doc moves; add hub + prune diary |
 | Benchmark framing | **Honest evidence is the selling point** — headline plus "what we could not show" |
 | Beautify scope | **Repo presentation only.** App UI untouched; no demo GIF |
-| Tidying | **Tidy** — move (not delete) diaries, add low-value-but-expected `.github` files, prune provably dead assets |
+| Tidying | **Tidy** — move (not delete) diaries, add low-value-but-expected `.github` files, prune provably dead assets. Amended on execution: the `CODE_OF_CONDUCT.md` this option defaulted to was declined on evidence and did not ship (§9) |
 | Privacy fix | **Docs + minimal security fix** — in scope, including the gate-default correction |
 | Structure | **Approach A** — user layer, minimal surface |
 
@@ -290,15 +290,16 @@ endpoint (`routes.py:51-52` parses the full model) — documented as internal, n
   `backend/app/rag/crossenc.py:19`, `backend/scripts/run_testbench.py:160` — plus the moved
   files' own links, which now point *out* of `docs/dev/` (`../worklog.md` → `worklog.md`, and
   `docs/…` → `../…` for project-status's references to the durable docs).
-  `scripts/check_docs_links.sh` (§11.1) is what proves none were missed.
+  `scripts/validate_docs.py` (§11.1, as amended) is what proves none were missed.
 - **`.github/dependabot.yml`** for npm, pip, and github-actions (weekly) and
   **`.github/release.yml`** for categorized auto-generated release notes — both on GitHub's
   own 2026 maintainer checklist.
 - **`.github/ISSUE_TEMPLATE/`**: add a "Setup / install problem" template routing to
   `troubleshooting.md`; update `config.yml` contact links to the docs hub and the new pages.
-- **Skipped**: `CODE_OF_CONDUCT.md` (research: none of ollama, Dify, khoj, AnythingLLM,
-  RAGFlow or txtai foregrounds it; noise for a small research repo — reverses the default in the
-  approved "Tidy" option) · `FUNDING.yml` · `llms.txt` (built for docs sites, not a repo tree).
+- **Skipped — declined on evidence, so not shipped** (this overrides the `.github` default inside
+  the approved "Tidy" option, §2): `CODE_OF_CONDUCT.md` (research: none of ollama, Dify, khoj,
+  AnythingLLM, RAGFlow or txtai foregrounds it; noise for a small research repo) · `FUNDING.yml` ·
+  `llms.txt` (built for docs sites, not a repo tree).
 - **Manual, cannot be done from files**: enabling **private vulnerability reporting**.
   `SECURITY.md:12` already directs reporters there. Settings → Security & insights →
   Report a vulnerability. Its scope note is also updated for the new loopback default.
@@ -312,10 +313,16 @@ hardening the internal chat fields · any retrieval/prompt/pipeline change.
 
 ## 11. Verification gates, in order
 
-1. `scripts/check_docs_links.sh` (new, durable, CI job #3): every relative markdown link
+1. `python3 scripts/validate_docs.py` (durable, CI job `docs`): every relative markdown link
    resolves on disk **and** every `#anchor` is validated against GitHub's documented anchor rules
-   (lowercase, spaces→hyphens, markup stripped, duplicates suffixed). Chosen over a one-off
-   check because anchor rot has already shipped twice.
+   (lowercase, spaces→hyphens, markup stripped, duplicates suffixed).
+   *Amended on execution:* this gate proposed a **new** `scripts/check_docs_links.sh`. No second
+   checker was built — `scripts/validate_readme.py` already implemented GitHub anchor rules and a
+   secret scan, so Task 1 generalized and renamed it to `validate_docs.py` and scoped it to
+   documentation markdown (the 779 benchmark-corpus `.md` files and generated roots are out of
+   scope). What was genuinely new is coverage and severity: the old script read only `README.md`,
+   and its same-page `#frag` findings were *warnings*; the shipped version audits every in-scope
+   file and fails (exit 1) on any broken link, image or anchor.
 2. `cd backend && .venv/bin/python -m pytest tests -v` — green, including the three new tests.
 3. `bun run lint` — green.
 4. Bench smoke (`POST /api/bench/runs`, one scenario) with the delta versus
@@ -342,8 +349,8 @@ hardening the internal chat fields · any retrieval/prompt/pipeline change.
 - Every claim about correctness, cost, latency, fabrication, disk, and binding in the README is
   traceable to a run id, a file:line, or a documented default.
 - The README's privacy sentence is true of the shipped default (`127.0.0.1`, CORS not `*`).
-- `check_docs_links.sh` exits 0 and fails when an anchor or path is broken (verified by
-  deliberately breaking one).
+- `validate_docs.py` (see the §11.1 amendment) exits 0 and fails when an anchor or path is broken
+  (verified by deliberately breaking one).
 - No tracked file path outside `docs/dev/` changed; every pre-existing doc URL still resolves.
 
 ## 13. Sources

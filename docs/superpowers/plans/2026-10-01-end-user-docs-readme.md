@@ -195,6 +195,14 @@ if __name__ == "__main__":
 
 Two deliberate choices to keep honest: `anchors_of` registers both the raw anchor and its leading-hyphen-stripped form (that is the emoji-heading tolerance carried over from the original script), and cross-file anchors are only checked for `.md` targets — non-markdown targets are existence-checked, nothing more.
 
+> **Amended on execution — this block's scope is stale.** The `SKIP_ROOTS` tuple above was the
+> pre-ruling walk: it audits **all 818 tracked markdown files**, 779 of which are the benchmark
+> corpora under `backend/app/bench/corpora/` (test data, not documentation). Commits `8041899` and
+> `9d816f2` replaced it with the documentation-scoped `NON_DOCUMENTATION_ROOTS` now in
+> `scripts/validate_docs.py` (in scope: repo-root `.md`, `docs/**`, `.github/**`, every `AGENTS.md`),
+> and added the same-page-anchor and GitHub-slug corrections this sketch lacked. Read the shipped
+> script as the contract; this block documents the reasoning that produced it.
+
 - [ ] **Step 4: Run it and confirm it finds the real defect**
 
 ```bash
@@ -567,6 +575,14 @@ wsl -d Ubuntu-24.04 -- bash -ic "tr -d '\r' < /tmp/smoke.json > /tmp/sm.json && 
 wsl -d Ubuntu-24.04 -- bash -ic "curl -s -X POST localhost:8000/api/bench/runs -H 'Content-Type: application/json' -d @/tmp/sm.json"
 ```
 
+> **Amended on execution — do not run the boot command bare.** As written it starts the backend on
+> the developer's live `backend/data`, and a bench run re-ingests the scenario corpora into that same
+> Chroma collection the chat searches (see `docs/usage.md` §Run the benchmark lab) — the smoke would
+> have contaminated the real corpus. The shipped procedure points the server and the run at a
+> throwaway dir first: `JEVRAG_DATA_DIR=$(mktemp -d) bash scripts/backend_service.sh`, which is how
+> run `db23b949` was actually executed (its `## Run notes` entry in `docs/benchmark-results.md`
+> records the throwaway data dir). Delete the temp dir afterwards.
+
 Expected: health `ok`, then a JSON body containing the new run id. **Paste that id into the
 analysis command and the commit message** — do not leave `<run_id>` in either.
 
@@ -757,7 +773,7 @@ Content contract — every row must be copied from `config.py` (verified) rather
 | Retrieval | `JEVRAG_TOP_K_RETRIEVE` = 10 · `JEVRAG_TOP_K_USE` = 4 · `JEVRAG_RETRIEVAL_MODE` = `hybrid_rrf` · `JEVRAG_RERANK_MODE` = `cross` · `JEVRAG_BM25_K1` = 1.5 · `JEVRAG_BM25_B` = 0.75 · `JEVRAG_RRF_K` = 60 · `JEVRAG_CHUNK_SIZE` = 900 · `JEVRAG_CHUNK_OVERLAP` = 140 · `JEVRAG_CONTEXTUAL_PREFIX` = true |
 | Gate & slots | `JEVRAG_GATE_MODE` = `features` · `JEVRAG_GATE_SCORE_THRESHOLD` = **0.6** · `JEVRAG_HYBRID_EFFORT_ROUTING` = true · `JEVRAG_JEV_NO_RETRIEVAL_THRESHOLD` = 0.9 · `JEVRAG_HYBRID_MULTISTEP` = true · `JEVRAG_JEV_MULTISTEP_SUBQUERY_K` = 6 · `JEVRAG_JEV_MULTISTEP_MAX_POOL` = 12 · `JEVRAG_HYBRID_PASSAGE_BATTERY` = **false** · `JEVRAG_JEV_INJECTION_DROP_THRESHOLD` = 0.9 · `JEVRAG_JEV_CONTRADICTION_BLOCK_THRESHOLD` = 0.5 · `JEVRAG_JEV_EVIDENCE_DROP_THRESHOLD` = 0.1 · `JEVRAG_HYBRID_CORRECTIVE_RETRY` = true · `JEVRAG_HYBRID_BEST_OF_N` = true · `JEVRAG_HYBRID_CITATION_VERIFY` = true · `JEVRAG_JEV_CITATION_CONFIDENCE` = 0.8 · `JEVRAG_HYBRID_VERIFY_ANSWERS` = true · `JEVRAG_JEV_SUFFICIENCY_THRESHOLD` = 0.5 |
 | Memory & latency | `JEVRAG_JEV_ENABLED` = true · `JEVRAG_JEV_DECISION_TIMEOUT` = 120.0 · `JEVRAG_JEV_SCORE_N_CTX` = 8192 · `JEVRAG_JEV_SCORE_N_SEQ_MAX` = 2 · `JEVRAG_JEV_SCORE_N_OUTPUTS_MAX` = 32 · `JEVRAG_JEV_SCORE_RLIMIT_DATA_MB` = 0 (empirically unusable) · `JEVRAG_JEV_RERANK_CHAR_LIMIT` = 400 · `JEVRAG_JEV_CONTEXT_CHAR_LIMIT` = 1600 · `JEVRAG_LLM_MIN_REQUEST_INTERVAL` = 0.0 (1.5 s on burst-limited gateways) · `JEVRAG_LAZY_MODELS` = false |
-| Generation | `JEVRAG_LLM_TEMPERATURE` = 0.3 · `JEVRAG_LLM_MAX_TOKENS` = 2000 · `JEVRAG_LLM_DISABLE_THINKING` = true · `JEVRAG_DASHSCOPE_EXTRA_HEADERS` = `""` · `JEVRAG_DASHSCOPE_AUTH_CONFIG` = `""` |
+| Generation | `JEVRAG_LLM_TEMPERATURE` = 0.3 · `JEVRAG_LLM_MAX_TOKENS` = 2000 · `JEVRAG_DISABLE_LLM_THINKING` = true · `JEVRAG_DASHSCOPE_EXTRA_HEADERS` = `""` · `JEVRAG_DASHSCOPE_AUTH_CONFIG` = `""` |
 | Server & storage | `JEVRAG_HOST` = `127.0.0.1` · `JEVRAG_PORT` = 8000 · `JEVRAG_LOG_LEVEL` = INFO · `JEVRAG_FRONTEND_ORIGIN` = `http://localhost:3000,http://127.0.0.1:3000` · `JEVRAG_DATA_DIR` = `./backend/data` · `JEVRAG_EMBED_CACHE_DIR` = `""` · `JEVRAG_RERANKER_CACHE_DIR` = `""` |
 | Benchmarking | `JEVRAG_BENCH_PAIRWISE` = true · `JEVRAG_BENCH_CONTEXT_METRICS` = true · `JEVRAG_BENCH_MAX_QUESTIONS_PER_SCENARIO` = 0 · `JEVRAG_BENCH_JUDGE_ENSEMBLE` = `""` · `JEVRAG_BENCH_ROBUSTNESS_PARAPHRASES` = 0 |
 
@@ -808,6 +824,14 @@ git commit -m "docs: configuration reference for the settings users actually tou
 62 fields in app/config.py, 37 in backend/.env.example, and no page that listed either.
 Every row is dumped from Settings, not remembered."
 ```
+
+> **Amended on execution — two numbers in this task were wrong, and the dump in Step 1 is what
+> caught them.** `Settings` has **64** fields, not 62: the field list this table was drafted from
+> came from a name-style grep (`^\s*[a-z_]+:`-shaped), which silently skips the digit-bearing
+> `bm25_k1` and `bm25_b`. The template has **36** active `JEVRAG_*` lines (+3 commented examples),
+> not 37. And `JEVRAG_LLM_DISABLE_THINKING` in the Generation row never existed — the field is
+> `disable_llm_thinking`, so the env name is `JEVRAG_DISABLE_LLM_THINKING` (row corrected above).
+> The shipped page states 64 / 36 / 25.
 
 ---
 
@@ -866,7 +890,13 @@ running stream cannot be stopped."
 **Files:**
 - Create: `docs/troubleshooting.md`
 
-**Interfaces:** Consumes `docs/setup.md`'s existing 12-row troubleshooting table (link it, do not duplicate it) and `docs/setup-gpu.md`'s CUDA section. Produces `#it-wont-start`, `#uploads`, `#answers`, `#slow`, `#cost-shows-dash`, `#the-backend-died`, `#cant-reach-it-from-another-device`, `#collecting-diagnostics`.
+**Interfaces:** Consumes `docs/setup.md`'s existing 12-row troubleshooting table (link it, do not duplicate it) and `docs/setup-gpu.md`'s CUDA section. Produces `#it-wont-start`, `#uploads`, `#answers`, `#answers-are-slow`, `#cost-shows-`, `#the-backend-died`, `#cant-reach-it-from-another-device`, `#collecting-diagnostics`.
+
+> **Amended on execution:** the anchors this line originally listed — `#slow` and `#cost-shows-dash` —
+> are not the anchors GitHub emits. The headings are "Answers are slow" and "Cost shows `—`", so the
+> real slugs are `#answers-are-slow` and `#cost-shows-` (the em dash is dropped as punctuation, the
+> space before it becomes the trailing hyphen). `README.md` and `validate_docs.py` both depend on the
+> shipped forms.
 
 - [ ] **Step 1: Write symptom → check → fix**
 
