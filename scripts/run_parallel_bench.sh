@@ -589,6 +589,34 @@ for sid in "${SCENARIO_ARR[@]}"; do
 done
 
 # -------------------------------------------------------------- meta file (4)
+# Contract 4 says the meta file describes THIS launch — so a resume launch replaces a
+# previous full-suite meta with one that names only the resumed scenarios. The merge
+# reads workers[], and would then silently produce a short run that still exits 0.
+# Capture the outgoing set first so we can warn about exactly that.
+PREV_WORKERS=""
+if [[ -f "$META_FILE" ]]; then
+    PREV_WORKERS="$(META_FILE="$META_FILE" "$META_PY" - <<'PY' 2>/dev/null || true
+import json
+import os
+try:
+    with open(os.environ["META_FILE"], encoding="utf-8") as fh:
+        meta = json.load(fh)
+except Exception:
+    raise SystemExit(0)
+out = []
+for w in meta.get("workers") or []:
+    sid = str(w.get("scenario") or "").strip()
+    rid = str(w.get("run_id") or "").strip()
+    if sid:
+        out.append(f"{sid}:{rid}")
+if not out:
+    # legacy meta files carry only the scenarios list, no per-worker ids
+    out = [s.strip() + ":" for s in str(meta.get("scenarios") or "").split(",") if s.strip()]
+print(",".join(out))
+PY
+)"
+fi
+
 WORKERS_TSV=""
 for i in "${!W_SCENARIO[@]}"; do
     if [[ -n "$WORKERS_TSV" ]]; then
@@ -672,6 +700,50 @@ fi
 echo "========================================"
 echo "$LAUNCHED worker(s) launched (${#SCENARIO_ARR[@]} scenarios, max parallel $MAX_PARALLEL)"
 echo "========================================"
+
+# Warn about scenarios the outgoing meta knew about but this launch does not.
+if [[ -n "$PREV_WORKERS" ]]; then
+    DROPPED=""
+    IFS=',' read -ra PREV_PAIRS <<< "$PREV_WORKERS"
+    for pair in ${PREV_PAIRS[@]+"${PREV_PAIRS[@]}"}; do
+        psid="${pair%%:*}"
+        [[ -z "$psid" ]] && continue
+        keep=0
+        for sid in "${SCENARIO_ARR[@]}"; do
+            [[ "$sid" == "$psid" ]] && keep=1 && break
+        done
+        (( keep )) || DROPPED+="${DROPPED:+ }$pair"
+    done
+    if [[ -n "$DROPPED" ]]; then
+        echo "" >&2
+        echo "WARNING: $META_FILE now describes ONLY this launch." >&2
+        echo "  Scenarios from the previous launch are no longer in it: $DROPPED" >&2
+        echo "  Merging from the meta file alone would silently produce a SHORT run that" >&2
+        echo "  still exits 0. Pass every scenario explicitly, e.g.:" >&2
+        ALL_IDS=""
+        for pair in ${PREV_PAIRS[@]+"${PREV_PAIRS[@]}"}; do
+            psid="${pair%%:*}"
+            prid="${pair#*:}"
+            [[ -z "$psid" || -z "$prid" ]] && continue
+            keep=0
+            for sid in "${SCENARIO_ARR[@]}"; do
+                [[ "$sid" == "$psid" ]] && keep=1 && break
+            done
+            (( keep )) && continue
+            ALL_IDS+="${ALL_IDS:+,}$psid:$prid"
+        done
+        for i in "${!W_SCENARIO[@]}"; do
+            [[ -z "${W_RUN_ID[$i]}" ]] && continue
+            ALL_IDS+="${ALL_IDS:+,}${W_SCENARIO[$i]}:${W_RUN_ID[$i]}"
+        done
+        if [[ -n "$ALL_IDS" ]]; then
+            echo "    .venv/bin/python scripts/_merge_par_run.py --run-ids $ALL_IDS" >&2
+        else
+            echo "    (no run ids were recoverable — merge with --data-dirs instead)" >&2
+        fi
+    fi
+fi
+
 if (( ${#FAILED_SCENARIOS[@]} > 0 )); then
     echo ""
     echo "FAILED scenarios (no RUN_ID= captured — the meta file records them with run_id null):" >&2

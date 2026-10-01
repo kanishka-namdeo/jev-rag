@@ -137,6 +137,20 @@ ONNX Runtime's CUDA provider does **not** work with WSL2's GPU virtualization la
 - `scripts/run_testbench.py` prints `RUN_ID=<uuid>` before model warm-up and records
   `progress_total` up front — the launcher and the monitor depend on both; the DB, not the
   log, is the progress source of truth
+- **The complete Layer-2 suite is the 9 pre-declared arms** of
+  [docs/testbench-design.md](../docs/testbench-design.md); its current record is merged run
+  `36abefc6` — 882 triples, 0 error rows, 5 workers
+  ([docs/testbench-results-layer2-full9.md](../docs/testbench-results-layer2-full9.md)).
+  `scripts/run_parallel_bench.sh --arms` defaults to only the 4-arm H-GATE family, so a full
+  run must pass all nine explicitly
+- Merged-DB analysis chain: `backend/scripts/analyze_testbench.py` (report + `.json` twin) →
+  `backend/scripts/plot_testbench_arms.py` (chart reusing `analyze()`, so the PNG cannot drift
+  from the report). Re-running the analyzer overwrites the report's generated tables, so the
+  curated section below its `---` rule must be re-applied
+- Knobs a run used are persisted nested under `bench_runs.config["base"]` — thresholds (e.g.
+  `gate_score_threshold`, `jev_sufficiency_threshold`) must be read from there, with the top
+  level only as the legacy flat-config fallback; a flat-only read falls back to the default and
+  reports a phantom operating point in every published calibration table
 - The runner retries the hybrid arm once after transient jev engine death, then fails fast;
   never convert engine-death into per-question "error" rows
 - Aggregate summary formulas (`_summarize`) must stay aligned with the frontend's

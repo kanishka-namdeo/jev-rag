@@ -78,8 +78,14 @@ ONNX embedder + cross-encoder (CPU — ONNX Runtime CUDA does not work under WSL
   and start as slots free rather than oversubscribing RAM.
 - Do not run this alongside the dev server, a browser, or a frontend rebuild.
 - The GPU is *not* the constraint (embedder and reranker are on CPU), so more workers do
-  scale wall-clock. The M11 full-power run finished 392 triples in ~2 h wall-clock
-  across 5 workers versus ~5 h serial ([testbench-results-hgate.md](testbench-results-hgate.md)).
+  scale wall-clock. Two full-power runs are measured on this box: the M11 4-arm run —
+  392 triples in ~2 h wall-clock across 5 workers versus ~5 h serial
+  ([testbench-results-hgate.md](testbench-results-hgate.md)) — and the complete Layer-2 9-arm
+  run — **882 triples** on the same 5 workers, ~3.6 h of compute, longest worker (musique)
+  212 min, 0 error rows, $1.482
+  ([testbench-results-layer2-full9.md](testbench-results-layer2-full9.md)). Its compute time
+  spans two windows because the box restarted WSL mid-run — that gap is §4's resume path
+  working, not a sizing limit.
   Speedup is roughly 2.5–3× in practice, not 5× — the cloud LLM endpoint is the real
   bottleneck, not the box.
 
@@ -184,6 +190,14 @@ bash scripts/run_parallel_bench.sh --scenarios musique --resume musique:<run_id>
 A 0-byte `bench.log` means the worker died during startup (this is what happened to
 musique's first launch in the M11 run) — relaunch that scenario alone.
 
+**A resume launch rewrites the meta file to describe only the scenarios it starts.** That
+is contract 4 working as specified, but it means a partial resume of 2 of 5 scenarios leaves
+`workers[]` naming just those 2 — and the merge, which reads `workers[]`, would then produce
+a short run that still exits `0`. The launcher detects this and prints the full `--run-ids`
+list to use instead; keep that output (or the ids from the original launch). This is how the
+`layer2-full9` run lost its squad + musique workers to a WSL restart mid-run: the resume was
+correct, the meta file simply no longer described the whole run.
+
 ### 5. Merge
 
 ```bash
@@ -233,7 +247,14 @@ cd backend
 JEVRAG_DATA_DIR=backend/data_merged \
   .venv/bin/python scripts/analyze_testbench.py <merged-run-id> \
   --out ../docs/testbench-results-<label>.md
+# chart from the same merged DB, so PNG and report cannot disagree
+JEVRAG_DATA_DIR=backend/data_merged \
+  .venv/bin/python scripts/plot_testbench_arms.py <merged-run-id> \
+  --out ../docs/assets/img/layer2-arm-results.png
 ```
+
+The analyzer emits *generated* tables; the findings/caveats section below the report's `---`
+rule is curated and must be re-applied after every re-analysis.
 
 `export_bench_results.py` targets the *serial* internal-suite runs (it needs
 `bench_runs.summary`, which the testbench driver never writes); for parallel runs use
@@ -255,6 +276,8 @@ touches `backend/data/`, which holds your documents and conversations. Keep
 | merge exits `MISSING: …` | a scenario DB was never created (worker died pre-ingest) or `--scenarios` names one that never ran |
 | one `error` row per some question | accepted and kept visible, never silently dropped — a transient `APITimeoutError` is data (M11 kept 1 of 392) |
 | monitor exits 3 | do not merge and call it a full run; resume first — unless `progress_stage` is `smoke complete` / `paused (resumable — deadline)`, which are deliberate stops (§3) |
+| worker died but 3 of 5 scenarios say `completed` | the box slept or WSL restarted, not a harness fault — `uptime` inside WSL near 0 is the tell; resume only the `dead_incomplete` scenarios (§4) |
+| merge exits 0 but lists fewer scenarios than you ran | the last launch was a partial resume, so `workers[]` only names those scenarios (§4) — re-merge with explicit `--run-ids` for every scenario |
 | `analyze_testbench.py` says `run … not found` | the merged DB was rebuilt by a later `_merge_par_run.py` call, which mints a fresh unified run id each time — cite the id the **latest** merge printed |
 
 ## Related

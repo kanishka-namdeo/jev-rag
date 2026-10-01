@@ -1,5 +1,11 @@
 # Testbench report — 67a1dc06-a3bd-4bf1-8f25-092cd5db3eff
 
+> **Superseded as the current Layer-2 record** by the full 9-arm run
+> [testbench-results-layer2-full9.md](testbench-results-layer2-full9.md) (`36abefc6`,
+> 2026-10-01), which re-ran these same four arms and found the `oracle-gate` delta had
+> flipped sign — treat the arm deltas below as a single sample of a noisy comparison, not
+> as an established effect. This page stays as the record of the M11 run itself.
+
 label: H-GATE full power (par x5, merged 2026-09-30)
 
 | arm | n | corr | 95% CI | abstain | escalate | p50 ms | cost | Δacc vs base | CI95 | McNemar p | FDR q |
@@ -13,8 +19,14 @@ label: H-GATE full power (par x5, merged 2026-09-30)
 
 | arm | n | thr | acc | Brier | ECE | FN(ans) | FP(unans) |
 |---|---|---|---|---|---|---|---|
-| base | 98 | 0.5 | 0.8571 | 0.1169 | 0.16 | 0.1429 | — |
-| gate-none | 98 | 0.5 | 0.8367 | 0.1483 | 0.1919 | 0.1633 | — |
+| base | 98 | 0.6 | 0.8571 | 0.1169 | 0.16 | 0.1429 | — |
+| gate-none | 98 | 0.6 | 0.8061 | 0.1483 | 0.1919 | 0.1939 | — |
+
+*Regenerated 2026-10-01 with the corrected operating point: `analyze_testbench.py` used to
+read `gate_score_threshold` from the top level of `bench_runs.config` while
+`run_testbench.py` records it under `config["base"]`, so this table was computed at a
+phantom 0.5. The run used 0.6 (`backend/.env`), which is what is shown now. The arm table
+above is unaffected.*
 
 ## subset: single_hop
 

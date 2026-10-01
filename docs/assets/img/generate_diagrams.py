@@ -220,7 +220,7 @@ def create_escalation_gate_diagram():
     v3 changes from v2:
     - Score-feature gate (not Jev absolute sufficiency)
     - Features: top1, margin, mean, above_floor
-    - Single threshold: gate_score_threshold = 0.5
+    - Single threshold: gate_score_threshold = 0.6 as deployed (code default 0.5)
     - Both paths use qwen3.7-plus (no model routing)
     - Hard path: decompose → multi-step retrieval → CRAG retry → best-of-2
     """
@@ -293,10 +293,10 @@ def create_escalation_gate_diagram():
              color=COLORS['accent'], border_color=COLORS['accent_light'])
     
     # Arrow to Final Answer
-    draw_connector(ax, 11.5, 5.1, 5.5, 5.1, color=COLORS['accent'])
+    draw_connector(ax, 11.5, 4.5, 9.7, 2.3, color=COLORS['accent'])
     
     # Final Answer
-    draw_card(ax, 2, 4.2, 3.5, 1.8, 'Final Answer', 
+    draw_card(ax, 6, 0.9, 3.5, 1.8, 'Final Answer',
              'Cited response with\nGroundedness Badge',
              color=COLORS['success_dark'], border_color=COLORS['success_light'],
              glow=True, title_size=12)
@@ -310,9 +310,9 @@ def create_escalation_gate_diagram():
     
     style_text(ax, 'Gate Threshold (v3)', 2.5, 1.8, fontsize=12, 
               color=COLORS['text'], fontweight='bold')
-    style_text(ax, 'gate_score_threshold = 0.5', 2.5, 1.35, fontsize=10, 
+    style_text(ax, 'gate_score_threshold = 0.6 (deployed: backend/.env)', 2.5, 1.35, fontsize=10, 
               color=COLORS['text_secondary'])
-    style_text(ax, 'Calibrated on eval data (Youden J)', 2.5, 0.95, fontsize=9, 
+    style_text(ax, 'code default 0.5 · Layer-1 Youden θ* = 0.987', 2.5, 0.95, fontsize=9,
               color=COLORS['text_muted'])
     style_text(ax, 'Single generator: qwen3.7-plus', 2.5, 0.55, fontsize=9, 
               color=COLORS['text_muted'])

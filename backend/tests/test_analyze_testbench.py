@@ -65,3 +65,30 @@ def test_zero_threshold_is_not_treated_as_absent():
     """0.0 is a valid operating point; `or`-style defaults would silently replace it."""
     assert analyze_testbench.gate_threshold_from_config(
         {"base": {"gate_mode": "features", "gate_score_threshold": 0.0}}) == 0.0
+
+
+def test_jev_threshold_nested_and_default():
+    assert analyze_testbench.jev_threshold_from_config(
+        {"base": {"jev_sufficiency_threshold": 0.4}}) == 0.4
+    assert analyze_testbench.jev_threshold_from_config({}) == 0.5
+
+
+def test_features_gate_escalation_reads_the_string_verdict():
+    esc = analyze_testbench.gate_escalated
+    assert esc("escalate") is True
+    assert esc("easy") is False
+    assert esc(None) is False
+
+
+def test_jev_gate_escalation_reads_the_probability_below_threshold():
+    """gate_mode=jev records a float, so a string-only match made gate-jev read 0% always."""
+    esc = analyze_testbench.gate_escalated
+    assert esc(0.962) is False        # sufficient -> stay on the easy path
+    assert esc(0.31) is True          # insufficient -> escalate
+    assert esc(0.5, jev_threshold=0.5) is False
+    assert esc(0.49, jev_threshold=0.6) is True
+
+
+def test_bool_gate_answer_is_not_mistaken_for_a_probability():
+    assert analyze_testbench.gate_escalated(True) is True
+    assert analyze_testbench.gate_escalated(False) is False

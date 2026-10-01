@@ -152,8 +152,11 @@ instructions mention them. No child doc may weaken them.
 - **Benchmarks guard the pipelines.** Any change to retrieval, prompts, Jev decision patterns,
   model routing, or generation settings MUST re-run the benchmark smoke (`POST /api/bench/runs`
   with one scenario) and record the delta vs `docs/benchmark-results.md` in the PR/commit message.
-  Full runs re-export results via `backend/scripts/export_bench_results.py`. Methodology is
-  binding: `docs/benchmarking.md` (judge must stay model-family-independent from the generators).
+  Full runs re-export results via `backend/scripts/export_bench_results.py`. A full Layer-2
+  testbench run means all **9** pre-declared arms (`docs/testbench-design.md`), now measured
+  (`docs/testbench-results-layer2-full9.md`) — the 4-arm H-GATE family is a subset, not the suite.
+  Methodology is binding: `docs/benchmarking.md` (judge must stay model-family-independent
+  from the generators).
 - **Memory discipline.** The jev-score subprocess needs ~1.5GB RSS. This workstation has 15 GB
   RAM (12 cores), so during a local-model run avoid only what truly competes for memory —
   launching browsers, recompiling the frontend, or starting duplicate model processes. The
@@ -168,9 +171,11 @@ instructions mention them. No child doc may weaken them.
   Workers detach with `setsid nohup`. The binding procedure and the four worker contracts
   (uniform `backend/data_par/<scenario>` dirs, `RUN_ID=` line, DB-as-progress-source,
   `parallel_run_meta.json`) live in [docs/parallel-bench-runbook.md](docs/parallel-bench-runbook.md)
-  and must be updated with any change to those scripts. Proven: the M11 5-way parallel
-  H-GATE run, ~2h wall-clock, 392 triples
-  ([docs/testbench-results-hgate.md](docs/testbench-results-hgate.md)).
+  and must be updated with any change to those scripts. Proven: the complete Layer-2 suite on
+  5 workers — 9 arms × 98 questions × 5 public scenarios = 882 triples, ~3.6 h compute,
+  0 error rows ([docs/testbench-results-layer2-full9.md](docs/testbench-results-layer2-full9.md));
+  the earlier 4-arm M11 draw (392 triples, ~2 h) is the smaller precedent in
+  [docs/testbench-results-hgate.md](docs/testbench-results-hgate.md).
 - **Tests and lint stay green.** Backend pytest and `bun run lint` must pass before every push.
 - **Commit and push at milestones.** Small, descriptive commits; push to `origin/main` after each
   meaningful milestone (feature, fix, docs).

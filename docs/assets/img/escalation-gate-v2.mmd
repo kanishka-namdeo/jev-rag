@@ -12,8 +12,8 @@ flowchart TB
     VERIFY --> OUTPUT["✅ Final Answer<br/>Cited + Groundedness Badge"]
 
     subgraph THRESHOLDS["📊 Gate Threshold (v3)"]
-        T1["gate_score_threshold = 0.5"]
-        T2["calibrated on eval data (Youden J)"]
+        T1["gate_score_threshold = 0.6 (deployed: backend/.env)"]
+        T2["code default 0.5 · Layer-1 Youden θ* = 0.987"]
         T3["single generator: qwen3.7-plus"]
     end
 

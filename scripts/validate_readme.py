@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 """Validate README.md links, images, anchors, and details blocks."""
 import re, os, sys
+from pathlib import Path
 
-os.chdir('/home/z/my-project')
+# Repo root anchored from this file's own location — the old hardcoded sandbox path
+# made this check unrunnable everywhere else (scripts/AGENTS.md machine-independent rule).
+os.chdir(Path(__file__).resolve().parents[1])
 readme = open('README.md').read()
 errors, warnings = [], []
 

@@ -16,7 +16,13 @@
 
 - **The multi-hop edge compressed because the baseline got that good.** The upgraded retrieval stack (BM25 ‖ dense + RRF + cross-encoder) lifted the traditional arm's multi-hop performance, eating most of the v2 multi-hop win. The hybrid's residual multi-hop value is ~nil at n=57.
 
-- **Forced escalation is pure cost.** The H-GATE full-power testbench (392 triples) confirmed: always-escalating ties base accuracy (±0.0, p = 1.0) at **3.5× median latency** and +17% cost. The score-feature gate sits at the best operating point.
+- **Forced escalation is pure cost.** always-escalating ties base accuracy (+0.5pp, p = 1.0) at **3.71× median latency** and +15% cost — the one Layer-2 result that replicated across both the 4-arm draw `67a1dc06` (3.5×, +17%) and the full 9-arm suite `36abefc6` (882 triples). The score-feature gate sits at the best operating point.
+
+- **Dropping the reranker beat every arm — as a hypothesis, not a ship.** In `36abefc6`, `rerank-none` (RRF only, no cross-encoder) was the best arm at 0.7194 (**+6.1pp** vs base) and the *only* comparison whose bootstrap CI excludes zero ([+0.5, +12.2]), contradicting Layer-1's "cross-encoder is the best retriever." It is p = 0.18, FDR q = 1.000, costs 3.75× latency, and degenerates into always-escalating (its gate feature needs the cross-encoder score), so it marks the cross-encoder's top-4 selection as suspect rather than a new default.
+
+- **A single Layer-2 draw is not a finding.** Every 9-arm comparison has BH-FDR q = 1.000, and re-running the four M11 arms one day later flipped `oracle-gate`'s delta from −3.6pp to **+2.5pp** (sign flip). Quote both draws (`67a1dc06` + `36abefc6`) or neither.
+
+- **The abandoned v2 gate is a multi-hop specialist.** `gate-jev` (absolute sufficiency, θ = 0.5) was second-best overall (**+4.1pp**) and beat base by **+10.5pp on multi-hop** — the largest single effect in `36abefc6` — while losing 4.9pp on single-hop: the v2 failure mode and the v3 win condition in the same arm.
 
 - **The passage battery was the v2 regression.** With one flag flipped (`HYBRID_PASSAGE_BATTERY=false`), the v2 pipeline recovered from −20.8pp to +5.2pp. The battery's absolute thresholds are miscalibrated for the 0.8B stand-in.
 
@@ -47,9 +53,25 @@ Offline eval, 98 questions, no cloud LLM. RRF + cross-encoder is the best precis
 
 → Full results: [testbench-results-layer1.md](testbench-results-layer1.md)
 
-### H-GATE Full Power (Layer-2 Testbench)
+### Layer-2 Pipeline Testbench (full 9-arm suite)
 
-Run `67a1dc06`, 98Q × 4 arms = 392 triples. The score-feature gate's marginal value over never-escalating is +4.6pp but **not significant** (McNemar p = 0.424, FDR q = 0.944). Always-escalating is confirmed pure cost. The oracle gate undercuts base (−3.4pp).
+Run `36abefc6`, 98Q × 9 arms × 5 public scenarios = 882 triples, 0 error rows, $1.482. **No
+arm beats `base` at FDR q < 0.05** — the largest effect in the suite is 6.1 pp against a
+pre-declared power floor of ~10–15 pp at n=98. The score-feature gate's marginal value over
+never-escalating is **+2.5 pp** (p = 0.549); best-of-2 selection (−0.5 pp) and citation
+verification (+0.5 pp) are both null; `rerank-none` is the top arm (+6.1 pp, the only CI
+excluding zero) and `gate-jev` is second (+4.1 pp) and wins multi-hop by +10.5 pp while
+losing single-hop by 4.9 pp.
+
+→ Full results, caveats and the M11 reproducibility table: [testbench-results-layer2-full9.md](testbench-results-layer2-full9.md)
+
+### H-GATE Full Power (prior 4-arm draw)
+
+Run `67a1dc06`, 98Q × 4 arms = 392 triples. The same four arms re-measured a day apart:
+gate marginal value +4.6 pp (p = 0.424, q = 0.944) and `oracle-gate` **−3.6 pp** — versus
++2.5 pp and **+2.5 pp** in `36abefc6`. The sign flip is the point: neither draw is
+significant, and an H-GATE arm delta from one run of this suite is not a finding. Only
+always-escalating-as-pure-cost replicated (3.5× → 3.71× latency).
 
 → Full results: [testbench-results-hgate.md](testbench-results-hgate.md)
 

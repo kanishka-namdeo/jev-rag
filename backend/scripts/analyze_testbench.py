@@ -31,6 +31,29 @@ from app.db import BenchResult, BenchRun, db_session  # noqa: E402
 
 SINGLE_HOP = {"squad", "triviaqa", "techdocs", "finance", "policy"}
 MULTI_HOP = {"hotpotqa", "wiki2", "musique", "distractor"}
+# pipelines.py falls back to this when the run records no jev threshold, and the merged
+# run row never carries one (only the features-gate knobs are recorded).
+JEV_SUFFICIENCY_DEFAULT = 0.5
+# Arms whose gate runs in jev mode, i.e. whose recorded sufficiency_p is a jev
+# sufficiency probability compared against jev_sufficiency_threshold rather than the
+# features score threshold. Mirrors ARM_OVERRIDES in scripts/run_testbench.py; calibrating
+# these at the features threshold reports an operating point the arm never used.
+JEV_GATE_ARMS = {"gate-jev"}
+
+
+def gate_escalated(answer, jev_threshold: float = JEV_SUFFICIENCY_DEFAULT) -> bool:
+    """Did this `gate` decision mean "escalate"?
+
+    The decision's shape depends on the gate mode: the features gate records the strings
+    "escalate"/"easy", while the jev gate records the raw sufficiency probability
+    (pipelines.py escalates when it falls BELOW jev_sufficiency_threshold). Matching only
+    on the string made the whole `gate-jev` arm read as a structurally impossible 0%.
+    """
+    if isinstance(answer, bool):
+        return answer
+    if isinstance(answer, (int, float)):
+        return float(answer) < jev_threshold
+    return answer == "escalate"
 
 
 def load_rows(run_id: str) -> tuple[dict | None, list[BenchResult]]:
@@ -43,7 +66,8 @@ def load_rows(run_id: str) -> tuple[dict | None, list[BenchResult]]:
     return run, rows
 
 
-def _arm_stats(rows: list[BenchResult], gate_threshold: float = 0.5) -> dict:
+def _arm_stats(rows: list[BenchResult], gate_threshold: float = 0.5,
+               jev_threshold: float = JEV_SUFFICIENCY_DEFAULT) -> dict:
     corr = [r.generation["correctness"] for r in rows
             if r.generation and r.generation.get("correctness") is not None]
     abst = defaultdict(int)
@@ -52,8 +76,10 @@ def _arm_stats(rows: list[BenchResult], gate_threshold: float = 0.5) -> dict:
             abst[r.generation.get("abstention", "error")] += 1
     lat = [r.timings.get("latency_ms", 0.0) for r in rows if r.timings]
     esc = [(r.jev_decisions or []) for r in rows]
-    n_escalated = sum(1 for decs in esc if any(d.get("name") == "gate" and d.get("answer") == "escalate"
-                                               for d in decs))
+    n_escalated = sum(1 for decs in esc
+                      if any(d.get("name") == "gate" and gate_escalated(d.get("answer"),
+                                                                        jev_threshold)
+                             for d in decs))
     gate_rows = [(r.sufficiency_p, r.answerable) for r in rows if r.sufficiency_p is not None]
     out = {
         "n": len(rows),
@@ -138,6 +164,16 @@ def gate_threshold_from_config(cfg: dict | None) -> float:
     return 0.5 if value is None else float(value)
 
 
+def jev_threshold_from_config(cfg: dict | None) -> float:
+    """The jev-gate sufficiency operating point a run used (see gate_threshold_from_config)."""
+    cfg = cfg or {}
+    base = cfg.get("base") or {}
+    value = base.get("jev_sufficiency_threshold")
+    if value is None:
+        value = cfg.get("jev_sufficiency_threshold")
+    return JEV_SUFFICIENCY_DEFAULT if value is None else float(value)
+
+
 def analyze(run_id: str, base: str = "base") -> dict:
     run, rows = load_rows(run_id)
     if run is None:
@@ -151,8 +187,10 @@ def analyze(run_id: str, base: str = "base") -> dict:
     pvals: dict[str, float] = {}
     # threshold semantics follow the run's gate mode (mirrors runner.py gate_analysis)
     _thr = gate_threshold_from_config(run.config if run else None)
+    _jev_thr = jev_threshold_from_config(run.config if run else None)
     for arm, arows in sorted(by_arm.items()):
-        stats = _arm_stats(arows, gate_threshold=_thr)
+        arm_thr = _jev_thr if arm in JEV_GATE_ARMS else _thr
+        stats = _arm_stats(arows, gate_threshold=arm_thr, jev_threshold=_jev_thr)
         report["arms"][arm] = stats
         if base_rows and arm != base:
             paired = _paired(arows, base_rows)
@@ -170,8 +208,11 @@ def analyze(run_id: str, base: str = "base") -> dict:
             if r.scenario_id in ids:
                 sub[r.mode].append(r)
         if any(sub.values()):
-            report["subsets"][label] = {arm: _arm_stats(ar, gate_threshold=_thr)
-                                       for arm, ar in sorted(sub.items())}
+            report["subsets"][label] = {
+                arm: _arm_stats(ar,
+                                gate_threshold=(_jev_thr if arm in JEV_GATE_ARMS else _thr),
+                                jev_threshold=_jev_thr)
+                for arm, ar in sorted(sub.items())}
     return report
 
 

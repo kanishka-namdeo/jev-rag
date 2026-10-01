@@ -100,9 +100,9 @@ visible (musique `mq14/oracle-gate` Dashscope `APITimeoutError`), 391 scored.
 | gate-none | 0.6276 | [0.53, 0.72] | 27 | 0.0 | 18461.6 | 0.1491 | −0.046 | [−0.112, +0.015] | 0.424 | 0.944 |
 | oracle-gate | 0.6392 | [0.54, 0.73] | 25 | 0.3163 | 20830.3 | 0.1508 | −0.036 | [−0.108, +0.036] | 0.629 | 0.944 |
 
-Gate calibration (features gate vs ground-truth answerability): base
-acc 0.857 / Brier 0.117 / ECE 0.16 / FN-on-answerable 0.143; gate-none
-acc 0.837 / Brier 0.148 / ECE 0.192 / FN-on-answerable 0.163.
+Gate calibration (features gate vs ground-truth answerability, at the run's recorded
+θ = 0.6): base acc 0.857 / Brier 0.117 / ECE 0.16 / FN-on-answerable 0.143; gate-none
+acc 0.806 / Brier 0.148 / ECE 0.192 / FN-on-answerable 0.194.
 
 **Verdict at full power (objective, negatives kept visible):**
 
@@ -118,15 +118,69 @@ acc 0.837 / Brier 0.148 / ECE 0.192 / FN-on-answerable 0.163.
    and +17% per-question cost. The hard path's per-question benefit is
    eaten by its multi-step token burn when applied unconditionally.
 3. **The oracle gate undercuts base** (−3.4pp, n.s.) — inverting the
-   pilot's "oracle ≥ base" expectation. Forcing the hard path on
-   questions the cheap path already got right *hurts* more than it
-   helps; the MuSiQue rerank-regression interaction (see
+   pilot's "oracle ≥ base" expectation. **This verdict did not survive
+   re-measurement:** the same arm in the full 9-arm suite `36abefc6` came in
+   at **+2.5pp**, a sign flip. Since neither draw is significant, the
+   defensible statement is only that a perfect escalation decision is worth
+   ~0 at n=98 — the MuSiQue rerank-regression interaction (see
    [testbench-results-layer1.md](testbench-results-layer1.md) §"Known
-   negatives") is the likely driver and is the M12 queue item.
+   negatives") remains unproven rather than demonstrated.
 
 The pilot's conclusion is **superseded** by this full-power readout; the
 pilot remains visible here as the directional pre-declaration, with this
 section's verdict as the full-power correction.
+
+### Full Layer-2 suite (merged run `36abefc6`, 98Q × 9 arms = 882 triples, 2026-10-01)
+
+The four M11 arms above are a subset. This run executed all nine pre-declared
+arms on the same 5 parallel-worker path, so H-RERANK, H-SELECT and H-VERIFY are
+now measured alongside H-GATE. Full readout with caveats and the
+reproducibility table:
+[testbench-results-layer2-full9.md](testbench-results-layer2-full9.md) +
+[.json](testbench-results-layer2-full9.json) twin; chart
+[assets/img/layer2-arm-results.png](assets/img/layer2-arm-results.png)
+(rendered from the merged DB, so every number on it is measured).
+0 error rows of 882; $1.482 of Dashscope API; ~3.6 h compute, longest worker
+212 min. A WSL restart mid-run killed two workers, which were resumed under
+their original run ids — no scenario is split across runs.
+
+| arm | corr | 95% CI | escalate | p50 ms | cost | Δacc vs base | CI95 | McNemar p | FDR q |
+|---|---|---|---|---|---|---|---|---|---|
+| rerank-none | **0.7194** | [0.62, 0.80] | 1.0 | 73600.1 | 0.1854 | **+0.061** | [+0.005, +0.122] | 0.180 | 1.000 |
+| gate-jev | 0.699 | [0.60, 0.78] | 0.4286 | 31048.3 | 0.1602 | +0.041 | [−0.025, +0.112] | 0.302 | 1.000 |
+| oracle-gate | 0.6837 | [0.59, 0.77] | 0.3163 | 24553.05 | 0.1568 | +0.025 | [−0.041, +0.092] | 0.607 | 1.000 |
+| always-hard | 0.6633 | [0.57, 0.75] | 1.0 | 72837.15 | 0.186 | +0.005 | [−0.056, +0.066] | 1.000 | 1.000 |
+| no-verify | 0.6633 | [0.57, 0.75] | 0.1939 | 18488.5 | 0.1512 | +0.005 | [−0.031, +0.041] | 1.000 | 1.000 |
+| **base** | **0.6582** | [0.56, 0.74] | 0.1939 | 19644.75 | 0.1614 | — | — | — | — |
+| no-bestof | 0.6531 | [0.55, 0.74] | 0.1939 | 19127.45 | 0.1465 | −0.005 | [−0.046, +0.031] | 1.000 | 1.000 |
+| rerank-jev | 0.6531 | [0.55, 0.74] | 0.2245 | 25132.05 | 0.18 | −0.005 | [−0.097, +0.087] | 1.000 | 1.000 |
+| gate-none | 0.6327 | [0.53, 0.72] | 0.0 | 18739.6 | 0.1544 | −0.025 | [−0.082, +0.025] | 0.549 | 1.000 |
+
+**Verdicts (negatives kept visible):**
+
+1. **Nothing is significant.** Every q = 1.000. At n=98 the pre-declared power
+   floor is ~10–15pp and the largest effect here is 6.1pp. The suite's honest
+   headline is a set of well-measured nulls, not a ranking.
+2. **H-SELECT and H-VERIFY are null.** Removing best-of-2 (−0.5pp) or citation
+   verification (+0.5pp) changes nothing measurable; `no-bestof` is also the
+   cheapest arm. Their justification is the trustworthiness of the `[n]` labels
+   in the UI, not judged accuracy.
+3. **H-RERANK contradicts Layer 1 end-to-end.** `rerank-none` — no reranker at
+   all — is the best arm and the only comparison whose bootstrap CI excludes
+   zero, while Layer-1 ranked RRF+cross the best retriever. Mechanism caveat:
+   without a cross-encoder score the features gate collapses and that arm
+   escalates 100% of questions, so it is really "RRF-only + always-hard", and
+   it beat both `base` (+6.1pp) and `always-hard` (+0.5pp). This marks the
+   cross-encoder's top-4 selection as suspect; it does not license removing it.
+4. **The gate's marginal value is +2.5pp, not +4.6pp** — and the drift itself is
+   the finding. See the reproducibility table in
+   [testbench-results-layer2-full9.md](testbench-results-layer2-full9.md):
+   identical arms and knobs one day apart moved `oracle-gate` by +6.1pp.
+5. **`gate-jev` is a multi-hop specialist.** +10.5pp over base on multi-hop
+   (the largest single effect in the run) and −4.9pp on single-hop, with the
+   worst calibration in the suite (acc 0.633 / ECE 0.448 at its own θ = 0.5).
+   The v2 regression and the v3 win condition live in the same arm; the split
+   argues for a multi-hop-only gate, which is what v3 approximates with scores.
 
 ## Cost of the whole M9 session
 
