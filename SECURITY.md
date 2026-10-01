@@ -28,8 +28,9 @@ credential immediately, then report so the history can be scrubbed.
 - The app has **no authentication**. Setting `JEVRAG_HOST=0.0.0.0` is therefore a
   deliberate trust decision: it grants every host on the network full read/write API
   access — including uploading and **deleting documents and conversations** — with no
-  credentials asked. There is no auth/TLS layer to add in front of a bound-all
-  instance either; don't expose the port beyond loopback unless you accept that.
+  credentials asked. The app itself ships **no built-in auth or TLS** you could switch
+  on, so a bound-all instance is only safe behind your own authenticating reverse proxy
+  with TLS; don't expose the port beyond loopback unless you accept that.
 - CORS allows **only the configured frontend origin(s)** (`JEVRAG_FRONTEND_ORIGIN`,
   default `http://localhost:3000` and `http://127.0.0.1:3000`; never a wildcard).
   This is defense-in-depth against a *foreign web page in your browser* driving the
