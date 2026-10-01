@@ -2,230 +2,155 @@
   <img src="docs/assets/img/banner.svg" alt="Jev-RAG — local-first hybrid RAG" width="880" />
 </div>
 
-<br/>
-
 # Jev-RAG
 
-**Local-first hybrid RAG over your own documents — with intelligent routing and grounded answers.**
+**Local-first hybrid RAG over your own documents: ask questions, get cited answers — and a benchmark lab that measures exactly what the hybrid adds.**
 
 [![CI](https://github.com/kanishka-namdeo/jev-rag/actions/workflows/ci.yml/badge.svg)](https://github.com/kanishka-namdeo/jev-rag/actions/workflows/ci.yml)
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 [![Python 3.12](https://img.shields.io/badge/backend-Python%203.12%20·%20FastAPI-3776ab?logo=python&logoColor=white)](backend/)
 [![Next.js 16](https://img.shields.io/badge/frontend-Next.js%2016%20·%20TypeScript-000000?logo=next.js)](src/)
-[![Local-first](https://img.shields.io/badge/architecture-local--first-10b981)](#-how-it-works)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-ff69b4.svg)](CONTRIBUTING.md)
 
-**+9.8pp** correctness on single-hop questions · **+5.1pp** pooled across five public benchmarks · **0** fabrications · hybrid runs **cheaper** than the baseline
+## What it does
 
-> **Who is this for?** Jev-RAG is for developers and teams who want a local-first, privacy-preserving RAG system with intelligent routing and grounded answers.
+Drop documents on your machine, ask questions about them, and get streamed answers with `[n]` citations you can trace back to the exact passages.
 
-<br/>
+- **Upload** — 11 extensions: `.pdf` `.docx` `.xlsx` `.md` `.txt` `.html` `.htm` `.csv` `.json` `.xml` `.log` (25 MiB per file, 10 files per request).
+- **Ask in three modes** — **Traditional** (hybrid BM25 + dense retrieval → cross-encoder rerank → one cloud LLM call) or **Hybrid** (plus a local 0.8B Jev-style decision model that gates, decomposes, retries, picks the best of two candidates and verifies citations) — or run both side by side in **Compare**.
+- **Measure** — a built-in Benchmark Lab runs both pipelines over 11 shipped question sets and grades them with an independent LLM judge.
 
-📸 [Screenshots](#-screenshots) · ⚡ [Quickstart](#-quickstart) · 🧠 [How it works](#-how-it-works) · 📊 [Results](#-results) · 📚 [Documentation](#-documentation) · 🤝 [Contributing](#-contributing)
+## Who it's for — and who it's not
 
----
+Built for **one person on one machine** (or one trusted team on a shared workstation) who wants their corpus to never leave their disk and their answers to be checkable.
 
-## 📸 Screenshots
+It is **not** multi-tenant: no user accounts, no per-user ACLs — one SQLite database holds a single shared knowledge base. It is **not** fully offline: exactly one call leaves your machine per answer, the cloud LLM generation (see [Privacy](#privacy-what-stays-local)). And it ships **no authentication** — the server listens on loopback only, which is the safety model (see [SECURITY.md](SECURITY.md)).
+
+## Screenshots
 
 <div align="center">
   <img src="docs/assets/img/chat-compare.png" alt="Chat view comparing traditional and hybrid answers side by side, with citations and a groundedness badge" width="880"/>
 </div>
 
-| Chat — both systems side by side, citations & groundedness badges | Trace — every decision, with calibrated probabilities |
+| Trace panel — every local decision, with calibrated probabilities | Benchmark Lab — pick scenarios, run both arms |
 | --- | --- |
-| <img src="docs/assets/img/chat-compare.png" alt="Chat view comparing traditional and hybrid answers"/> | <img src="docs/assets/img/trace-panel.png" alt="Trace panel showing decisions with probability bars"/> |
+| <img src="docs/assets/img/trace-panel.png" alt="Trace panel showing retrieval, gate score and decision cards with probability bars"/> | <img src="docs/assets/img/bench-lab.png" alt="Benchmark Lab scenario cards and run controls"/> |
+| <img src="docs/assets/img/bench-charts.png" alt="Results dashboard with judge metrics and per-scenario comparison charts"/> | |
 
-| Benchmark Lab — six scenarios, one click | Results — judge metrics, per-scenario charts, drill-down |
-| --- | --- |
-| <img src="docs/assets/img/bench-lab.png" alt="Benchmark Lab scenario cards and headline metrics"/> | <img src="docs/assets/img/bench-charts.png" alt="Per-scenario comparison charts"/> |
+## Requirements
 
-## ✨ Feature highlights
+| | Minimum | Comfortable |
+| --- | --- | --- |
+| CPU | 2 cores | 4+ cores |
+| RAM | 4 GB | 8 GB |
+| Disk | ~5 GB | ~8 GB |
+| OS | Linux, macOS, Windows via WSL2 | — |
+| GPU | not required — jev-score uses CUDA when present; embedder and reranker fall back to CPU (ONNX Runtime does not support WSL2 GPU passthrough) | |
 
-- **Two pipelines, one retrieval stack** — both use BM25 + dense retrieval with cross-encoder reranking. The hybrid adds intelligent routing on top.
-- **Local-first, privacy-preserving** — embeddings, vector store, decision model, and storage all run on your machine. Only the final LLM call goes to a cloud endpoint.
-- **Smart escalation** — easy questions skip the heavy path. Hard questions get decomposition, multi-step retrieval, and verification.
-- **Grounded answers** — citation verification shows you exactly where answers come from, with a groundedness badge you can trust.
-- **Built-in benchmark lab** — measure correctness, faithfulness, and retrieval quality with an independent LLM judge. Six scenario corpora included.
-- **Full transparency** — trace panel shows every decision with calibrated probabilities. You see exactly why the system routed each question.
-
-## ⚡ Quickstart
-
-**Prereqs:** Python 3.12 + [uv](https://docs.astral.sh/uv/), [bun](https://bun.sh), ~2 GB disk for local models, and an OpenAI-compatible API key.
+Local models total ~0.53 GB for the decision model plus ~225 MB for the embedder and ~91 MB for the reranker, downloaded on first use.
 
 ```bash
 # 1) Backend config
 cp backend/.env.example backend/.env    # then set JEVRAG_DASHSCOPE_API_KEY
-
-# 2) Local models: decision model + llama.cpp scorer (~10 min)
+# 2) Local models: decision model + llama.cpp scorer (the compile dominates the time budget)
 bash scripts/setup_local_models.sh
-
 # 3) Backend venv (uv)
 bash scripts/setup_backend.sh
-
 # 4) Frontend deps + run everything
 bun install
-bash scripts/dev.sh                    # backend :8000 + frontend :3000
+bash scripts/dev.sh                     # backend :8000 + frontend :3000
 ```
 
-Open http://localhost:3000, upload documents in the sidebar, and ask questions in any of the three modes (Traditional / Hybrid / Compare).
+Open http://localhost:3000 — allow ~15 min total on a 2-core/4 GB machine. **Full guide:** [docs/setup.md](docs/setup.md) · **Windows:** [docs/windows-setup.md](docs/windows-setup.md)
 
-**New machine?** Follow the full guide: **[docs/setup.md](docs/setup.md)** · **Windows?** See **[docs/windows-setup.md](docs/windows-setup.md)**
+## Which mode should I use
 
-## 🧠 How it works
+| Mode | What runs | What you get | Rough latency |
+| --- | --- | --- | --- |
+| **Traditional** | hybrid retrieval → cross-encoder rerank → one cloud call | cited answer | ~20 s p50 measured on 2 cores |
+| **Hybrid · Jev** | the above plus effort routing, an escalation gate, sub-query decomposition, corrective retry, best-of-2 and citation verification | cited answer + groundedness and quality badges + full decision trace | ~41 s p50, only on the ~10 % of questions that escalate |
+| **Compare** | both of the above, concurrently, in one browser request pair | the two answers side by side | both at once |
 
-<div align="center">
+Compare is not a third pipeline: the frontend runs the other two side by side (`src/lib/jevrag/store.ts`). The groundedness badge only ever appears on hybrid answers, because the traditional path does not run citation verification.
+
+What the hybrid adds is **mechanism, not a guaranteed win**: extra local decisions, recovery on the hard path, and citation verification — at ~2× latency on escalated questions and a lower per-suite cloud bill. On the 9-arm Layer-2 rerun none of those components beat the plain baseline at FDR q < 0.05 ([docs/testbench-results-layer2-full9.md](docs/testbench-results-layer2-full9.md)), so treat them as guardrails and instrumentation you can measure in your own Benchmark Lab.
+
+## How it works
 
 ```mermaid
-%%{init: {'theme': 'dark', 'themeVariables': { 'primaryColor': '#3B82F6', 'primaryTextColor': '#fff', 'primaryBorderColor': '#60A5FA', 'lineColor': '#94A3B8', 'secondaryColor': '#10B981', 'tertiaryColor': '#8B5CF6', 'background': '#0B0F19' }}}%%
-flowchart TB
-    subgraph INGESTION["📄 Document Ingestion"]
-        UPLOAD["Upload Documents"]
-        MARKDOWN["markitdown"]
-        CHUNK["Text Splitter"]
-        EMBED["fastembed ONNX"]
-    end
-
-    UPLOAD --> MARKDOWN --> CHUNK --> EMBED
-
-    CHROMADB[("🗄️ ChromaDB<br/>Vector Store + BM25")]
-    EMBED --> CHROMADB
-
-    subgraph QUERY["🔍 Query Processing"]
-        USERQUERY["User Query"]
-        QUERYEMBED["Embed Query"]
-        RETRIEVE["Hybrid Retrieval<br/>BM25 ‖ Dense + RRF"]
-        RERANK["Cross-Encoder Rerank<br/>Top-10 → Top-4"]
-    end
-
-    USERQUERY --> QUERYEMBED --> RETRIEVE --> RERANK
-    CHROMADB --> RETRIEVE
-
-    RERANK --> FORK{⚡}
-
-    subgraph TRADITIONAL["🔵 Traditional Pipeline"]
-        TOP4["Top-4 Passages"]
-        LLM1["☁️ Cloud LLM<br/>qwen3.7-plus"]
-        CITED["✓ Cited Answer"]
-    end
-
-    FORK -->|Simple Queries| TOP4 --> LLM1 --> CITED
-
-    subgraph HYBRID["🟢 Hybrid Pipeline"]
-        JEV["🧠 Local Decision Model<br/>0.8B GGUF on llama.cpp"]
-        EFFORT["1. Effort Routing"]
-        GATE["2. Score-Feature Gate"]
-        BESTOF["3. Best-of-2 (hard path)"]
-        VERIFY["4. Citation Verification"]
-        LLM2["☁️ Cloud LLM<br/>qwen3.7-plus"]
-        VERIFIED["✓ Verified Answer<br/>+ Groundedness Badge"]
-    end
-
-    FORK -->|Complex Queries| JEV
-    JEV --> EFFORT --> GATE
-    GATE -->|easy| LLM2 --> VERIFY --> VERIFIED
-    GATE -->|hard| BESTOF --> LLM2
-
-    subgraph RESPONSE["📡 Response"]
-        SSE["SSE Stream"]
-        TRACE["Trace Panel"]
-        CITATIONS["Citations"]
-        BADGE["Groundedness Badge"]
-    end
-
-    CITED --> RESPONSE
-    VERIFIED --> RESPONSE
-
-    style INGESTION fill:#1E293B,stroke:#3B82F6,stroke-width:2px
-    style QUERY fill:#1E293B,stroke:#3B82F6,stroke-width:2px
-    style TRADITIONAL fill:#0C4A6E,stroke:#0EA5E9,stroke-width:2px
-    style HYBRID fill:#064E3B,stroke:#10B981,stroke-width:2px
-    style RESPONSE fill:#1E293B,stroke:#8B5CF6,stroke-width:2px
-    style CHROMADB fill:#0C4A6E,stroke:#0EA5E9,stroke-width:3px
-    style FORK fill:#475569,stroke:#fff,stroke-width:3px
-    style JEV fill:#065F46,stroke:#10B981,stroke-width:2px
+flowchart LR
+    D[Documents] --> P[parse + chunk + embed]
+    P --> V[(ChromaDB<br/>dense + BM25)]
+    Q[Question] --> R[retrieve + cross-encoder rerank]
+    V --> R
+    R --> F{escalation gate<br/>score features}
+    F -->|easy| T[cloud LLM]
+    F -->|hard ~10%| H[decompose -> retry -> best-of-2 -> citation check] --> T
+    T --> S[stream + citations + trace]
+    F -.decisions.-> J[local 0.8B model]
 ```
 
-  <em>Both pipelines share the retrieval stack. The hybrid adds an escalation gate and local decision model for hard questions.</em>
-</div>
+*Both pipelines share the retrieval stack; the hybrid gates on calibrated retrieval scores and only spends the heavy path where it might pay.*
 
-**The escalation gate** decides whether a question needs the expensive path *after* cheap retrieval, not before. It uses calibrated retrieval scores (top-1 score, margin, mean) to route: easy questions get one LLM call, hard questions get decomposition, multi-step retrieval, best-of-2 selection, and citation verification. This is the Adaptive-RAG pattern without a pre-retrieval router.
+**The escalation gate** decides whether a question needs the expensive path *after* cheap retrieval, not before: it reads score features (top-1 score, margin, mean) from the reranked passages, routes easy questions to a single LLM call, and sends the hard ~10 % through decomposition, retry, best-of-2 selection and citation verification.
 
-**What is the local decision model?** Jev-RAG uses a small (~0.5B parameter) decision model that runs locally on llama.cpp. It makes typed, calibrated decisions like "which answer is better?" or "is this citation supported?" — it never generates text. The cloud LLM (System Two) handles the actual generation. [Learn more in the glossary](docs/glossary.md).
+**The local decision model** is a 0.8B Jev-style GGUF running on llama.cpp. It makes typed, calibrated decisions — "is this passage relevant?", "which candidate is better?", "is this citation supported?" — and never generates prose; the cloud LLM writes the answer. [Learn more in the glossary](docs/glossary.md).
 
 **Deep dive:** [docs/architecture.md](docs/architecture.md) · [docs/hybrid-design.md](docs/hybrid-design.md)
 
-## 📊 What makes it different
+## Results
 
-**Both pipelines use the 2026-standard retrieval stack** (hybrid search, cross-encoder reranking, contextual chunking). The hybrid adds intelligent routing **only on questions that need it**:
-
-| | **Traditional RAG** | **Hybrid RAG** |
+| | v3 headline `16814bd5` | Layer-2 9-arm `36abefc6` |
 | --- | --- | --- |
-| **Retrieval** | Hybrid search (keyword + semantic) → cross-encoder rerank → top-4 | Same |
-| **Smart routing** | — | **Score-feature gate**: easy questions skip the heavy path |
-| **Hard questions** | — | Sub-query decomposition → multi-step retrieval → retry → **best-of-2 selection** |
-| **Verification** | — | **Citation verification** on final answer, shown as groundedness badge |
-| **Local decisions** | — | 3 calls on hard path (effort routing, best-of-2, citations) |
-| **Latency (p50)** | ~20 s | ~41 s (2× slower, but only on hard questions) |
-| **Cost** | $0.165 / 98 questions | **$0.148 / 98 questions** (cheaper) |
-| **Use it when** | You need the modern baseline with minimal latency | You want extra guardrails, recovery on hard questions, and citation verification |
+| **Claim** | +5.1 pp pooled (CI [−0.5, +10.7], p = 0.065); **+9.8 pp single-hop, n = 41 (CI [+2.4, +19.5], p = 0.048)**; multi-hop +1.8 pp, n.s. | **0 / 9 arms beat `base` at FDR q < 0.05** |
+| **Gate** | hybrid abstains 10.2 pp less (25.5 % vs 35.7 %) | marginal value over never-escalating: +2.5 pp, p = 0.549 |
+| **Cost** | $0.148 vs $0.165 per suite | forced escalation is pure cost: 3.71× median latency, replicated in both draws |
 
-## 📊 Results
+Conditions: 98 questions × 5 public scenarios; independent judge (`kimi-k2.5`, a different model family from the generators), position-swapped pairwise, 8/8 canary self-test; latency measured on a 2-core sandbox, not a workstation.
 
-<div align="center">
+**A single Layer-2 draw is not a finding** — re-running the four M11 arms a day apart flipped `oracle-gate`'s delta from −3.6 pp to +2.5 pp. Quote both draws or neither.
 
-| Metric | Traditional | Hybrid | Δ |
-|--------|-------------|--------|---|
-| **Correctness (pooled)** | 61.7% | **66.8%** | **+5.1pp** |
-| **Single-hop questions** | 80.5% | **90.2%** | **+9.8pp** ✓ |
-| Multi-hop questions | 48.2% | 50.0% | +1.8pp |
-| Over-abstention | 35.7% | **25.5%** | **−10.2pp** |
-| Latency p50 | 19.9s | 40.9s | 2.06× |
-| Cost per suite | $0.165 | **$0.148** | **cheaper** |
+Fabrication is only measured on the five unanswerable questions in the internal `outofscope` scenario: 0/5 in the last two internal runs (v2 pipeline, runs `9d894b6c` and `bf05f585`), after one draw measured 1/5 for a different reason (run `0314ac0a`). **The v3 pipeline has not had its fabrication rate published.** The public benchmark suites contain no unanswerable questions, so no public run can produce this metric — see [docs/benchmarking.md](docs/benchmarking.md).
 
-  <em>v3 headline: +9.8pp on single-hop questions (statistically significant), hybrid runs cheaper than baseline</em>
-</div>
+**Full record:** [docs/results.md](docs/results.md) · **Methodology:** [docs/benchmarking.md](docs/benchmarking.md) · **9-arm suite:** [docs/testbench-results-layer2-full9.md](docs/testbench-results-layer2-full9.md)
 
-**What these numbers mean:** The hybrid fixes the single-hop regression from earlier versions by using calibrated retrieval scores instead of asking a small model for absolute judgments. The escalation gate works as intended — 10% of questions take the hard path, and 60% of those get answered correctly after recovery. The hybrid answers more, abstains less, and costs less.
+## Privacy: what stays local
 
-**Full analysis:** [docs/benchmark-results.md](docs/benchmark-results.md) · **Methodology:** [docs/benchmarking.md](docs/benchmarking.md)
+Everything that touches your documents runs on your machine: parsing, chunking,
+embeddings, the vector store, BM25, the reranker, the local decision model, and the
+SQLite database. **One** call leaves your computer: the cloud LLM that writes the
+answer, to the OpenAI-compatible endpoint in `backend/.env`.
 
-## 📚 Documentation
+The backend binds to `127.0.0.1` by default and has **no authentication**. Set
+`JEVRAG_HOST=0.0.0.0` only if you deliberately want other devices on your network to
+reach it — they get full read and write access to your documents and conversations.
+CORS accepts only the frontend origin. There is no telemetry, no external vector DB and
+no embedding API.
 
-**Getting started**
-- [docs/setup.md](docs/setup.md) — fresh-system setup guide (requirements, steps, verification, troubleshooting)
-- [docs/windows-setup.md](docs/windows-setup.md) — Windows-specific setup with WSL2
+CORS is defense-in-depth, not what carries the app's own traffic (the frontend reaches the backend through a server-side Next.js rewrite); DNS rebinding is an admitted residual — see [SECURITY.md](SECURITY.md).
 
-**Understanding the system**
-- [docs/architecture.md](docs/architecture.md) — components, data flow, deployment topology
-- [docs/hybrid-design.md](docs/hybrid-design.md) — decision patterns, escalation gate, configuration knobs
-- [docs/rag-upgrade-2026.md](docs/rag-upgrade-2026.md) — v3 design rationale and research synthesis
+## Documentation
 
-**Benchmark results**
-- [docs/results.md](docs/results.md) — **start here**: headline numbers, key findings, v1→v2→v3 progression
-- [docs/benchmark-results.md](docs/benchmark-results.md) — full run history with per-scenario breakdowns
-- [docs/benchmarking.md](docs/benchmarking.md) — methodology, metrics, judge design, fairness checklist
+The hub is [docs/README.md](docs/README.md), with three lanes:
 
-**API reference**
-- [docs/api.md](docs/api.md) — REST + SSE wire protocol
+- **Use it** — [setup.md](docs/setup.md) · [usage.md](docs/usage.md) · [configuration.md](docs/configuration.md) · [troubleshooting.md](docs/troubleshooting.md), symptom-first: [it won't start](docs/troubleshooting.md#it-wont-start) · [uploads](docs/troubleshooting.md#uploads) · [answers](docs/troubleshooting.md#answers) · [answers are slow](docs/troubleshooting.md#answers-are-slow) · [cost shows —](docs/troubleshooting.md#cost-shows-) · [the backend died](docs/troubleshooting.md#the-backend-died) · [can't reach it from another device](docs/troubleshooting.md#cant-reach-it-from-another-device) · [collecting diagnostics](docs/troubleshooting.md#collecting-diagnostics)
+- **Understand it** — [glossary.md](docs/glossary.md) · [architecture.md](docs/architecture.md) · [hybrid-design.md](docs/hybrid-design.md) · [rag-upgrade-2026.md](docs/rag-upgrade-2026.md) · [api.md](docs/api.md) · [setup-gpu.md](docs/setup-gpu.md)
+- **Measure it** — [results.md](docs/results.md) (start here) · [benchmarking.md](docs/benchmarking.md) · [testbench-design.md](docs/testbench-design.md) · [testbench-results-layer1.md](docs/testbench-results-layer1.md) · [testbench-results-layer2-full9.md](docs/testbench-results-layer2-full9.md) · [benchmark-results.md](docs/benchmark-results.md)
 
-**Glossary**
-- [docs/glossary.md](docs/glossary.md) — key terms and concepts
-
-## 🤝 Contributing
+## Contributing
 
 Issues and pull requests are welcome — bug reports with repro steps, benchmark scenario ideas, and docs fixes especially. See **[CONTRIBUTING.md](CONTRIBUTING.md)** for the dev setup (one command), the test/lint bar, and what a good PR looks like.
 
-## 🔒 Security
+## Security
 
 Found something security-relevant (leaked credentials, injection vectors, unsafe defaults)? Please don't open a public issue — see **[SECURITY.md](SECURITY.md)**.
 
-## 🙏 Credits
+## Credits
 
 - [Jev / System One Models](https://typesafe.ai/blog/introducing-system-one-models-and-jev) — the decision-model pattern this project adapts locally
 - [Jev-Style-0.8B-Decision-v3](https://huggingface.co/chaoliangUNSW/Jev-Style-0.8B-Decision-v3-GGUF) (Apache-2.0) · [jev-style](https://github.com/lawrence3699/jev-style) · [llama.cpp](https://github.com/ggml-org/llama.cpp)
 - [RAGAS](https://docs.ragas.io) · [DeepEval](https://deepeval.com) · [LLM-as-a-judge](https://arxiv.org/abs/2306.05685) — metric definitions the judge follows
 - Built on FastAPI · ChromaDB · fastembed · markitdown · langchain-text-splitters · Next.js 16 · Tailwind CSS 4 · shadcn/ui · zustand · recharts
 
-## 📜 License
+## License
 
 Apache-2.0 — see [LICENSE](LICENSE).
