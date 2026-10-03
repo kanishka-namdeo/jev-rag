@@ -65,6 +65,7 @@ export interface PairwiseMetrics {
   ties: number;
   hybrid_win_rate: number;
   position_consistency: number;
+  judge_errors?: number;
 }
 
 export interface BenchSummary {
@@ -85,7 +86,8 @@ export interface BenchSummary {
     pairwise: PairwiseMetrics | Record<string, never>;
   };
   abstention_analysis: Record<string, { n: number } & Record<string, number | null>>;
-  gate_analysis: { n?: number; accuracy?: number; brier?: number } | Record<string, never>;
+  gate_analysis: { n?: number; accuracy?: number; brier?: number; basis?: string;
+    coverage?: { n?: number; accuracy?: number; brier?: number; basis?: string } } | Record<string, never>;
   judge: { model: string; selftest_agreement: number | null };
   generated_at: string;
 }

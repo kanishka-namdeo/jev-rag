@@ -116,7 +116,7 @@ HARD PATH  (gate fails)
 | Citation verification | post-answer | post-answer (kept) | anchored/lexical checks suit a 0.5B; ALCE-style metrics added |
 | Passage battery (screening) | flag, default OFF | hard path option, default OFF | proven harmful (−20.8pp run 0314ac0a) without calibration |
 
-The score-feature gate replaces the LLM judgment with cheap, calibrated signals
+The score-feature gate replaces the LLM judgment with cheap score signals
 available *after* retrieval: top-1 cross-encoder score (primary), top1−top2 margin,
 top-k mean, count-above-floor. Threshold θ is calibrated on labeled eval data
 (gold-in-top-4), not hand-tuned.

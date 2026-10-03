@@ -14,7 +14,9 @@ label: Layer-2 full 9-arm (par x5, merged 2026-10-01)
 | rerank-jev | 98 | 0.6531 | [0.55, 0.74] | 30 | 0.2245 | 25132.05 | 0.18 | -0.005 | [-0.097, +0.087] | 1.000 | 1.000 |
 | rerank-none | 98 | 0.7194 | [0.62, 0.80] | 20 | 1.0 | 73600.1 | 0.1854 | +0.061 | [+0.005, +0.122] | 0.180 | 1.000 |
 
-## gate calibration (sufficiency_p vs ground-truth answerability)
+## gate answerability (sufficiency_p vs ground-truth answerability)
+Degenerate on all-answerable suites: accuracy is 1 − FN by construction,
+FP(unans) undefined. Read the coverage table below instead.
 
 | arm | n | thr | acc | Brier | ECE | FN(ans) | FP(unans) |
 |---|---|---|---|---|---|---|---|
@@ -25,6 +27,20 @@ label: Layer-2 full 9-arm (par x5, merged 2026-10-01)
 | no-verify | 98 | 0.6 | 0.8571 | 0.1169 | 0.1567 | 0.1429 | — |
 | rerank-jev | 98 | 0.6 | 0.9388 | 0.0645 | 0.1833 | 0.0612 | — |
 | rerank-none | 98 | 0.6 | 0.0 | 1.0 | 1.0 | 1.0 | — |
+
+## gate retrieval-coverage (first gate reading vs gold-in-final-top4)
+The two-class table the gate decision is really about: did the score
+predict whether the final top-4 covered every gold file?
+
+| arm | n | thr | acc | Brier | ECE | pos rate |
+|---|---|---|---|---|---|---|
+| base | 98 | 0.6 | 0.6939 | 0.2713 | 0.2541 | 0.7041 |
+| gate-jev | 98 | 0.5 | 0.6531 | 0.2558 | 0.235 | 0.6939 |
+| gate-none | 98 | 0.6 | 0.7143 | 0.262 | 0.2556 | 0.6837 |
+| no-bestof | 98 | 0.6 | 0.7041 | 0.2723 | 0.2557 | 0.6939 |
+| no-verify | 98 | 0.6 | 0.7041 | 0.2723 | 0.2557 | 0.6939 |
+| rerank-jev | 98 | 0.6 | 0.6837 | 0.2187 | 0.2102 | 0.7041 |
+| rerank-none | 98 | 0.6 | 0.2959 | 0.7041 | 0.7041 | 0.7041 |
 
 ## subset: single_hop
 
@@ -121,14 +137,20 @@ recall@4 check on the same subset.
 
 base 0.6582 vs gate-none 0.6327 is **+2.5 pp** for escalating at all (M11 reported +4.6 pp).
 `oracle-gate`, the perfect-retry ceiling, came in at **+2.5 pp** — M11 measured it at
-**−3.6 pp**. The gate's own calibration is good: accuracy 0.878, Brier 0.106, ECE 0.150,
-and a 12.2 % false-negative rate on answerable questions (unnecessary escalations).
+**−3.6 pp**. On the retrieval-coverage table (the honest two-class view: first gate
+reading vs gold-in-final-top4), `base` scores accuracy 0.694, Brier 0.271, ECE 0.254 —
+a weak-but-usable signal, consistent with Layer-1's offline calibration (acc 0.673,
+Brier 0.282 at shipped θ). The old answerability table (acc 0.878, Brier 0.106) is kept
+above for continuity but is degenerate on this all-answerable suite — accuracy there is
+1 − FN by construction, so it cannot be read as "good calibration".
 
 `gate-jev` — the v2 absolute-sufficiency gate this project moved away from — scored 0.699
-(+4.1 pp, p = 0.302), the second-best arm overall, while being by far the worst-calibrated
-decision in the suite: accuracy 0.633, Brier 0.314, ECE 0.448 at its own θ = 0.5. It is also
-the only arm that improves accuracy *and* stays cheaper than `base` ($0.1602 vs $0.1614),
-though at 1.58× latency.
+(+4.1 pp, p = 0.302), the second-best arm overall. On the coverage table it is the
+best-Brier gate in the suite (0.256 vs 0.271 for `base`) at its own θ = 0.5 — while its
+answerability row looks worst-calibrated (Brier 0.314, ECE 0.448), which is exactly what
+a degenerate single-class table does to an honest score. It is also the only arm that
+improves accuracy *and* stays cheaper than `base` ($0.1602 vs $0.1614), though at 1.58×
+latency.
 
 ## H-SELECT and H-VERIFY: both null
 
@@ -141,6 +163,16 @@ Removing either changes nothing measurable. `no-bestof` is cheaper ($0.1465 vs $
 no slower. These are the two components whose cost is easiest to justify on grounds other
 than judged accuracy — citation verification is what makes the `[n]` labels in the UI
 trustworthy — but this suite does not support claiming they raise correctness.
+
+**`no-verify` is a structural null, not an empirical one.** Citation verification runs
+*after* generation and nothing downstream reads its output — no regeneration, no
+re-ranking — so with verification disabled the generation path is byte-identical to
+`base` (pinned hermetically in `backend/tests/test_pipeline_v3.py`). Its Δ (+0.005,
+p = 1.000) can only ever be sampling noise. Read this arm as a cost/latency/trust
+characterization (verification costs $0.010 and ~1.2 s p50 here: base $0.1614/19.6 s
+vs no-verify $0.1512/18.5 s), never as evidence
+about whether citation checking helps accuracy. A verify→regenerate policy would be a
+different, testable hypothesis — it is future work, not this arm.
 
 ## always-hard: confirms M11's "pure cost" finding
 
@@ -164,6 +196,29 @@ while on single-hop the same arm is **−4.9 pp**. That is the v2 failure mode a
 win condition sitting in the same arm, and it is the strongest argument in this data for
 treating the gate as a multi-hop-only component.
 
+## Over-abstention: the largest effect in the suite, and it belongs to no arm
+
+On an all-answerable suite, `base` abstains on **26 of 98 questions (26.5 %)** — and
+**25 of 57 (43.9 %)** on the multi-hop subset. That dwarfs every arm delta in the
+run (largest: +6.1 pp) and it is the dominant loss mode of the whole system, yet no
+pre-declared arm addresses it: the gate decides *retrieval effort*, and nothing in the
+pipeline re-examines a decision to give up.
+
+Human spot-check (2026-10-03, all 26 `base` abstentions read against their references):
+**24 of 26 are clean retrieval-coverage failures** — the shown top-4 genuinely lacks the
+bridging fact (a death date, a birthplace, a venue) while the corpus holds it, and the
+answer correctly refuses. 2 of 26 (musique `mq3`/`mq15`) give partial substance with an
+explicit gap statement that the judge labeled `abstained` — a labeling gray zone, not a
+model failure. 0 of 26 are hallucinations or wrong refusals. One row (`hp23`) got
+correctness 1.0 for an abstention under the old judge prompt — judge mood, which the new
+prompt rule (abstention-correctness pinned by canary 9) is designed to remove.
+
+So the 26.5 % is a *retrieval* problem wearing an *abstention* label, and the fix belongs
+on the retrieval side (hard-path coverage of bridging facts), not in refusal prompting.
+The next suite's pre-declared hypothesis should be a give-up audit plus a second-chance
+path for abstained answers — e.g. one more targeted retrieval round before accepting
+the refusal.
+
 ## Caveats and confounds
 
 - **Run-to-run variance is ±3 pp on these comparisons**, and larger on `oracle-gate` — see
@@ -175,6 +230,13 @@ treating the gate as a multi-hop-only component.
   read the jev shape at all (it previously reported a structurally impossible 0 %).
 - Public scenarios are all answerable, so `FP(unans)` is undefined throughout and the gate's
   fabrication-risk side is untested here — the internal `outofscope` scenario covers it.
+  The new coverage table sidesteps this: it needs no unanswerable questions.
+- The `abstained` label was human-validated after the fact (2026-10-03 spot-check of all
+  26 `base` abstentions: 24 clean coverage-failure refusals, 2 partial-substance gray
+  zones, 0 hallucinations) — the 26.5 % over-abstention is real, and it is a retrieval
+  problem. Note the metric tension this creates: on these rows `abstention=abstained` is
+  the *correct behavior* while `correctness=0` records the *task failure*. Both are
+  right; read them together.
 - Latency and cost are cloud-endpoint dominated, so they carry the endpoint's own variance.
 - **2026-10-01 — the shipped default now matches this page's θ.** `app/config.py`'s
   `gate_score_threshold` moved 0.5 → 0.6 to match `backend/.env.example` and the gate

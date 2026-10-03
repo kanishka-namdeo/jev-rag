@@ -91,8 +91,13 @@ function liveSummary(results: BenchResultRow[], scenarios: ScenarioMeta[]): Benc
     return out;
   };
   const pairwiseOf = (rows: BenchResultRow[]) => {
-    const pw = rows.filter((r) => r.mode === "hybrid" && r.pairwise);
-    if (!pw.length) return {};
+    // Judge-outage rows (winner "error") are excluded from the win-rate
+    // denominator — same contract as the backend _summarize.
+    const usable = rows.filter((r) => r.mode === "hybrid" && r.pairwise && r.pairwise.winner !== "error");
+    const errors = rows.filter((r) => r.mode === "hybrid" && r.pairwise?.winner === "error").length;
+    const base = { n: 0, hybrid_wins: 0, traditional_wins: 0, ties: 0, hybrid_win_rate: 0, position_consistency: 0 };
+    if (!usable.length) return errors ? { ...base, judge_errors: errors } : {};
+    const pw = usable;
     const wins = pw.filter((r) => r.pairwise!.winner === "hybrid").length;
     const losses = pw.filter((r) => r.pairwise!.winner === "traditional").length;
     const ties = pw.filter((r) => r.pairwise!.winner === "tie").length;
@@ -100,6 +105,7 @@ function liveSummary(results: BenchResultRow[], scenarios: ScenarioMeta[]): Benc
       n: pw.length, hybrid_wins: wins, traditional_wins: losses, ties,
       hybrid_win_rate: (wins + 0.5 * ties) / pw.length,
       position_consistency: pw.filter((r) => r.pairwise!.position_consistent).length / pw.length,
+      ...(errors ? { judge_errors: errors } : {}),
     };
   };
   const scenariosOut: BenchSummary["scenarios"] = {};
@@ -114,6 +120,16 @@ function liveSummary(results: BenchResultRow[], scenarios: ScenarioMeta[]): Benc
   }
   const gateRows = results.filter((r) => r.mode === "hybrid" && r.sufficiency_p != null);
   const gateCorrect = gateRows.filter((r) => (r.sufficiency_p! >= 0.5) === r.answerable).length;
+  // Retrieval-coverage basis (same contract as the backend): first gate reading
+  // is unavailable client-side, so the live view scores sufficiency_p at 0.5
+  // against gold-in-top4 — a live estimate, replaced by the run summary (which
+  // uses the true first-gate reading and the run's threshold) on completion.
+  const covRows = results.filter(
+    (r) => r.mode === "hybrid" && r.sufficiency_p != null && r.retrieval?.recall4 != null,
+  );
+  const covCorrect = covRows.filter(
+    (r) => (r.sufficiency_p! >= 0.5) === (r.retrieval!.recall4! >= 1.0),
+  ).length;
   const abstention: BenchSummary["abstention_analysis"] = {};
   for (const ansFlag of [true, false]) {
     for (const mode of ["traditional", "hybrid"] as const) {
@@ -139,8 +155,12 @@ function liveSummary(results: BenchResultRow[], scenarios: ScenarioMeta[]): Benc
     },
     abstention_analysis: abstention,
     gate_analysis: gateRows.length
-      ? { n: gateRows.length, accuracy: gateCorrect / gateRows.length,
-          brier: gateRows.reduce((a, r) => a + (r.sufficiency_p! - (r.answerable ? 1 : 0)) ** 2, 0) / gateRows.length }
+      ? { n: gateRows.length, accuracy: gateCorrect / gateRows.length, basis: "answerability",
+          brier: gateRows.reduce((a, r) => a + (r.sufficiency_p! - (r.answerable ? 1 : 0)) ** 2, 0) / gateRows.length,
+          coverage: covRows.length
+            ? { n: covRows.length, accuracy: covCorrect / covRows.length, basis: "gold-in-final-top4",
+                brier: covRows.reduce((a, r) => a + (r.sufficiency_p! - (r.retrieval!.recall4! >= 1.0 ? 1 : 0)) ** 2, 0) / covRows.length }
+            : undefined }
       : {},
     judge: { model: "(live)", selftest_agreement: null },
     generated_at: new Date().toISOString(),
@@ -268,7 +288,13 @@ export function ResultsDashboard() {
   const t = summary.overall.traditional;
   const h = summary.overall.hybrid;
   const pw = summary.overall.pairwise;
-  const gate = summary.gate_analysis as { n?: number; accuracy?: number; brier?: number };
+  const gate = summary.gate_analysis as {
+    n?: number; accuracy?: number; brier?: number; basis?: string;
+    coverage?: { n?: number; accuracy?: number; brier?: number; basis?: string };
+  };
+  // Coverage (gold-in-top4) is the meaningful gate basis; the answerability
+  // row is degenerate on all-answerable suites. Prefer coverage when present.
+  const gateShown = gate?.coverage ?? gate;
   const ab = summary.abstention_analysis;
   const getAb = (k: string) =>
     (ab[k] ?? {}) as { n?: number; answered?: number | null; abstained?: number | null; fabricated?: number | null; proper_abstention_rate?: number | null; over_abstention_rate?: number | null; fabrication_rate?: number | null };
@@ -316,7 +342,7 @@ export function ResultsDashboard() {
                 </div>
                 <div className="flex justify-between text-[10px] text-muted-foreground">
                   <span>hybrid {pw.hybrid_wins} · tie {pw.ties} · trad {pw.traditional_wins}</span>
-                  <span>pos-consistency {pct(pw.position_consistency)}</span>
+                  <span>pos-consistency {pct(pw.position_consistency)}{pw.judge_errors ? ` · ${pw.judge_errors} judge error(s) excluded` : ""}</span>
                 </div>
               </>
             ) : (
@@ -333,9 +359,11 @@ export function ResultsDashboard() {
           </CardHeader>
           <CardContent className="grid grid-cols-2 gap-x-3 gap-y-1 px-3 text-xs">
             <span className="text-muted-foreground">accuracy</span>
-            <span className="text-right font-mono tabular-nums">{gate?.accuracy != null ? pct(gate.accuracy, 1) : "—"}</span>
+            <span className="text-right font-mono tabular-nums">{gateShown?.accuracy != null ? pct(gateShown.accuracy, 1) : "—"}</span>
             <span className="text-muted-foreground">Brier score</span>
-            <span className="text-right font-mono tabular-nums">{gate?.brier != null ? num(gate.brier, 3) : "—"}</span>
+            <span className="text-right font-mono tabular-nums">{gateShown?.brier != null ? num(gateShown.brier, 3) : "—"}</span>
+            <span className="text-muted-foreground">basis</span>
+            <span className="text-right font-mono tabular-nums">{gate?.coverage ? "gold-in-top4" : gate?.basis ?? "—"}</span>
             <span className="text-muted-foreground">mean P(sufficient)</span>
             <span className="text-right font-mono tabular-nums">{num(h.sufficiency_mean, 3)}</span>
             <span className="text-muted-foreground">mean verification</span>

@@ -18,20 +18,23 @@
 - `app/schemas.py` — pydantic request/response models
 - `app/api/routes.py` — endpoints: chat (SSE), documents upload/list/delete, conversations, system status
 - `app/api/bench_routes.py` — benchmark endpoints: scenarios catalog, run lifecycle (POST/GET/DELETE), results
-- `app/bench/scenarios.py` — scenario registry: 6 corpora × 48 ground-truth QA (reference answers, gold
-  files, answerability, stress tags) — the benchmark's source of truth
+- `app/bench/scenarios.py` — scenario registry: 6 internal corpora × 48 ground-truth QA plus
+  5 public-benchmark scenarios × 98 QA (references, gold files, answerability, stress tags
+  when the manifest was built) — the benchmark's source of truth
 - `app/bench/corpora/<scenario>/*.md` — scenario documents (bench- prefixed filenames)
 - `app/bench/metrics.py` — deterministic retrieval metrics (hit@k, MRR, recall@k, file-level NDCG,
   Brier) — formulas are standard TREC/BeIR, see docs/benchmarking.md; RAGAS-style LLM-based
   context precision/recall metrics (diagnose ranking quality vs coverage gaps)
 - `app/bench/judge.py` — LLM-as-judge: absolute correctness/faithfulness/abstention (RAGAS/DeepEval
-  definitions), MT-Bench pairwise with position swap, 8-canary self-test; `MultiJudgeEnsemble`
-  aggregates across multiple independent judges (geometric median, Kish n_eff for correlated errors)
+  definitions), MT-Bench pairwise with position swap, 9-canary self-test; `MultiJudgeEnsemble`
+  aggregates across multiple independent judges (mean for continuous scores, majority vote
+  for categorical decisions, 1−CV agreement)
 - `app/bench/runner.py` — sequential orchestrator inside uvicorn: scenario re-ingest → both arms
   (production-identical prompts/knobs) → judge → aggregate → persist
-- `app/rag/pipelines.py` — both pipeline implementations (hybrid = v2 single-generator design),
-  the SSE event protocol, and the shared v2 policy functions (`parse_citations`,
-  `apply_battery_policy`, `citation_summary`, `composite_quality`) imported by the bench runner
+- `app/rag/pipelines.py` — both pipeline implementations (hybrid = v3 score-feature-gate
+  design, docs/rag-upgrade-2026.md §3.3), the SSE event protocol, and the shared policy
+  functions (`parse_citations`, `apply_battery_policy`, `citation_summary`,
+  `composite_quality`, `sum_token_usage`) imported by the bench runners
 - `app/rag/retriever.py` — fastembed Embedder + ChromaDB VectorStore (query supports doc_ids filter
   for scenario isolation)
 - `app/rag/prompts.py` — system prompts, conflict/direct suffixes, decompose/rewrite utility
@@ -80,7 +83,8 @@ ONNX Runtime's CUDA provider does **not** work with WSL2's GPU virtualization la
   routing | sources | llm_start | delta | done | error | ping` — coordinate with `src/AGENTS.md`
   before changing them. The `routing` event carries v2 effort routing
   (`{effort, model, probabilities, confidence}`); `done` may carry `effort`, `quality_score`,
-  `best_of`, `retried`, `rewritten_query`, `citations_verified`
+  `best_of`, `retried`, `rewritten_query`, `citations_verified`, and (bench-only)
+  `context_used` + `context_chunks` (formatted block vs per-chunk texts for metrics)
 - Jev decisions run in threads (`asyncio.to_thread`); the jev-style adapter serializes model calls
 - Long LLM streams bridge to async via `asyncio.to_thread(next, it, sentinel)` — keep it
 - Errors inside a stream become `{"type":"error"}` frames, never dropped connections
@@ -156,9 +160,20 @@ ONNX Runtime's CUDA provider does **not** work with WSL2's GPU virtualization la
 - Knobs a run used are persisted nested under `bench_runs.config["base"]` — thresholds (e.g.
   `gate_score_threshold`, `jev_sufficiency_threshold`) must be read from there, with the top
   level only as the legacy flat-config fallback; a flat-only read falls back to the default and
-  reports a phantom operating point in every published calibration table
+  reports a phantom operating point in every published calibration table.
+  `scripts/run_testbench.py::base_config()` is the single recording point — every knob the
+  analyzer reads must be added there, and `tests/test_analyze_testbench.py` fails when a
+  recorded knob stops resolving through the analyzer lookup
+- Gate calibration is scored on the FIRST gate reading (the one that chose the path —
+  `app.bench.stats.first_gate_score`) vs gold-in-final-top4 coverage, never on the
+  done-event `sufficiency_p` (re-evaluated post-retry on the hard path) vs answerability
+  (degenerate on all-answerable suites). The answerability table is kept for continuity
+  but labeled as such everywhere it is rendered
 - The runner retries the hybrid arm once after transient jev engine death, then fails fast;
   never convert engine-death into per-question "error" rows
 - Aggregate summary formulas (`_summarize`) must stay aligned with the frontend's
-  `liveSummary` fallback in `src/components/jevrag/bench/results-dashboard.tsx`
+  `liveSummary` fallback in `src/components/jevrag/bench/results-dashboard.tsx` — including
+  the pairwise judge-error exclusion (error rows leave the win-rate denominator on both
+  sides) and the gate coverage table (gold-in-final-top4 basis preferred over the
+  degenerate answerability basis on all-answerable suites)
 

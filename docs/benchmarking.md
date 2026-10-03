@@ -1,12 +1,12 @@
 # Benchmarking & Evaluation Methodology
 
-> **TL;DR**: Jev-RAG benchmarks two pipelines — **traditional** (embedding retrieval → cloud LLM) and **hybrid** (broad retrieval → local [Jev](glossary.md)-style [System One](glossary.md) rerank/sufficiency/routing → cloud LLM → groundedness verification) — using metric definitions and judge protocols from **RAGAS**, **DeepEval**, **TruLens**, **MT-Bench** and **AbstentionBench**. A lightweight custom harness (`backend/app/bench/`) implements them without heavyweight framework dependencies. Everything except generation and judging runs locally on 2 CPU cores.
+> **TL;DR**: Jev-RAG benchmarks two pipelines — **traditional** (embedding retrieval → cloud LLM) and **hybrid** (broad retrieval → local [Jev](glossary.md)-style [System One](glossary.md) rerank/sufficiency/routing → cloud LLM → groundedness verification) — using metric definitions and judge protocols from **RAGAS**, **DeepEval**, **TruLens**, **MT-Bench** and **AbstentionBench**. A lightweight custom harness (`backend/app/bench/`) implements them without heavyweight framework dependencies. Everything except generation and judging runs locally on CPU.
 
 This document defines how Jev-RAG's two pipelines are benchmarked and compared. The methodology borrows metric definitions and judge protocols from the
 de-facto standard RAG evaluation stack: **RAGAS** (0.4.3), **DeepEval (Confident AI)** (4.2.6),
 **TruLens**, **MT-Bench** and **AbstentionBench**. A lightweight custom harness
 (`backend/app/bench/`) implements them without heavyweight framework dependencies —
-everything except generation and judging runs locally on 2 CPU cores.
+everything except generation and judging runs locally on CPU.
 
 ## Evaluation Pipeline Overview
 
@@ -38,7 +38,7 @@ hybrid pipeline's extra stages (rerank → top-4, sufficiency gate, model routin
 verification) need stage-level instrumentation the frameworks don't emit, and (b) the
 harness must run inside the FastAPI process to survive the sandbox process reaper.
 
-## Scenario taxonomy (6 corpora, 26 documents, 48 questions)
+## Scenario taxonomy (6 internal corpora, 26 documents, 48 questions + 5 public benchmarks, 98 questions)
 
 | Scenario | Category (lineage) | What it stresses |
 |---|---|---|
@@ -48,6 +48,15 @@ harness must run inside the FastAPI process to survive the sandbox process reape
 | `distractor` | Needle-in-haystack (NIAH/RULER-style) | Rerank precision under maximum lexical overlap (6 near-duplicate KB articles) |
 | `multilingual` | Cross-lingual retrieval (MIRACL/MKQA-style) | Facts live in EN/ZH/DE/FR docs; questions asked in EN/ZH/DE |
 | `outofscope` | Abstention (AbstentionBench-style) | 3 answerable + 5 unanswerable questions over one small corpus; sufficiency gate and refusal behaviour |
+| `squad` / `triviaqa` | Public single-hop (Rajpurkar et al. 2016; Joshi et al. 2017) | 25 + 16 answerable questions over Wikipedia articles (1 question per article) |
+| `hotpotqa` / `wiki2` / `musique` | Public multi-hop (Yang et al. 2018; Ho et al. 2020; Trivedi et al. 2022) | 25 + 16 + 16 answerable multi-hop questions; all gold files required for coverage |
+
+The internal suite is the abstention/control layer (it holds all 5 unanswerable questions);
+the public suite is the current Layer-2 measurement layer (all 98 answerable). Counts trace
+to `backend/app/bench/corpora/public_benchmarks.json` (dataset URLs + sampling seeds in its
+`provenance` block; builder `backend/scripts/build_public_scenarios.py`). Gate
+calibration tables therefore use a retrieval-coverage basis (first gate reading vs
+gold-in-final-top4), not answerability — see the gate contract in `backend/AGENTS.md`.
 
 Corpora live in `backend/app/bench/corpora/<scenario>/*.md`; the question sets with
 ground truth (reference answer, gold files, answerability, stress tags) live in
@@ -108,6 +117,11 @@ Win rate counts ties as 0.5. *(Which pipeline produces better answers overall? P
 Per-question latency with per-stage breakdown (retrieval / Jev rerank /
 sufficiency+routing / LLM / verification — judge time excluded), p50/p95, tokens,
 and USD cost of cloud generation. *(How fast and how expensive is each pipeline? p50 = typical case, p95 = worst-case.)*
+Row tokens/costs include System-Two helper calls (decompose, rewrite, best-of-2
+candidates) folded in from decision usages (`app/rag/pipelines.py:sum_token_usage`) —
+the final-generation usage alone systematically understates the hard path. Judge tokens
+are excluded by design: judging is measurement overhead, not pipeline cost, so
+per-suite totals understate the full cloud bill by the judge's share.
 
 ### 5. Context precision & recall (RAGAS-style LLM-based retrieval diagnostics)
 
@@ -125,7 +139,7 @@ These metrics diagnose **WHERE** retrieval failures occur — ranking quality vs
   - 0.0 = no claims supported
   - *Diagnoses retrieval coverage gaps*
 
-**Implementation:** `backend/app/bench/metrics.py:context_precision()` and `context_recall()` follow RAGAS 0.4.3 definitions. Each metric adds ~2 LLM calls per question (one per chunk for precision; one decomposition + one per claim for recall).
+**Implementation:** `backend/app/bench/metrics.py:context_precision()` and `context_recall()` follow RAGAS 0.4.3 definitions. Precision judges **each chunk separately** (per-chunk texts from the bench done-event `context_chunks`, in rank order) — passing one concatenated block would make the average-precision computation degenerate (a single binary verdict). Each metric adds ~2 LLM calls per question (one per chunk for precision; one decomposition + one per claim for recall).
 
 **Configuration:** `JEVRAG_BENCH_CONTEXT_METRICS` (bool, default `true`). Disable to save LLM calls when only deterministic retrieval metrics are needed.
 
@@ -140,20 +154,29 @@ These metrics diagnose **WHERE** retrieval failures occur — ranking quality vs
   Qwen models the system is configured with. Judge choice is configurable via
   `JEVRAG_BENCH_JUDGE_MODEL`. *(Using a different model family for judging prevents the judge from favoring its own style.)*
 
-- **Multi-judge ensemble** (optional): `MultiJudgeEnsemble` in `backend/app/bench/judge.py` aggregates scores across multiple independent judges to reduce variance and detect judge bias. Uses geometric median for robustness against outlier judges and computes Kish effective sample size (n_eff) to account for correlated errors.
+- **Multi-judge ensemble** (optional): `MultiJudgeEnsemble` in `backend/app/bench/judge.py` aggregates scores across multiple independent judges to reduce variance and detect judge bias.
   - **Configuration:** `JEVRAG_BENCH_JUDGE_ENSEMBLE` (str, comma-separated model names, empty = single judge). Example: `"kimi-k2.5,gpt-4o-mini,claude-3-haiku"`
-  - **Aggregation:** Mean for continuous scores (correctness, faithfulness), majority vote for categorical decisions (abstention, pairwise winner)
-  - **Agreement metrics:** Reports inter-judge agreement (1 - CV for continuous scores, vote fraction for categorical)
+  - **Aggregation:** mean for continuous scores (correctness, faithfulness), majority vote for categorical decisions (abstention, pairwise winner)
+  - **Agreement metrics:** Reports inter-judge agreement (1 − CV for continuous scores, vote fraction for categorical)
   - **Reference:** OpenJury framework, Cohere research on multi-judge reliability
 - **temperature = 0, structured JSON only** (`response_format=json_object`), with a
   short human-readable `reason` for auditability and clamping/normalisation on parse.
-- **Judge self-test**: every run starts with 8 canary cases with known expected
+- **Prompt rules that matter:** a proper abstention on an unanswerable question scores
+  correctness 1.0 (refusing IS the correct response there — pinned by self-test canary 9);
+  references may list acceptable aliases separated by ` / ` (the public-benchmark builder
+  joins them that way). Prompt changes move the judge: runs before/after 2026-10-03 are
+  not directly comparable on abstention-heavy suites.
+- **Judge self-test**: every run starts with 9 canary cases with known expected
   outcomes (perfect answer, wrong number, refusal-on-answerable, fabrication, proper
-  abstention, partial, correct-with-unsupported-extra, wrong entity). The agreement
-  score is stored on the run — a cheap RAGAS-style judge-alignment guard.
+  abstention, partial, correct-with-unsupported-extra, wrong entity, proper-abstention
+  correctness). The agreement score is stored on the run — a cheap RAGAS-style
+  judge-alignment guard.
+- **Pairwise outage semantics:** when either position-swapped call fails, the verdict is
+  `error` with `judge_error: true` — aggregators exclude these rows from win-rate
+  denominators, never count them as ties.
 - **Same questions, same corpus snapshot, same chunking, same prompts and knobs** for
   both arms — the hybrid arm mirrors `app/rag/pipelines.py` exactly (same system
-  prompts, `SUFFICIENCY_THRESHOLD`, truncation limits), instrumented for pre/post
+  prompts, gate thresholds, truncation limits), instrumented for pre/post
   rerank ranks.
 
 ## Statistical significance
@@ -185,9 +208,10 @@ curl localhost:8000/api/bench/runs/<id>     # run + results + summary
 
 The runner executes sequentially inside the FastAPI process (the Jev engine is a
 single subprocess; runs are serialised; only one active run is allowed **per process**).
-A full 6-scenario run is 48 questions × 2 systems ≈ 96 generations + ~240 judge calls
-(48×2 absolute + 48×2 pairwise) ≈ 40–70 minutes on 2 CPU cores, a few cents of
-endpoint spend.
+A full 6-scenario internal run is 48 questions × 2 systems ≈ 96 generations + ~240 judge
+calls (48×2 absolute + 48×2 pairwise) — tens of minutes on local CPU, a few cents of
+endpoint spend. The Layer-2 testbench (9 arms × 98 public questions = 882 triples) runs
+under the parallel procedure below instead.
 
 On a workstation, the same suite runs several times faster with **one worker process per
 scenario on its own data directory** — that is an execution detail, not a methodology

@@ -209,7 +209,6 @@ These are real today — no euphemisms:
 - The dropzone hint advertises 7 formats; 11 are accepted (see [Add documents](#add-documents)).
 - **No per-document scoping.** Every question searches your whole corpus — you can't limit one
   to a subset of files.
-- The lab's own subtitle still says "six document scenarios" — there are eleven.
 - **No copy-answer button**, and the trace panel isn't copyable. The only clipboard action in
   the app is "Copy status JSON" in the status popover.
 - No export of benchmark results from the UI — that's CLI-only

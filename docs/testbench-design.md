@@ -58,7 +58,7 @@ is structural since M5). Pre-declared arms:
 | rerank-jev | rerank_mode=jev | H-RERANK: jev vs cross end-to-end |
 | rerank-none | rerank_mode=none | H-RERANK: no rerank end-to-end |
 | no-bestof | hybrid_best_of_n=False | H-SELECT: best-of-2 contribution |
-| no-verify | hybrid_verify_answers=False | H-VERIFY: citation verification contribution |
+| no-verify | hybrid_verify_answers=False | H-VERIFY: verification cost/latency/trust (NOT accuracy — see below) |
 
 Metrics per arm: judge correctness (kimi-k2.5 absolute), abstention rate,
 p50/p95 latency, cost; **paired vs base**: exact McNemar on per-question
@@ -68,6 +68,15 @@ total contribution) and always-hard-vs-base (cost of over-escalation).
 
 `backend/scripts/analyze_testbench.py` produces the final table; every number
 carries n, the statistic, and the CI.
+
+H-VERIFY is a structural null on accuracy by construction: citation verification runs
+*after* generation and nothing downstream reads its output (no regeneration, no
+re-ranking), so `no-verify` is generation-identical to `base` — pinned hermetically in
+`backend/tests/test_pipeline_v3.py::test_no_verify_arm_is_generation_identical_to_base`.
+Any non-zero accuracy delta on this arm is sampling noise. Read it as a
+cost/latency/trust characterization (what verification costs, what makes the `[n]`
+labels checkable), and scope any future accuracy claim about verification to a
+verify→regenerate policy, which would be a different, testable hypothesis.
 
 ## Statistical protocol (pre-declared)
 

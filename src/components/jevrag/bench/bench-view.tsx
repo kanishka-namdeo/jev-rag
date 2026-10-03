@@ -60,7 +60,8 @@ export function BenchView() {
               RAG Benchmark Lab
             </h1>
             <p className="mt-1 max-w-2xl text-xs leading-relaxed text-muted-foreground">
-              Traditional vs Hybrid (Jev System-One) pipelines over six document scenarios.
+              Traditional vs Hybrid (Jev System-One) pipelines over{" "}
+              {scenarios.length > 0 ? `${scenarios.length} document scenarios` : "the document scenarios"}.
               Deterministic retrieval metrics + independent LLM judge (kimi-k2.5,
               position-swapped pairwise) — methodology in docs/benchmarking.md.
             </p>

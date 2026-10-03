@@ -4,6 +4,44 @@ Single shared work log for all agents working in this repo. Append-only; each
 section starts with `---`. Newest at top.
 
 ---
+Task ID: audit-fixes (2026-10-03)
+Agent: OpenCode session (owner's Windows workstation + WSL2 Ubuntu-24.04)
+Task: fundamental audit of tests/pipelines/models vs what we want to test/record/deduce,
+    then implement ALL fixes with verification.
+
+Work Log:
+- Audit (prior session): read full DOX chain + pipelines/jev_engine/runner/metrics/judge/
+  stats/scenarios + drivers/analyzers + testbench-design + results docs + ran suite (158 green).
+  Findings: stats math sound; arm parity structural; judge protocol sound. Defects: Layer-2
+  gate table degenerate on all-answerable suites; H-VERIFY vacuous by construction; hybrid
+  easy-path prompt asymmetric + overclaims screening; CE throttled to 400 chars by the jev
+  knob; "calibrated" overclaimed for CE scores; cost/token undercount; missing
+  jev_sufficiency_threshold in driver config; pairwise outage -> silent tie; context_precision
+  fed a single block (degenerate AP); first-vs-final gate reading confusion; reference alias
+  noise; unpinned abstention-correctness semantics; effort-routing 2/3 inert; doc drift
+  (ensemble geometric-median/Kish claim, v2 references, 6-scenario subtitle, theta history).
+- Fix commit db571bf (14 files, +494/−55): rerank_char_limit knob (config + template +
+  configuration.md row, 65 fields); pipelines CE path + context_chunks + sum_token_usage;
+  prompts repair; judge error semantics + prompt rules + 9th canary; runner per-chunk metrics
+  + summed tokens + pairwise exclusion + coverage gate table; run_testbench base_config() +
+  chunks + summed tokens; eval_retrieval CE knob; analyzer coverage tables + first_gate_score
+  (stats.py); 15 new hermetic tests (173 green).
+- Analyzer re-run over merged 36abefc6 (offline): arm tables byte-identical (deterministic);
+  new coverage table: base acc 0.694/Brier 0.271/ECE 0.254 (matches Layer-1 offline 0.673/
+  0.282 — cross-validation of the signal); gate-jev best Brier 0.256; rerank-none degenerate
+  as documented. testbench-results-layer2-full9.md tables + curated sections updated.
+- Spot-check: all 26 base abstentions read — 24 clean retrieval-coverage refusals, 2 partial-
+  substance gray zones (mq3/mq15), 0 hallucinations; hp23 shows old-prompt judge inconsistency
+  (corr 1.0 for abstention). Over-abstention is a retrieval problem wearing an abstention label.
+- EOL hazard: worktree is CRLF-normalized (Windows checkout) while many HEAD blobs are LF —
+  `git status` shows ~950 modified files but `git diff -w` shows only real changes. Commits
+  stage explicit paths after normalizing edited files to HEAD endings. Pre-existing, not mine.
+- M11 merged DB (67a1dc06) no longer in any local DB — testbench-results-hgate.md left untouched.
+- Prompt changes (HYBRID_SYSTEM, judge prompt) trigger the benchmark-contract smoke obligation;
+  endpoint probe STATUS: SUCCESS — smoke via POST /api/bench/runs [outofscope] in progress.
+- Layer-1 re-run with full-chunk CE (backend/data_layer1_oct) in progress, offline.
+
+---
 Task ID: M11-complete (2026-09-30)
 Agent: main agent (owner's Windows workstation + WSL2 Ubuntu-24.04)
 Task: complete M11 H-GATE full-power run on real hardware, merge the 5

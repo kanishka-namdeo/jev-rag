@@ -33,7 +33,7 @@ connection warm during long local-model calls.
 meta         {conversation_id, mode, assistant_message_id}
 status       {stage: retrieving|jev-routing|jev-screening|jev-gating|jev-verifying|…, detail}
 retrieval    {retrieved: [{rank, chunk_id, filename, similarity, jev_score?, snippet}]}
-decision     {decision: JevDecision}            (hybrid; one per System-One call — up to 8 in v2)
+decision     {decision: JevDecision}            (hybrid; one per System-One call)
 rerank       {kept: [lite chunks, jev_score set]} (hybrid)
 routing      {effort: no_retrieval|single_pass|multi_step, model, probabilities, confidence}
 sources      {citations: [{index, chunk_id, doc_id, filename, similarity, rerank_score?, snippet}]}
@@ -42,12 +42,12 @@ delta        {content}                            (many, streamed — or chunked
 decision     {decision: citations|verification|addresses|composite} (hybrid, after stream)
 done         {message_id, model, content, usage, cost_usd, timings, decisions, retrieved, citations,
              verification?, context_sufficiency?, effort, quality_score?, best_of?, retried?,
-             rewritten_query?, citations_verified?}
+             rewritten_query?, citations_verified?, context_used?, context_chunks?}
 error        {message}                            (terminal on failure)
 ping         {}                                   (keepalive)
 ```
 
-v2 decision records in order: `effort` (choice) → `decompose` (plan, multi_step only) →
+v3 decision records in order: `effort` (choice) → `rerank` (score) → `gate` (score) →
 `rerank` (noul × passages) → `battery` (3 nouls/passage) → `corrective` (rewrite, retry only) →
 `sufficiency` (noul) → `best_of_2` (noul, hard path only) → `citations` (choice × emitted [n]) →
 `verification` (noul) → `addresses` (noul) → `composite` (weighted score).

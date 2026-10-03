@@ -6,13 +6,13 @@
 
 ## 🏆 Headline Finding (v3, 2026-09-29)
 
-> Across 5 public benchmarks (98 questions), hybrid RAG with the v3 score-feature escalation gate achieved **66.8% correctness** vs traditional RAG's **61.7%** — a **+5.1pp improvement** (McNemar p = 0.065). On single-hop questions the win is **significant**: **+9.8pp** (Wilcoxon p = 0.048). The hybrid also **costs less** ($0.148 vs $0.165 per suite) and **abstains less** (25.5% vs 35.7% over-abstention).
+> Across 5 public benchmarks (98 questions), hybrid RAG with the v3 score-feature escalation gate achieved **66.8% correctness** vs traditional RAG's **61.7%** — a **+5.1pp improvement** (McNemar p = 0.065). On single-hop questions the win is nominally significant: **+9.8pp** (unadjusted Wilcoxon p = 0.048 — a pre-declared subset claim, not FDR-controlled; apply the same "one draw is not a finding" rule used for H-GATE). The hybrid also **costs less** ($0.148 vs $0.165 per suite) and **abstains less** (25.5% vs 35.7% over-abstention).
 
 ---
 
 ## Key Findings
 
-- **The v2 single-hop regression is fixed and inverted.** The gate inversion (decide sufficiency *after* retrieval, from calibrated scores, not by asking a 0.5B model for absolute judgments) turned −7.3pp into **+9.8pp significant** on single-hop questions.
+- **The v2 single-hop regression is fixed and inverted.** The gate inversion (decide sufficiency *after* retrieval, from score features, not by asking a 0.5B model for absolute judgments) turned −7.3pp into **+9.8pp** on single-hop questions (unadjusted p = 0.048; see the FDR caveat in the headline above).
 
 - **The multi-hop edge compressed because the baseline got that good.** The upgraded retrieval stack (BM25 ‖ dense + RRF + cross-encoder) lifted the traditional arm's multi-hop performance, eating most of the v2 multi-hop win. The hybrid's residual multi-hop value is ~nil at n=57.
 
@@ -58,10 +58,12 @@ Offline eval, 98 questions, no cloud LLM. RRF + cross-encoder is the best precis
 Run `36abefc6`, 98Q × 9 arms × 5 public scenarios = 882 triples, 0 error rows, $1.482. **No
 arm beats `base` at FDR q < 0.05** — the largest effect in the suite is 6.1 pp against a
 pre-declared power floor of ~10–15 pp at n=98. The score-feature gate's marginal value over
-never-escalating is **+2.5 pp** (p = 0.549); best-of-2 selection (−0.5 pp) and citation
-verification (+0.5 pp) are both null; `rerank-none` is the top arm (+6.1 pp, the only CI
-excluding zero) and `gate-jev` is second (+4.1 pp) and wins multi-hop by +10.5 pp while
-losing single-hop by 4.9 pp.
+never-escalating is **+2.5 pp** (p = 0.549); best-of-2 selection (−0.5 pp) is null and citation
+verification (+0.5 pp) is a structural null (post-answer observation arm — see below);
+`rerank-none` is the top arm (+6.1 pp, the only CI excluding zero) and `gate-jev` is
+second (+4.1 pp) and wins multi-hop by +10.5 pp while losing single-hop by 4.9 pp.
+Over-abstention (26.5 % on answerable questions, 43.9 % multi-hop — human-validated as
+retrieval-coverage failures) is the largest effect in the data and belongs to no arm.
 
 → Full results, caveats and the M11 reproducibility table: [testbench-results-layer2-full9.md](testbench-results-layer2-full9.md)
 
@@ -138,6 +140,6 @@ Full methodology: scenario taxonomy, metric definitions, judge fairness protocol
 
 **Reproducibility notes:**
 - All five public benchmark scenarios ship in the repo — a fresh clone runs them with zero dataset downloads
-- Independent judge (kimi-k2.5), position-swapped pairwise, 8/8 canary self-test
+- Independent judge (kimi-k2.5), position-swapped pairwise, 9-canary self-test (8 before the 2026-10-03 judge-prompt update)
 - Every number carries n, the paired statistic, and the CI
 - Negative results reported with the same prominence as positive ones

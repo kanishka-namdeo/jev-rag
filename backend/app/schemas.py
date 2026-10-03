@@ -33,7 +33,7 @@ class Citation(BaseModel):
     doc_id: str
     filename: str
     similarity: float                      # embedding similarity (both modes)
-    rerank_score: float | None = None      # Jev calibrated P(relevant) — hybrid only
+    rerank_score: float | None = None      # rerank score (cross-encoder or jev noul, mode-dependent) — hybrid only
 
 
 class JevDecision(BaseModel):

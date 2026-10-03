@@ -504,8 +504,12 @@ class BenchRunner:
             pw = [r.pairwise for r in rs if r.pairwise]
             errors = sum(1 for p in pw if p.get("winner") == "error" or p.get("judge_error"))
             pw = [p for p in pw if not (p.get("winner") == "error" or p.get("judge_error"))]
+            base_out = {"n": 0, "hybrid_wins": 0, "traditional_wins": 0, "ties": 0,
+                        "hybrid_win_rate": 0.0, "position_consistency": 0.0}
+            if errors:
+                base_out["judge_errors"] = errors
             if not pw:
-                return {"n": 0, "judge_errors": errors} if errors else {}
+                return base_out
             wins = sum(1 for p in pw if p.get("winner") == "hybrid")
             losses = sum(1 for p in pw if p.get("winner") == "traditional")
             ties = sum(1 for p in pw if p.get("winner") == "tie")

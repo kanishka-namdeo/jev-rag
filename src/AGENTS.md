@@ -26,9 +26,7 @@
 - `components/jevrag/status-pill.tsx` — cloud/jev/docs health indicator
 - `components/jevrag/ui-bits.tsx` — shared atoms (ModeBadge, ProbabilityBar, CitationChip…)
 - `components/jevrag/bench/bench-view.tsx` — benchmark lab layout: header, scenario grid, run controls, progress.
-  **Known stale string (a defect, not behavior):** its subtitle says "six document scenarios" while
-  11 ship (`:63`, count from `app/bench/scenarios.py`); `docs/usage.md` §Known gaps discloses it to
-  users until someone fixes the copy
+  The subtitle counts scenarios from the loaded catalog (fixed 2026-10-03; was a hardcoded "six").
 - `components/jevrag/bench/results-dashboard.tsx` — metric cards, per-scenario charts (recharts),
   pairwise/gate/abstention panels; `liveSummary` client-side aggregation while a run is in flight
 - `components/jevrag/bench/results-table.tsx` — per-question table with filters and drill-down
@@ -40,7 +38,9 @@
   (the Next.js rewrite in `next.config.ts` proxies to FastAPI :8000 in every context)
 - The SSE event schema is owned jointly with `backend/AGENTS.md`; update both sides together.
   v2: the `routing` event carries effort routing (`{effort, model, probabilities, confidence}`)
-  and `done` may add `quality_score`, `best_of`, `retried` — see `lib/jevrag/types.ts`
+  and `done` may add `quality_score`, `best_of`, `retried` — see `lib/jevrag/types.ts`.
+  Bench-only `done` extras (`context_used`, `context_chunks`) are produced for the bench
+  runners and ignored by the chat UI — no type change needed for those.
 - Keep the backend mount symmetrical: FastAPI serves both `/api/*` and `/backend-api/*`
 - One user-visible route only: `/` (sandbox constraint)
 - UI copy is user-facing documentation. It may not claim a "fully local" stack while the cloud

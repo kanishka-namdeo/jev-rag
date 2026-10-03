@@ -17,7 +17,7 @@
 - `usage.md` — day-to-day end-user tasks: upload, ask, choose a mode, read an answer and its trace,
   run the Benchmark Lab, read the logs. Includes its honest `## Known gaps` list — current defects and
   missing affordances stated plainly, because that list is what the page promises
-- `configuration.md` — the whole settings surface: all 64 `app/config.py` fields with the **real code
+- `configuration.md` — the whole settings surface: all 65 `app/config.py` fields with the **real code
   default** (dumped from `Settings.model_fields`), whether the knob has a `backend/.env.example` line,
   when to touch it and what it costs. Defaults here must equal the code; drift is a defect
 - `troubleshooting.md` — symptom-first recovery for an installed app (symptom → Check → Fix),
