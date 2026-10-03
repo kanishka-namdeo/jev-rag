@@ -115,7 +115,8 @@ cross zero, and it points the wrong way from the v3 design assumption — see be
 | rerank-jev | jev noul | 0.6531 | −0.005 | 25.1 s | $0.180 |
 
 This **contradicts Layer 1**, where RRF + cross-encoder was the best precision retriever
-(hit@1 0.918, MRR@10 0.942) and jev noul was the weakest reranker. Two of the three readings
+(hit@1 0.939, MRR@10 0.964 on the 2026-10-03 full-chunk re-run) and jev noul was the
+weakest reranker. Two of the three readings
 agree — jev rerank is not helping — but on end-to-end judged correctness, dropping the
 reranker entirely scored highest.
 

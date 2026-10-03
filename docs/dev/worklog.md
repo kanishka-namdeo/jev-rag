@@ -40,6 +40,30 @@ Work Log:
 - Prompt changes (HYBRID_SYSTEM, judge prompt) trigger the benchmark-contract smoke obligation;
   endpoint probe STATUS: SUCCESS — smoke via POST /api/bench/runs [outofscope] in progress.
 - Layer-1 re-run with full-chunk CE (backend/data_layer1_oct) in progress, offline.
+- Closeout 2026-10-04:
+  - Smoke 7fc61ddc (POST /api/bench/runs, outofscope 8Q, scratch data dir): completed,
+    0 error rows, both arms correctness 1.0, hybrid 5/5 proper abstentions / 0 fabricated /
+    0.0 over-abstention, pairwise 1 hybrid win + 7 ties (consistency 1.0), judge selftest
+    agreement 1.0 (9/9 new-prompt canaries). No regression vs db23b949 baseline. New
+    machinery exercised live: coverage gate table (n=3, acc 1.0), per-chunk
+    context_precision 0.375 / recall 1.0, summed token accounting.
+  - Layer-1 re-run DONE (7 arms x 98Q, full-chunk CE): rrf-cross 0.853/0.939/0.964/0.861;
+    all 09-28 findings replicate in direction; precision up (hit1 +2.1pp). Gate: Youden
+    θ* = 0.630 (was 0.987 on truncated scores — artifact confirmed), acc 0.7245, Brier
+    0.269 ≈ Layer-2 coverage Brier 0.271 (layers agree); shipped 0.6 IS the optimum and
+    beats the trivial baseline (0.724 vs 0.684). testbench-results-layer1.md keeps the
+    09-28 record intact + dated re-run section; raw rows at
+    backend/data/testbench/retrieval_eval_fullchunk_2026-10-03.json (untracked).
+  - Frontend: bun lint clean, next build green; scoped tsc (tsconfig covered only src —
+    repo tsconfig has no include/exclude so bare tsc walks vendor/llama.cpp CMake junk)
+    shows only 3 pre-existing errors (recharts Bar domain x2, bench-store runnerActive),
+    all in untouched lines. No browser tooling in this session: live-browser check for the
+    subtitle/count + gate-card changes is OUTSTANDING (build+lint green, minimal layout delta).
+  - Accepted gaps (documented, not fixed): no DB-backed test for _pairwise error exclusion
+    (judge-level winner=error IS tested; 3-line mirror); reference alias-join noise stays in
+    the builder (judge alias rule mitigates); M11 merged DB gone so hgate doc untouched.
+  - EOL note: same CRLF-worktree/LF-blob situation; commits stage explicit paths after
+    normalizing to HEAD endings (verified via git diff -w + --cached --stat each time).
 
 ---
 Task ID: M11-complete (2026-09-30)

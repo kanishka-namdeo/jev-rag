@@ -49,7 +49,7 @@ Run `16814bd5`, 98 questions, 5 public scenarios, independent judge (kimi-k2.5):
 
 ### Retrieval Ablations (Layer-1)
 
-Offline eval, 98 questions, no cloud LLM. RRF + cross-encoder is the best precision retriever (hit@1 0.918, MRR 0.942). BM25 alone is significantly worse on recall (−6.2pp, p = 0.001) but complementary. Jev rerank degrades the fused ranking.
+Offline eval, 98 questions, no cloud LLM. RRF + cross-encoder is the best precision retriever (hit@1 0.939, MRR 0.964 on the 2026-10-03 full-chunk re-run). BM25 alone is significantly worse on recall (−6.6pp, p = 0.012) but complementary. Jev rerank degrades the fused ranking.
 
 → Full results: [testbench-results-layer1.md](testbench-results-layer1.md)
 
