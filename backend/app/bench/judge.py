@@ -30,8 +30,12 @@ ABSOLUTE_SYSTEM = """You are an impartial evaluation judge for retrieval-augment
 Score the ANSWER on three dimensions using ONLY what is given:
 
 1. correctness (0.0-1.0): factual agreement with the REFERENCE ANSWER (ground truth).
-   1.0 = fully correct (semantic equivalence counts), 0.5 = partially correct
+   The reference may list acceptable alternative phrasings separated by " / " — matching
+   any one of them counts as correct. 1.0 = fully correct (semantic equivalence counts),
    (some facts right, some wrong/missing), 0.0 = wrong or no substantive answer.
+   Exception: when there is NO ground-truth answer (the question is unanswerable from
+   the corpus) and the answer properly abstains, correctness is 1.0 — refusing to
+   answer IS the correct response there.
 2. faithfulness (0.0-1.0): fraction of the ANSWER's factual claims supported by the
    RETRIEVED CONTEXT. Unsupported or contradicted claims lower the score.
    1.0 = every claim supported; an answer adding unsupported facts scores below 1.0.
@@ -135,7 +139,10 @@ class BenchJudge:
             f"ANSWER B (with its retrieved context):\n--- context ---\n{ctx_b[:2000]}\n--- answer ---\n{ans_b}"
         )
         out = self._call(PAIRWISE_SYSTEM, user, max_tokens=250)
-        w = str((out or {}).get("winner", "tie")).upper()
+        if out is None:
+            return "ERROR"  # judge outage — must NOT silently become a tie (it would
+        # bias win rates toward 0.5 invisibly); pairwise() flags it instead.
+        w = str(out.get("winner", "tie")).upper()
         return w if w in ("A", "B", "TIE") else "TIE"
 
     def pairwise(self, question: str, reference: str,
@@ -143,7 +150,10 @@ class BenchJudge:
         """MT-Bench position-swap protocol: judge both orders, audit consistency.
 
         trad/hyb: {"context": str, "answer": str}
-        Returns {"winner": "traditional"|"hybrid"|"tie", "position_consistent": bool}
+        Returns {"winner": "traditional"|"hybrid"|"tie", "position_consistent": bool}.
+        When either order errors (judge outage), winner is "error" with
+        "judge_error": True — aggregators must EXCLUDE error rows from win-rate
+        denominators, never count them as ties.
         """
         # order 1: A=traditional, B=hybrid
         w1 = self._pairwise_once(question, reference,
@@ -152,8 +162,18 @@ class BenchJudge:
         w2 = self._pairwise_once(question, reference,
                                  hyb["context"], hyb["answer"], trad["context"], trad["answer"])
 
-        v1 = "tie" if w1 == "TIE" else ("traditional" if w1 == "A" else "hybrid")
-        v2 = "tie" if w2 == "TIE" else ("hybrid" if w2 == "A" else "traditional")
+        def _map(w: str, a_side: str) -> str:
+            if w == "TIE":
+                return "tie"
+            if w == "ERROR":
+                return "error"
+            return a_side if w == "A" else ("traditional" if a_side == "hybrid" else "hybrid")
+        v1 = _map(w1, "traditional")
+        v2 = _map(w2, "hybrid")
+        if "ERROR" in (w1, w2):
+            return {"winner": "error", "judge_error": True,
+                    "position_consistent": False,
+                    "verdict_order1": v1, "verdict_order2": v2}
         consistent = v1 == v2
         winner = v1 if consistent else "tie"   # inconsistent verdicts resolve to tie
         return {"winner": winner, "position_consistent": consistent,
@@ -161,7 +181,7 @@ class BenchJudge:
 
     # ---------------------------------------------------------------- self-test
     def self_test(self) -> dict:
-        """8 canary cases with known outcomes -> agreement score (RAGAS judge
+        """9 canary cases with known outcomes -> agreement score (RAGAS judge
         alignment practice). Cheap guard against a broken/misbehaving judge."""
         cases = [
             {  # 1 perfect answer
@@ -223,6 +243,14 @@ class BenchJudge:
                 "ctx": "Northwind Analytics Q3 revenue was $142.8 million. Avalanche Robotics Q3 revenue was $142.6 million.",
                 "ans": "Avalanche Robotics' Q3 revenue was $142.8 million.",
                 "expect": lambda r: r["correctness"] is not None and r["correctness"] <= 0.4,
+            },
+            {  # 9 proper abstention is CORRECT on unanswerable (pins the prompt rule)
+                "q": "What is the orbital period of planet Gliese-7?",
+                "ref": "",
+                "ctx": "NimbusDB Pro tier: messages up to 256 MB.",
+                "ans": "The retrieved passages do not contain any information about Gliese-7, so I cannot determine its orbital period.",
+                "expect": lambda r: r["abstention"] == "abstained"
+                                   and r["correctness"] is not None and r["correctness"] >= 0.8,
             },
         ]
         details = []

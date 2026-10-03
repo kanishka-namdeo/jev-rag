@@ -361,3 +361,81 @@ def test_jev_engine_unavailable_when_reload_fails():
             pass  # reload spawned a fresh engine, its decide died too -> clean error
     finally:
         sys.modules.pop("jev_style", None)
+
+
+# ================================================================ judge error semantics
+def _stub_judge(call_fn):
+    from app.bench.judge import BenchJudge
+
+    judge = BenchJudge.__new__(BenchJudge)
+    judge.model = "fake"
+    judge._call = call_fn
+    return judge
+
+
+def test_pairwise_error_flagged_not_tie():
+    judge = _stub_judge(lambda system, user, max_tokens=400: None)  # outage
+    out = judge.pairwise("q", "ref", {"context": "c1", "answer": "a1"},
+                         {"context": "c2", "answer": "a2"})
+    assert out["winner"] == "error"
+    assert out.get("judge_error") is True
+    # aggregators must exclude these rows — they must be recognizable
+    assert out["verdict_order1"] == "error" and out["verdict_order2"] == "error"
+
+
+def test_pairwise_partial_outage_is_error():
+    good = {"winner": "A", "reason": "a"}
+    calls = {"n": 0}
+
+    def flaky(system, user, max_tokens=400):
+        calls["n"] += 1
+        return good if calls["n"] == 1 else None
+
+    judge = _stub_judge(flaky)
+    out = judge.pairwise("q", "ref", {"context": "c1", "answer": "a1"},
+                         {"context": "c2", "answer": "a2"})
+    assert out["winner"] == "error" and out.get("judge_error") is True
+
+
+def test_self_test_has_nine_canaries():
+    from app.bench.judge import BenchJudge
+
+    judge = BenchJudge.__new__(BenchJudge)
+    judge.model = "fake"
+    calls = []
+    judge.absolute = lambda *a: (calls.append(a) or {  # noqa: E731
+        "correctness": 1.0, "faithfulness": 1.0, "abstention": "abstained",
+        "reason": "stub"})
+    judge.self_test()
+    assert len(calls) == 9  # case 9 pins abstention-correctness semantics
+
+
+def test_absolute_system_pins_abstention_correctness_and_aliases():
+    from app.bench.judge import ABSOLUTE_SYSTEM
+
+    assert "properly abstains, correctness is 1.0" in ABSOLUTE_SYSTEM
+    assert 'separated by " / "' in ABSOLUTE_SYSTEM
+
+
+# ================================================================ context precision shape
+def test_context_precision_per_chunk_average_precision():
+    from app.bench.metrics import context_precision
+
+    # useful pattern [1, 0, 1] over 3 ranked chunks:
+    # AP = (1/1 + 2/3) / 2
+    verdicts = iter([True, False, True])
+    out = context_precision("q", "ref", ["c1", "c2", "c3"],
+                            lambda s, u: {"useful": next(verdicts)})
+    assert out == round((1.0 + 2 / 3) / 2, 4)
+
+
+def test_context_precision_single_block_is_degenerate():
+    # The regression this pins: the bench runner used to pass ONE concatenated
+    # block, so this metric could only ever return 0.0 or 1.0. Callers must pass
+    # per-chunk contexts (done-event context_chunks).
+    from app.bench.metrics import context_precision
+
+    for useful in (True, False):
+        out = context_precision("q", "ref", ["only-block"],
+                                lambda s, u: {"useful": useful})
+        assert out in (0.0, 1.0)

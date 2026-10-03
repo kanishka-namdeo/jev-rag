@@ -289,3 +289,71 @@ def test_effort_routing_and_retrieval_overlap():
     elapsed = _t.perf_counter() - t0
     # serial floor: 0.4+0.4+0.4 = 1.2s; concurrent max-branch: ~0.8s
     assert elapsed < 1.0, f"routing did not overlap retrieval (took {elapsed:.2f}s)"
+
+
+# ------------------------------------------------------------------ recording honesty
+
+def test_sum_token_usage_adds_decision_usages():
+    from app.rag.pipelines import sum_token_usage
+
+    usage = {"prompt_tokens": 7, "completion_tokens": 4}
+    decisions = [
+        {"name": "decompose", "usage": {"prompt_tokens": 3, "completion_tokens": 12}},
+        {"name": "gate", "usage": None},
+        {"name": "corrective", "usage": {"prompt_tokens": 5}},  # partial shape
+    ]
+    assert sum_token_usage(usage, decisions) == {"prompt_tokens": 15, "completion_tokens": 16}
+    assert sum_token_usage(None, None) == {"prompt_tokens": 0, "completion_tokens": 0}
+    assert sum_token_usage(usage, []) == {"prompt_tokens": 7, "completion_tokens": 4}
+
+
+def test_no_verify_arm_is_generation_identical_to_base():
+    """H-VERIFY is a post-answer observation arm: with verification disabled the
+    generation path must be byte-identical to base (same seed/fakes). A null
+    accuracy delta on this arm is therefore STRUCTURAL, not a finding about
+    citation verification helping or hurting — it can only move cost/latency and
+    the trustworthiness of the [n] labels."""
+    easy = _service([0.97])  # easy path: verification is the only jev call
+    base_done = _done(_run(easy))
+    no_verify = _service([0.97], hybrid_verify_answers=False)
+    nv_done = _done(_run(no_verify))
+    assert nv_done["content"] == base_done["content"]
+    assert [d["name"] for d in nv_done["decisions"]] == ["effort", "rerank", "gate"]
+    assert nv_done.get("verification") is None and nv_done.get("quality_score") is None
+
+
+def test_bench_done_carries_per_chunk_contexts():
+    easy = _service([0.97])
+    done = _done(_run(easy))
+    chunks = done.get("context_chunks")
+    assert isinstance(chunks, list) and len(chunks) == 4  # top_k_use default
+    assert all("passage" in c for c in chunks)
+    # the formatted block the judge sees covers the same passages, in order
+    for c in chunks:
+        assert c[:40] in done["context_used"]
+
+
+def test_rerank_uses_own_char_limit_not_jev_knob():
+    """The cross-encoder must not be throttled by jev_rerank_char_limit (a jev
+    decision-latency knob). rerank_char_limit=0 (default) scores full chunks."""
+    seen = {}
+
+    class RecordingReranker(StubReranker):
+        def score_pairs(self, query, passages, batch_size=8):
+            seen["widths"] = sorted({len(p) for p in passages})
+            return super().score_pairs(query, passages, batch_size)
+
+    from app.rag.pipelines import ChatService
+    s = Settings(_env_file=None, jev_rerank_char_limit=10)  # hostile jev knob
+    assert s.rerank_char_limit == 0  # default: full chunk
+    chat = ChatService(s, FakeLLM(), FakeJev(), FakeEmbedder(), FakeStore())
+    chat.reranker = RecordingReranker([0.97])
+    _run(chat)
+    assert seen["widths"] == [len("passage 9 about the topic")]  # untruncated
+
+    chat2 = ChatService(Settings(_env_file=None, rerank_char_limit=10),
+                        FakeLLM(), FakeJev(), FakeEmbedder(), FakeStore())
+    chat2.reranker = RecordingReranker([0.97])
+    _run(chat2)
+    # explicit limit still truncates (opt-in narrowing, not a shared default)
+    assert seen["widths"] == [10]

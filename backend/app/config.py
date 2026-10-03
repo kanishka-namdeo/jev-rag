@@ -119,12 +119,18 @@ class Settings(BaseSettings):
     # failures 5.7% -> 3.7%; nearly free for titled corpora.
     contextual_prefix: bool = True
     # Rerank slot (applies to BOTH pipelines — the 2026 baseline reranks):
-    # cross: ONNX cross-encoder (default; calibrated P(relevant), CPU-fast)
+    # cross: ONNX cross-encoder (default; monotone relevance score — a sigmoid of the
+    #        CE logit, NOT a calibrated probability; CPU-fast)
     # jev:   local jev noul rerank (pre-v3 behaviour, testbench arm)
     # none:  passthrough (testbench arm — isolates rerank contribution)
     rerank_mode: str = "cross"
     reranker_model: str = "Xenova/ms-marco-MiniLM-L-6-v2"
     reranker_cache_dir: str = ""         # empty: HuggingFace default cache
+    # Chars of each chunk scored by the cross-encoder. 0 = full chunk text (the CE
+    # truncates at its own 512-token window; chunks are ~900 chars so it never bites).
+    # Until 2026-10-03 this implicitly shared jev_rerank_char_limit (400) — a jev
+    # decision-latency knob throttling a scorer that can afford the full chunk.
+    rerank_char_limit: int = 0
     # Escalation gate (the v3 gate inversion — docs/rag-upgrade-2026.md §3.3):
     # features: calibrated top-1 rerank score vs gate_score_threshold (default)
     # jev:      pre-v3 absolute sufficiency noul vs jev_sufficiency_threshold

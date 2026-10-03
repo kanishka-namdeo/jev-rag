@@ -37,6 +37,7 @@ __all__ = [
     "wilcoxon_signed_rank",
     "bh_fdr",
     "brier_score",
+    "first_gate_score",
     "ece",
     "roc_sweep",
     "best_threshold",
@@ -308,6 +309,37 @@ def bh_fdr(pvalues: list[float]) -> list[float]:
 # ---------------------------------------------------------------------------
 # 6. Calibration metrics (gate / judge scores vs binary outcomes)
 # ---------------------------------------------------------------------------
+
+def first_gate_score(decisions: list[dict] | None, fallback: float | None = None,
+                     jev_threshold: float = 0.5) -> float | None:
+    """The gate reading that actually drove the easy/hard decision.
+
+    The done event's `sufficiency_p` is the LAST gate reading — on the hard path
+    it is re-evaluated after decompose/re-retrieve, so scoring the gate on it
+    mixes two measurement points. The FIRST `gate` decision record is the one
+    that chose the path:
+    - features/none mode: `probabilities.top1` (the score vs the threshold);
+    - jev mode: the raw sufficiency probability in `answer` (escalation means it
+      fell BELOW the threshold, but the score itself is still p);
+    - injected (bench never/always/oracle override): no score was read —
+      falls back (these arms don't test the gate, they bound it).
+    `fallback` (usually the done-event sufficiency_p) covers rows whose
+    decisions predate the record shape. None when neither exists.
+    """
+    for d in decisions or []:
+        if not isinstance(d, dict) or d.get("name") != "gate":
+            continue
+        if d.get("mode") == "jev":
+            ans = d.get("answer")
+            if isinstance(ans, bool):
+                return fallback
+            return float(ans) if isinstance(ans, (int, float)) else fallback
+        top1 = (d.get("probabilities") or {}).get("top1")
+        if isinstance(top1, bool):
+            return fallback
+        return float(top1) if isinstance(top1, (int, float)) else fallback
+    return fallback
+
 
 def brier_score(scores: list[float], outcomes: list[int]) -> float:
     """Mean squared error of probabilistic scores against 0/1 outcomes.

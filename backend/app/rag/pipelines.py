@@ -148,6 +148,25 @@ def composite_quality(addresses_request: float, citations_supported: float,
     )
 
 
+def sum_token_usage(usage: dict | None, decisions: list[dict] | None) -> dict[str, int]:
+    """Honest token accounting for a bench row.
+
+    The done event's `usage` covers only the final generation call; System-Two
+    helper calls (decompose, query rewrite, best-of-2 candidates) record their
+    own `usage` inside their decision records. Summing both keeps published
+    per-row costs from systematically understating the hard path. Judge tokens
+    are deliberately excluded (judging is measurement overhead, not pipeline
+    cost) — see docs/benchmarking.md §Efficiency.
+    """
+    prompt = int((usage or {}).get("prompt_tokens", 0) or 0)
+    completion = int((usage or {}).get("completion_tokens", 0) or 0)
+    for d in decisions or []:
+        u = (d or {}).get("usage") or {}
+        prompt += int(u.get("prompt_tokens", 0) or 0)
+        completion += int(u.get("completion_tokens", 0) or 0)
+    return {"prompt_tokens": prompt, "completion_tokens": completion}
+
+
 def _snippet(text: str, n: int = 240) -> str:
     t = " ".join(text.split())
     return t[:n] + ("…" if len(t) > n else "")
@@ -259,7 +278,8 @@ class ChatService:
 
         yield self._done_event(assistant_id, model, content, usage, timings, decisions,
                                self._lite(retrieved), citations, "traditional",
-                               extra=self._ctx(req, context_block) or None)
+                               extra=self._ctx(req, context_block, None,
+                                               [d["text"] for d in labeled]) or None)
 
     # ================================================================ hybrid v3
     async def _run_hybrid(self, req: ChatRequest, conv_id: str, assistant_id: str,
@@ -632,12 +652,13 @@ class ChatService:
         yield self._done_event(assistant_id, model, content, usage, timings, decisions,
                                self._lite(retrieved), citations, "hybrid", verification,
                                round(suf_p, 3) if suf_p is not None else None,
-                               extra=self._ctx(req, context_block, extra))
+                               extra=self._ctx(req, context_block, extra,
+                                               [d["text"] for d in labeled]))
 
     # -- v3 gate helpers -----------------------------------------------------
     def _gate_passes(self, p: float | None) -> bool:
-        """Gate verdict from a gate probability. features mode: the reranker's
-        top-1 calibrated score vs gate_score_threshold; jev mode: the noul
+        """Gate verdict from a gate score. features mode: the reranker's
+        top-1 score vs gate_score_threshold; jev mode: the noul
         sufficiency vs jev_sufficiency_threshold (pre-v3 semantics)."""
         if p is None:
             return False
@@ -685,7 +706,7 @@ class ChatService:
             rec["mode"] = "jev"
             return p, rec, not self._gate_passes(p)
 
-        # features (default): calibrated top-1 rerank score + distribution stats
+        # features (default): top-1 rerank score + distribution stats
         feats = self._gate_features(kept)
         top1 = feats.get("top1")
         p = top1
@@ -705,8 +726,8 @@ class ChatService:
         return p, rec, escalate
 
     def _gate_features(self, kept: list[dict]) -> dict:
-        """Retrieval-grounded score features (R2 research: cheap calibrated
-        signals replace unreliable zero-shot LLM sufficiency judgments)."""
+        """Retrieval-grounded score features (R2 research: cheap score signals
+        replace unreliable zero-shot LLM sufficiency judgments)."""
         if not kept:
             return {"top1": 0.0, "top2": 0.0, "margin": 0.0, "mean": 0.0, "above_floor": 0}
         scores = [float(c.get("jev_score", 0.0) or 0.0) for c in kept]
@@ -732,15 +753,17 @@ class ChatService:
     def _rerank(self, query: str, retrieved: list[dict]) -> tuple[list[dict], dict]:
         """Rerank the candidate pool; dispatches on settings.rerank_mode.
 
-        cross: ONNX cross-encoder P(relevant) per (query, passage) — the 2026
+        cross: ONNX cross-encoder relevance score per (query, passage) — the 2026
                default (docs/rag-upgrade-2026.md §2.3); falls back to jev if the
                model fails to load (fresh offline machine) — recorded in the
-               decision so runs stay interpretable.
+               decision so runs stay interpretable. The score is a sigmoid of the
+               CE logit (monotone in relevance), NOT a calibrated probability; only
+               the gate's threshold operating point is calibrated (Layer-1 sweep).
         jev:   local jev noul rerank (pre-v3 behaviour; testbench arm).
         none:  passthrough (testbench arm isolating the rerank contribution).
 
         All modes return (ranked chunks, decision record); cross/jev write the
-        calibrated relevance into `jev_score` (consumed by the battery policy,
+        rerank ordering into `jev_score` (consumed by the battery policy,
         citations and the trace panel) and `ce_score` for cross.
         """
         s = self.settings
@@ -749,8 +772,9 @@ class ChatService:
         if mode == "cross":
             scores: list[float] | None = None
             if self.reranker.load():
+                limit = s.rerank_char_limit
                 scores = self.reranker.score_pairs(
-                    query, [c.get("text", "")[: s.jev_rerank_char_limit]
+                    query, [c.get("text", "") if not limit else c.get("text", "")[:limit]
                             for c in retrieved])
             if scores is None or len(scores) != len(retrieved):
                 logger.warning("cross-encoder rerank unavailable (load/score failed) — "
@@ -769,7 +793,7 @@ class ChatService:
                 ranked.append(c)
             elapsed = round((time.perf_counter() - t0) * 1000, 1)
             rec = {
-                "name": "rerank", "label": "Cross-encoder rerank (calibrated relevance)",
+                "name": "rerank", "label": "Cross-encoder rerank (relevance scores)",
                 "kind": "score",
                 "question": "P(this passage is relevant to the question) per candidate",
                 "answer": {f"passage {c['index']}": round(sc, 3)
@@ -982,11 +1006,20 @@ class ChatService:
             logger.error("failed to persist assistant message: %s", e)
 
     @staticmethod
-    def _ctx(req: ChatRequest, context_block: str, extra: dict | None = None) -> dict:
-        """Merge the bench-only context_used field into a done-event extra dict."""
+    def _ctx(req: ChatRequest, context_block: str, extra: dict | None = None,
+             chunks: list[str] | None = None) -> dict:
+        """Merge the bench-only context fields into a done-event extra dict.
+
+        `context_used` is the exact formatted block the generator saw (what the
+        judge scores); `context_chunks` is the same passages as a per-chunk list
+        in label order (what the RAGAS-style context-precision metric needs to
+        judge each chunk separately — a single concatenated block would make its
+        average-precision computation degenerate).
+        """
         out = dict(extra or {})
         if req.bench:
             out["context_used"] = context_block
+            out["context_chunks"] = list(chunks or [])
         return out
 
     def _done_event(self, assistant_id: str, model: str, content: str, usage: dict,

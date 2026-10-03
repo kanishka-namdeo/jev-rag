@@ -47,7 +47,7 @@ from app.llm.dashscope import DashscopeLLM, estimate_cost_usd  # noqa: E402
 from app.llm.jev_engine import JevEngine, JevEngineUnavailable  # noqa: E402
 from app.rag.crossenc import CrossEncoderReranker  # noqa: E402
 from app.rag.ingestion import Ingestor  # noqa: E402
-from app.rag.pipelines import ChatService  # noqa: E402
+from app.rag.pipelines import ChatService, sum_token_usage  # noqa: E402
 from app.rag.retriever import Embedder, VectorStore  # noqa: E402
 from app.schemas import ChatRequest  # noqa: E402
 
@@ -66,6 +66,23 @@ ARM_OVERRIDES: dict[str, dict] = {
     "no-verify": {"hybrid_verify_answers": False},
 }
 K_ORACLE = 4  # gold-in-top-4 defines the oracle escalation decision
+
+
+def base_config(settings) -> dict:
+    """Knobs the run used, nested under config["base"].
+
+    Thresholds MUST be read back from here (never the top level) — a flat-only
+    read silently falls back to the default and calibrates every published gate
+    table at an operating point the run never used. Every knob the analyzer
+    reads lives in this dict; add new ones here, not inline in main().
+    """
+    return {"retrieval_mode": settings.retrieval_mode,
+            "rerank_mode": settings.rerank_mode,
+            "gate_mode": settings.gate_mode,
+            "gate_score_threshold": settings.gate_score_threshold,
+            "jev_sufficiency_threshold": settings.jev_sufficiency_threshold,
+            "top_k_use": settings.top_k_use,
+            "llm_default": settings.llm_model_default}
 
 
 def _make_arm_chat(base_settings, overrides, llm, jev, embedder, store, reranker) -> ChatService:
@@ -97,6 +114,7 @@ async def run_arm_question(chat: ChatService, question, doc_ids, escalate) -> di
     return {
         "answer": final.get("content", ""), "model": final.get("model", ""),
         "usage": final.get("usage") or {}, "context": final.get("context_used", ""),
+        "chunks": final.get("context_chunks") or [],
         "files": files, "pre_files": pre_files, "timings": timings,
         "decisions": final.get("decisions") or [],
         "sufficiency_p": final.get("context_sufficiency"),
@@ -174,12 +192,7 @@ def main() -> int:
                 config={"testbench": True, "arms": arms,
                         "scenarios": scenario_ids,
                         "max_per_scenario": args.max_per_scenario or "all",
-                        "base": {"retrieval_mode": settings.retrieval_mode,
-                                 "rerank_mode": settings.rerank_mode,
-                                 "gate_mode": settings.gate_mode,
-                                 "gate_score_threshold": settings.gate_score_threshold,
-                                 "top_k_use": settings.top_k_use,
-                                 "llm_default": settings.llm_model_default}},
+                        "base": base_config(settings)},
                 progress_total=0, progress_done=0, progress_stage="starting"))
             session.commit()
 
@@ -266,6 +279,10 @@ def main() -> int:
                         res = asyncio.run(run_arm_question(chat, q, doc_ids, escalate))
                         gen = judge.absolute(q.question, q.reference, res["context"], res["answer"])
                         judge_ms = round((time.time() - t_q - res["timings"].get("latency_ms", 0) / 1000) * 1000, 1)
+                        # Token accounting includes System-Two helper calls (decompose,
+                        # rewrite, best-of-2) from decision usages — same helper as the
+                        # two-arm runner, so both suites record the same costs.
+                        usage = sum_token_usage(res["usage"], res["decisions"])
                         row = BenchResult(
                             id=new_id(), run_id=run_id, scenario_id=sid, question_id=q.id,
                             question=q.question, mode=arm, qtype=q.qtype, answerable=q.answerable,
@@ -274,11 +291,11 @@ def main() -> int:
                             retrieval=(retrieval_metrics_safe(res["files"], q.gold_files)),
                             generation=gen,
                             timings={**res["timings"], "judge_ms": judge_ms},
-                            tokens_in=res["usage"].get("prompt_tokens", 0),
-                            tokens_out=res["usage"].get("completion_tokens", 0),
+                            tokens_in=usage["prompt_tokens"],
+                            tokens_out=usage["completion_tokens"],
                             cost_usd=estimate_cost_usd(res["model"],
-                                                       res["usage"].get("prompt_tokens", 0),
-                                                       res["usage"].get("completion_tokens", 0)),
+                                                       usage["prompt_tokens"],
+                                                       usage["completion_tokens"]),
                             sufficiency_p=res["sufficiency_p"],
                             verification_p=res["verification_p"],
                             routed_model=res["model"], jev_decisions=res["decisions"],

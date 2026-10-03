@@ -27,6 +27,7 @@ from app.bench.stats import (  # noqa: E402
     bh_fdr,
     brier_score,
     ece,
+    first_gate_score,
     mcnemar_exact,
     paired_bootstrap_ci,
     roc_sweep,
@@ -338,3 +339,46 @@ def test_summarize_paired_pvals_mixed_significance():
     # neutral on empty grid
     assert summarize_paired_pvals({}) == {
         "raw": {}, "adjusted": {}, "n_significant_005": 0}
+
+
+# ================================================================ first_gate_score
+def _gate_rec(answer=None, probs=None, mode="features"):
+    return {"name": "gate", "label": "gate", "kind": "score", "question": "q",
+            "answer": answer, "probabilities": probs, "confidence": None,
+            "latency_ms": 0.0, "usage": None, "mode": mode}
+
+
+def test_first_gate_score_reads_features_top1():
+    decs = [{"name": "effort", "answer": "single_pass"},
+            _gate_rec(answer="escalate",
+                      probs={"top1": 0.42, "top2": 0.3, "margin": 0.12,
+                             "mean": 0.3, "above_floor": 0}),
+            _gate_rec(answer="easy",  # post-retry re-evaluation must NOT win
+                      probs={"top1": 0.9, "top2": 0.2, "margin": 0.7,
+                             "mean": 0.5, "above_floor": 3})]
+    assert first_gate_score(decs, fallback=0.99) == 0.42
+
+
+def test_first_gate_score_reads_jev_sufficiency():
+    decs = [_gate_rec(answer=0.31, probs=None, mode="jev")]
+    assert first_gate_score(decs, fallback=0.99) == 0.31
+
+
+def test_first_gate_score_injected_falls_back():
+    # bench never/always/oracle overrides record no score — the arm bounds the
+    # gate, it does not test it.
+    decs = [_gate_rec(answer="escalate", probs=None, mode="injected")]
+    assert first_gate_score(decs, fallback=0.77) == 0.77
+
+
+def test_first_gate_score_missing_is_none_or_fallback():
+    assert first_gate_score([], fallback=None) is None
+    assert first_gate_score(None, fallback=None) is None
+    assert first_gate_score([{"name": "effort"}], fallback=0.5) == 0.5
+    # the FIRST gate record is the path decision — even when malformed it
+    # resolves to the fallback, never to a later post-retry re-evaluation
+    assert first_gate_score([None, {"name": "gate", "mode": "features"},
+                             _gate_rec(answer="easy", probs={"top1": 0.7})]) is None
+    assert first_gate_score([None, {"name": "gate", "mode": "features"},
+                             _gate_rec(answer="easy", probs={"top1": 0.7})],
+                            fallback=0.2) == 0.2

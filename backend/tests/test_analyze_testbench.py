@@ -19,6 +19,7 @@ os.environ.setdefault("JEVRAG_DATA_DIR", _TMP)
 os.environ.setdefault("JEVRAG_DASHSCOPE_API_KEY", "test-key")
 
 SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "analyze_testbench.py"
+DRIVER = Path(__file__).resolve().parents[1] / "scripts" / "run_testbench.py"
 
 
 def _load_module():
@@ -30,7 +31,17 @@ def _load_module():
     return module
 
 
+def _load_driver():
+    spec = importlib.util.spec_from_file_location("run_testbench", DRIVER)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
 analyze_testbench = _load_module()
+run_testbench = _load_driver()
 
 
 def test_nested_base_config_is_the_testbench_shape():
@@ -92,3 +103,21 @@ def test_jev_gate_escalation_reads_the_probability_below_threshold():
 def test_bool_gate_answer_is_not_mistaken_for_a_probability():
     assert analyze_testbench.gate_escalated(True) is True
     assert analyze_testbench.gate_escalated(False) is False
+
+
+def test_driver_records_every_knob_the_analyzer_reads():
+    """The phantom-operating-point regression class: run_testbench.py once forgot
+    jev_sufficiency_threshold in config["base"], so the analyzer calibrated the
+    gate-jev arm at a hardcoded 0.5 the run never used. base_config() is the
+    single place knobs are recorded — every analyzer lookup must resolve here."""
+    from app.config import Settings
+
+    cfg = run_testbench.base_config(Settings(_env_file=None))
+    assert cfg["gate_score_threshold"] == analyze_testbench.gate_threshold_from_config(
+        {"base": cfg})
+    assert cfg["jev_sufficiency_threshold"] == analyze_testbench.jev_threshold_from_config(
+        {"base": cfg})
+    # and the values are the live code defaults, not stale literals
+    fields = Settings.model_fields
+    assert cfg["gate_score_threshold"] == fields["gate_score_threshold"].default
+    assert cfg["jev_sufficiency_threshold"] == fields["jev_sufficiency_threshold"].default

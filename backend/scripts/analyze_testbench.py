@@ -25,7 +25,7 @@ from sqlalchemy import select  # noqa: E402
 
 from app.bench.metrics import pct  # noqa: E402
 from app.bench.stats import (  # noqa: E402
-    bh_fdr, brier_score, ece, mcnemar_exact, paired_bootstrap_ci, wilson_ci,
+    bh_fdr, brier_score, ece, first_gate_score, mcnemar_exact, paired_bootstrap_ci, wilson_ci,
 )
 from app.db import BenchResult, BenchRun, db_session  # noqa: E402
 
@@ -108,11 +108,43 @@ def _arm_stats(rows: list[BenchResult], gate_threshold: float = 0.5,
         fp_unans = sum(1 for p, a in unans_rows if p >= gate_threshold)
         out["gate"] = {
             "n": len(gate_rows), "threshold": gate_threshold,
+            "basis": "answerability",
+            # WARNING: on all-answerable suites (every public scenario) this table
+            # is degenerate — accuracy is 1 - FN by construction and FP is
+            # undefined. The gate_coverage table below is the meaningful one.
+            "answerable_rate": (round(len(ans_rows) / len(gate_rows), 4)
+                                if gate_rows else None),
             "accuracy": round(sum(1 for pr, a in zip(preds, outcomes) if pr == a) / len(gate_rows), 4),
             "brier": round(brier_score(scores, outcomes), 4),
             "ece": round(ece(scores, outcomes), 4),
             "fn_rate_answerable": round(fn_ans / len(ans_rows), 4) if ans_rows else None,
             "fp_rate_unanswerable": round(fp_unans / len(unans_rows), 4) if unans_rows else None,
+        }
+    # Retrieval-coverage calibration: the FIRST gate reading (the one that chose
+    # the path — the done-event sufficiency_p is re-evaluated post-retry on the
+    # hard path) vs whether the final top-4 covered every gold file
+    # (recall4 == 1.0). The two-class table the gate decision is really about.
+    cov_rows = []
+    for r in rows:
+        retr = r.retrieval or {}
+        if not retr or retr.get("recall4") is None:
+            continue  # no gold (e.g. unanswerable): coverage undefined
+        s = first_gate_score(r.jev_decisions, r.sufficiency_p, jev_threshold)
+        if s is None:
+            continue
+        cov_rows.append((s, retr["recall4"] >= 1.0))
+    if cov_rows:
+        cov_scores = [s for s, _ in cov_rows]
+        cov_labels = [c for _, c in cov_rows]
+        cov_preds = [s >= gate_threshold for s in cov_scores]
+        out["gate_coverage"] = {
+            "n": len(cov_rows), "threshold": gate_threshold,
+            "basis": "gold-in-final-top4",
+            "positive_rate": round(sum(cov_labels) / len(cov_labels), 4),
+            "accuracy": round(sum(1 for pr, c in zip(cov_preds, cov_labels) if pr == c)
+                              / len(cov_rows), 4),
+            "brier": round(brier_score(cov_scores, cov_labels), 4),
+            "ece": round(ece(cov_scores, cov_labels), 4),
         }
     return out
 
@@ -222,6 +254,7 @@ def _fmt(report: dict) -> str:
              "| arm | n | corr | 95% CI | abstain | escalate | p50 ms | cost | Δacc vs base | CI95 | McNemar p | FDR q |",
              "|---|---|---|---|---|---|---|---|---|---|---|---|"]
     lines_gate: list[str] = []
+    lines_cov: list[str] = []
     for arm, s in report["arms"].items():
         gate = s.get("gate")
         if gate:
@@ -230,6 +263,11 @@ def _fmt(report: dict) -> str:
                 f"{gate['brier']} | {gate['ece']} | "
                 f"{gate['fn_rate_answerable'] if gate['fn_rate_answerable'] is not None else '—'} | "
                 f"{gate['fp_rate_unanswerable'] if gate['fp_rate_unanswerable'] is not None else '—'} |")
+        cov = s.get("gate_coverage")
+        if cov:
+            lines_cov.append(
+                f"| {arm} | {cov['n']} | {cov['threshold']} | {cov['accuracy']} | "
+                f"{cov['brier']} | {cov['ece']} | {cov['positive_rate']} |")
         ci = s.get("correctness_ci95_wilson")
         ci_s = f"[{ci[0]:.2f}, {ci[1]:.2f}]" if ci else ""
         abst = (s.get("abstention") or {}).get("abstained", 0)
@@ -246,9 +284,17 @@ def _fmt(report: dict) -> str:
             f"{esc if esc is not None else '—'} | {(s.get('latency_ms') or {}).get('p50')} | "
             f"{s.get('cost_usd')} | {delta} | {ci95} | {p} | {q_s} |")
     if lines_gate:
-        lines += ["", "## gate calibration (sufficiency_p vs ground-truth answerability)", "",
+        lines += ["", "## gate answerability (sufficiency_p vs ground-truth answerability)",
+                  "Degenerate on all-answerable suites: accuracy is 1 − FN by construction,",
+                  "FP(unans) undefined. Read the coverage table below instead.", "",
                   "| arm | n | thr | acc | Brier | ECE | FN(ans) | FP(unans) |",
                   "|---|---|---|---|---|---|---|---|"] + lines_gate
+    if lines_cov:
+        lines += ["", "## gate retrieval-coverage (first gate reading vs gold-in-final-top4)",
+                  "The two-class table the gate decision is really about: did the score",
+                  "predict whether the final top-4 covered every gold file?", "",
+                  "| arm | n | thr | acc | Brier | ECE | pos rate |",
+                  "|---|---|---|---|---|---|---|"] + lines_cov
     for label, arms in (report.get("subsets") or {}).items():
         lines += ["", f"## subset: {label}", "",
                   "| arm | n | corr | abstain | p50 ms |", "|---|---|---|---|---|"]

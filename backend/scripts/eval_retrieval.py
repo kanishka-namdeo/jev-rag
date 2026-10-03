@@ -376,8 +376,10 @@ def _rerank_arm(arm, query, cands, reranker, jev, settings) -> list[dict]:
     if not cands:
         return []
     if arm in ("rrf-cross", "dense-cross", "bge-cross"):
+        limit = settings.rerank_char_limit  # 0 = full chunk; the CE truncates itself
         scores = reranker.score_pairs(
-            query, [c.get("text", "")[: settings.jev_rerank_char_limit] for c in cands])
+            query, [c.get("text", "") if not limit else c.get("text", "")[:limit]
+                    for c in cands])
         if scores is None:
             return cands
         for c, sc in zip(cands, scores):

@@ -33,13 +33,14 @@ from sqlalchemy import select
 
 from app.bench.judge import BenchJudge, MultiJudgeEnsemble
 from app.bench.metrics import agg_retrieval, brier, context_precision, context_recall, pct, retrieval_metrics
+from app.bench.stats import first_gate_score
 from app.bench.scenarios import SCENARIO_MAP, BenchQuestion, BenchScenario, doc_path
 from app.config import Settings
 from app.db import BenchResult, BenchRun, db_session, new_id
 from app.llm.dashscope import DashscopeLLM, estimate_cost_usd
 from app.llm.jev_engine import JevEngine, JevEngineUnavailable
 from app.rag.ingestion import Ingestor
-from app.rag.pipelines import SUFFICIENCY_THRESHOLD, ChatService
+from app.rag.pipelines import SUFFICIENCY_THRESHOLD, ChatService, sum_token_usage
 from app.rag.retriever import Embedder, VectorStore
 from app.schemas import ChatRequest
 
@@ -276,22 +277,25 @@ class BenchRunner:
         if self.settings.bench_context_metrics:
             self._patch_run(run_id, progress_stage=f"[{scenario.id}] computing context metrics for {q.id}")
             
-            # Context precision: are relevant chunks ranked highly?
+            # Context precision: are relevant chunks ranked highly? Per-chunk
+            # contexts (done-event context_chunks); a single concatenated block
+            # would make the average-precision computation degenerate (one binary
+            # verdict). Fall back to the block for arms that predate the field.
             def _judge_fn(system: str, user: str) -> dict:
                 return self.judge._call(system, user, max_tokens=100) or {}
-            
-            trad_ctx = [trad["context"]]  # Single context block
-            hyb_ctx = [hyb["context"]]
+
+            trad_chunks = trad.get("chunks") or [trad["context"]]
+            hyb_chunks = hyb.get("chunks") or [hyb["context"]]
             
             trad_cp = await asyncio.to_thread(
-                context_precision, q.question, q.reference, trad_ctx, _judge_fn)
+                context_precision, q.question, q.reference, trad_chunks, _judge_fn)
             trad_cr = await asyncio.to_thread(
-                context_recall, q.question, q.reference, trad_ctx, _judge_fn)
-            
+                context_recall, q.question, q.reference, trad_chunks, _judge_fn)
+
             hyb_cp = await asyncio.to_thread(
-                context_precision, q.question, q.reference, hyb_ctx, _judge_fn)
+                context_precision, q.question, q.reference, hyb_chunks, _judge_fn)
             hyb_cr = await asyncio.to_thread(
-                context_recall, q.question, q.reference, hyb_ctx, _judge_fn)
+                context_recall, q.question, q.reference, hyb_chunks, _judge_fn)
             
             context_metrics = {
                 "traditional": {"context_precision": trad_cp, "context_recall": trad_cr},
@@ -307,7 +311,10 @@ class BenchRunner:
             if context_metrics and mode in context_metrics:
                 gen = {**gen, **context_metrics[mode]}
             
-            usage = arm["usage"]
+            # Token accounting includes System-Two helper calls (decompose, rewrite,
+            # best-of-2 candidates) recorded in decision usages — the final-call
+            # usage alone systematically understates the hard path.
+            usage = sum_token_usage(arm["usage"], arm.get("decisions"))
             rows.append(BenchResult(
                 id=new_id(), run_id=run_id, scenario_id=scenario.id, question_id=q.id,
                 question=q.question, mode=mode, qtype=q.qtype, answerable=q.answerable,
@@ -316,9 +323,9 @@ class BenchRunner:
                 retrieval=metrics, naive_retrieval=(naive_metrics if mode == "hybrid" else None),
                 generation=gen, pairwise=pairwise,
                 timings={**arm["timings"], "judge_ms": judge_ms},
-                tokens_in=usage.get("prompt_tokens", 0), tokens_out=usage.get("completion_tokens", 0),
-                cost_usd=estimate_cost_usd(arm["model"], usage.get("prompt_tokens", 0),
-                                           usage.get("completion_tokens", 0)),
+                tokens_in=usage["prompt_tokens"], tokens_out=usage["completion_tokens"],
+                cost_usd=estimate_cost_usd(arm["model"], usage["prompt_tokens"],
+                                           usage["completion_tokens"]),
                 sufficiency_p=arm.get("sufficiency_p"), verification_p=arm.get("verification_p"),
                 routed_model=(arm.get("model") if mode == "hybrid" else None),
                 jev_decisions=arm.get("decisions"),
@@ -400,6 +407,8 @@ class BenchRunner:
                          the corrective retry re-emits it, last wins, matching
                          the old mirror's behaviour)
         - context     <- done event context_used (what the judge sees)
+        - chunks      <- done event context_chunks (per-chunk texts for the
+                         RAGAS-style context-precision metric)
         """
         req = ChatRequest(message=q.question, mode=mode, doc_ids=doc_ids, bench=True)
         pre_files: list[str] = []
@@ -420,6 +429,7 @@ class BenchRunner:
             "model": final.get("model", ""),
             "usage": final.get("usage") or {},
             "context": final.get("context_used", ""),
+            "chunks": final.get("context_chunks") or [],
             "files": files,
             "pre_files": pre_files,
             "timings": timings,
@@ -489,19 +499,26 @@ class BenchRunner:
             return out
 
         def _pairwise(rs: list[BenchResult]) -> dict:
+            # Judge-outage rows (winner "error") are EXCLUDED from the win-rate
+            # denominator — counting them as ties would bias rates toward 0.5.
             pw = [r.pairwise for r in rs if r.pairwise]
+            errors = sum(1 for p in pw if p.get("winner") == "error" or p.get("judge_error"))
+            pw = [p for p in pw if not (p.get("winner") == "error" or p.get("judge_error"))]
             if not pw:
-                return {}
+                return {"n": 0, "judge_errors": errors} if errors else {}
             wins = sum(1 for p in pw if p.get("winner") == "hybrid")
             losses = sum(1 for p in pw if p.get("winner") == "traditional")
             ties = sum(1 for p in pw if p.get("winner") == "tie")
             n = len(pw)
-            return {
+            out = {
                 "n": n, "hybrid_wins": wins, "traditional_wins": losses, "ties": ties,
                 "hybrid_win_rate": round((wins + 0.5 * ties) / n, 4),
                 "position_consistency": round(
                     sum(1 for p in pw if p.get("position_consistent")) / n, 4),
             }
+            if errors:
+                out["judge_errors"] = errors
+            return out
 
         scenarios_out: dict[str, Any] = {}
         sid_groups: dict[str, list[BenchResult]] = defaultdict(list)
@@ -546,6 +563,8 @@ class BenchRunner:
         # sufficiency-gate accuracy/Brier vs ground-truth answerability (hybrid only).
         # Threshold semantics follow the run's gate mode: features -> top-1 rerank
         # score vs gate_score_threshold; jev -> noul vs jev_sufficiency_threshold.
+        # NOTE: on all-answerable suites this table is degenerate (accuracy is
+        # 1 - FN by construction, FP is undefined) — read gate_coverage instead.
         gate: dict[str, Any] = {}
         gated = [(r.sufficiency_p, r.answerable) for r in hyb_all if r.sufficiency_p is not None]
         if gated:
@@ -555,8 +574,41 @@ class BenchRunner:
                    else cfg.get("jev_sufficiency_threshold", SUFFICIENCY_THRESHOLD))
             correct = sum(1 for p, a in gated if (p >= thr) == a)
             gate = {"n": len(gated), "mode": mode, "threshold": thr,
+                    "basis": "answerability",
+                    "answerable_rate": round(sum(1 for _, a in gated if a) / len(gated), 4),
                     "accuracy": round(correct / len(gated), 4),
                     "brier": brier([p for p, _ in gated], [a for _, a in gated])}
+
+        # Retrieval-coverage calibration (hybrid only): the FIRST gate reading —
+        # the one that actually chose the path — vs whether the final top-4
+        # covered every gold file (recall4 == 1.0). The two-class table the gate
+        # decision is really about; meaningful on every suite.
+        if gated:
+            cfg = (run.config if run else None) or {}
+            mode = cfg.get("gate_mode", "features")
+            thr = (cfg.get("gate_score_threshold", 0.5) if mode == "features"
+                   else cfg.get("jev_sufficiency_threshold", SUFFICIENCY_THRESHOLD))
+            cov_rows = []
+            for r in hyb_all:
+                retr = r.retrieval or {}
+                if not retr or retr.get("recall4") is None:
+                    continue  # no gold (e.g. unanswerable): coverage undefined
+                s = first_gate_score(r.jev_decisions, r.sufficiency_p)
+                if s is None:
+                    continue
+                cov_rows.append((s, retr["recall4"] >= 1.0))
+            if cov_rows:
+                scores = [s for s, _ in cov_rows]
+                labels = [c for _, c in cov_rows]
+                preds = [s >= thr for s in scores]
+                gate["coverage"] = {
+                    "n": len(cov_rows), "threshold": thr,
+                    "basis": "gold-in-final-top4",
+                    "positive_rate": round(sum(labels) / len(labels), 4),
+                    "accuracy": round(sum(1 for pr, c in zip(preds, labels) if pr == c)
+                                      / len(cov_rows), 4),
+                    "brier": brier(scores, labels),
+                }
 
         summary = {
             "scenarios": scenarios_out,
