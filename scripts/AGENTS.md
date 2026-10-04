@@ -44,6 +44,9 @@
   writes one unified `bench_runs` row. Sources open read-only. Exits
   0 merged / 2 missing source / 3 unreadable source / 4 zero-row scenario.
   Idempotent (rebuilds the merged DB on re-run).
+  **A new published record gets its own `--out` dir** (`backend/data_merged_r2/…`): the merge
+  rebuilds its output and mints a *fresh* unified run id every call, so re-using the default
+  path silently orphans the run id the docs cite and makes that record un-re-analysable.
   Usage: `.venv/bin/python scripts/_merge_par_run.py --arms base,gate-none --scenarios squad,hotpotqa`
 - `backend/scripts/analyze_testbench.py` — per-arm metrics + paired stats (exact McNemar,
   bootstrap CI, BH-FDR) for a testbench run; `--out FILE` writes the Markdown report and a
@@ -54,7 +57,9 @@
   Needs `matplotlib` (declared in `backend/requirements.txt`). Unlike
   `docs/assets/img/generate_diagrams.py`, which carries illustrative hardcoded numbers,
   every figure here is measured.
-  Usage: `JEVRAG_DATA_DIR=data_merged .venv/bin/python scripts/plot_testbench_arms.py RUN_ID --out ../docs/assets/img/layer2-arm-results.png`
+  Usage: `JEVRAG_DATA_DIR=data_merged_r2 .venv/bin/python scripts/plot_testbench_arms.py RUN_ID --out ../docs/assets/img/layer2-arm-results.png`
+  (point `JEVRAG_DATA_DIR`/`--base` at the merged DB of the run the record page documents —
+  currently `backend/data_merged_r2` for run `4ec32592`; re-render whenever that run changes)
 - `scripts/run_parallel_bench.sh` — the parallel-bench entrypoint: launches one detached
   worker per scenario on separate `JEVRAG_DATA_DIR`s (`backend/data_par/<scenario>/`,
   override root with `JEVRAG_DATA_PAR_ROOT` or `--data-par`, flag wins).
@@ -66,6 +71,12 @@
   workers owning the same dirs, and writes `data_par/parallel_run_meta.json`.
   **`--arms` defaults to the 4-arm H-GATE family, not the 9-arm Layer-2 suite** — a launch
   that omits it silently runs 4 of the 9 declared arms, so always pass the arm set.
+  **Point `--data-par` at a fresh root for every new full run**, never a previous run's: workers
+  skip triples already in their own DB, so a reused root silently blends two draws into one run.
+  A fresh root also leaves every worker with an empty `fastembed_cache`, and N simultaneous HF
+  downloads deadlock (0-byte `*.incomplete`, no progress, workers at ~2% CPU) — seed the
+  cross-encoder into the shared cache and copy a warm `fastembed_cache` per worker before
+  launching, and treat a first-minutes `0/?` progress row as normal unless those files are 0 bytes.
   Usage: `bash scripts/run_parallel_bench.sh --arms "base,gate-none" --scenarios "squad,hotpotqa"`
 - `scripts/check_parallel_bench.sh` — status of parallel workers, read from each worker's
   `app.db` (`bench_runs.status/progress_*`, `bench_results` counts) plus pid liveness —

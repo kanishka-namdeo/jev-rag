@@ -179,7 +179,8 @@ instructions mention them. No child doc may weaken them.
   workers (~2.3 GB each) fit in 15 GB; `scripts/run_parallel_bench.sh` launches,
   `scripts/check_parallel_bench.sh` reports from each worker's DB, and
   `backend/scripts/_merge_par_run.py` merges the per-scenario DBs into one run
-  (`backend/data_merged/`). Both suites are covered via `--driver testbench|resume`.
+  (`backend/data_merged/` by default; give each newly published record its own `data_merged_*`
+  `--out`). Both suites are covered via `--driver testbench|resume`.
   Workers detach with `setsid nohup`. The binding procedure and the four worker contracts
   (uniform `backend/data_par/<scenario>` dirs, `RUN_ID=` line, DB-as-progress-source,
   `parallel_run_meta.json`) live in [docs/parallel-bench-runbook.md](docs/parallel-bench-runbook.md)
@@ -218,5 +219,8 @@ instructions mention them. No child doc may weaken them.
 | [docs/AGENTS.md](docs/AGENTS.md) | Durable design docs: architecture, hybrid pipeline, API protocol, benchmarking methodology & results — plus the end-user layer (`docs/README.md` hub, `usage.md`, `configuration.md`, `troubleshooting.md`) and the `docs/dev/` diaries |
 
 Intentionally unindexed local or generated roots: `node_modules/`, `.next/`, `backend/.venv/`,
-`backend/data/`, `models/`, `vendor/`, `logs/`, `mini-services/`, `download/`, `upload/`,
-`skills/`, `.zscripts/`, `scripts/research/`, `scripts/test-assets/`.
+`backend/data/`, `backend/data_par*/` (per-worker bench scratch; a dated root per run, so the
+gitignore pattern is prefix-matched rather than an exact dir), `backend/data_merged*/` (merged
+bench DBs; one dir per published record, because a re-merge rewrites its `--out` and would
+orphan the run id the docs cite), `models/`, `vendor/`, `logs/`, `mini-services/`, `download/`,
+`upload/`, `skills/`, `.zscripts/`, `scripts/research/`, `scripts/test-assets/`.
