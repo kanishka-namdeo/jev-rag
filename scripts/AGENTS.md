@@ -111,6 +111,20 @@
   a traceback. Exit 1 on any error. Run it before pushing any docs change — it is a CI job,
   not an optional check. Formerly README-only (`validate_readme.py`), then briefly every
   tracked `.md`.
+- `capture_ui_screenshots.py` — regenerates the four live-browser README shots
+  (`docs/assets/img/{chat-compare,trace-panel,bench-lab,bench-charts}.png`) by driving the
+  **running** app with Playwright: 1512x945 at device_scale_factor=1 (the pixel size the
+  README already ships), light theme, repo-root-anchored, `--only`/`--base-url`/`--out-dir`.
+  Chat half: New chat → Compare → the two `QUESTIONS` → close the trace panel (Compare
+  auto-opens it, `store.ts::send`) → frame the last exchange from its question bubble →
+  `chat-compare.png`; then View trace on the last hybrid answer → `trace-panel.png`.
+  Bench half: switch to Benchmarks and wait — `BenchView.init()` auto-selects the newest
+  **completed** run, and the dashboard renders blank metric cards and empty charts for a run
+  with no judge `summary`, so refresh `bench-charts.png` only against a fully summarised run.
+  Costs real cloud calls (two per question in Compare) and needs a Playwright-enabled
+  interpreter (`playwright` is deliberately not a `backend/.venv` dependency, same as
+  `render_social_preview.py`). **Capture against a production build** (`bun run build &&
+  bun run start`) — `next dev` paints its dev-tools badge into every shot.
 - `render_social_preview.py` + `social_preview.html` — regenerates the repo social
   preview card (Playwright, 1280×640 at **1×**) into `docs/assets/img/social-preview.png`.
   1× is required, not cosmetic: GitHub caps the social preview under 1 MB and recommends

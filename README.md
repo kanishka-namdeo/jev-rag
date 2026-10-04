@@ -27,14 +27,17 @@ It is **not** multi-tenant: no user accounts, no per-user ACLs — one SQLite da
 
 ## Screenshots
 
+All four shots below are captured from a running stack — local FastAPI backend plus this
+frontend — by `scripts/capture_ui_screenshots.py`. Nothing here is mocked.
+
 <div align="center">
-  <img src="docs/assets/img/chat-compare.png" alt="Chat view comparing traditional and hybrid answers side by side, with citations and a groundedness badge" width="880"/>
+  <img src="docs/assets/img/chat-compare.png" alt="Chat view comparing traditional and hybrid answers side by side, with citation chips and quality and groundedness badges" width="880"/>
 </div>
 
 | Trace panel — every local decision, with calibrated probabilities | Benchmark Lab — pick scenarios, run both arms |
 | --- | --- |
-| <img src="docs/assets/img/trace-panel.png" alt="Trace panel showing retrieval, gate score and decision cards with probability bars"/> | <img src="docs/assets/img/bench-lab.png" alt="Benchmark Lab scenario cards and run controls"/> |
-| <img src="docs/assets/img/bench-charts.png" alt="Results dashboard with judge metrics and per-scenario comparison charts"/> | |
+| <img src="docs/assets/img/trace-panel.png" alt="Trace panel listing the local decisions for one hybrid answer — effort routing, cross-encoder rerank, escalation gate, citation verification, groundedness check — each with probability bars and latency"/> | <img src="docs/assets/img/bench-lab.png" alt="Benchmark Lab with eleven scenario cards, run controls and the metric cards of a completed run"/> |
+| <img src="docs/assets/img/bench-charts.png" alt="Results dashboard with judge metric cards and per-scenario comparison charts, above the per-question results table"/> | |
 
 ## Requirements
 

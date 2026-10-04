@@ -125,7 +125,13 @@
   `v3-results-chart.png`) and their `.mmd`/`.svg` siblings, `layer2-arm-results.png`,
   and `social-preview.png` (rendered by `scripts/render_social_preview.py`).
   UI shots are regenerable only from the live app (live-browser capture, not mocks);
-  refresh them after any UI change that alters what the README shows.
+  refresh them after any UI change that alters what the README shows. The regeneration
+  path is `scripts/capture_ui_screenshots.py` (Playwright against a running stack —
+  see `scripts/AGENTS.md`); it re-asks its two questions and re-selects the newest
+  completed bench run, so **the two chat shots cost four cloud calls** and
+  `bench-charts.png` needs a completed run with a judge summary in the data dir the
+  backend is serving. Capture from a production build (`bun run build && bun run start`):
+  `next dev` paints its dev-tools badge into every shot.
   Diagram PNGs (`v3-architecture-v2.png`, `escalation-gate-v2.png`, `v3-results-chart.png`)
   are produced by `assets/img/generate_diagrams.py` — a reproducible matplotlib script
   (run it **from** `docs/assets/img/`, its output filenames are CWD-relative), not an

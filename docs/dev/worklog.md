@@ -4,6 +4,51 @@ Single shared work log for all agents working in this repo. Append-only; each
 section starts with `---`. Newest at top.
 
 ---
+Task ID: readme-screenshots (2026-10-04)
+Agent: OpenCode session (owner's Windows workstation + WSL2 Ubuntu-24.04)
+Task: refresh the four live-browser UI screenshots the README and docs/usage.md embed.
+
+Work Log:
+- The four shots dated from 2026-09-29 and predated `bc1c93e` (results-dashboard rewrite),
+  so `bench-lab`/`bench-charts` showed a 6-scenario lab and a hardcoded "six document
+  scenarios" subtitle that no longer exists — the catalog is 11 scenarios now.
+- Added `scripts/capture_ui_screenshots.py` (Playwright, sync API, repo-root-anchored,
+  `--only`/`--base-url`/`--out-dir`) instead of capturing by hand, so a refresh is one
+  command instead of a remembered click path. Same 1512x945 @1x viewport the README already
+  shipped, so the table layout and repo weight barely move (605 KB -> 788 KB for all four).
+- Two app behaviours the capture has to work around, both now encoded in the script:
+  (a) Compare mode AUTO-OPENS the trace panel (`store.ts::send` sets `traceOpen: true`), so
+  the naive `chat-compare` capture renders two 300 px answer columns with the trace panel
+  eating a third of the frame — the script closes it first;
+  (b) `BenchView.init()` auto-selects the newest completed run, and a completed run with no
+  judge `summary` renders EMPTY metric cards and BLANK charts (all four per-scenario charts
+  showed only an axis label). Worth knowing before anyone screenshots this page.
+- `next dev` paints its dev-tools badge (the dark "N" circle, bottom-left) into every shot —
+  it is in all four published images to this day. Captured against `bun run build &&
+  bun run start` instead, which also means the shots show the production UI.
+- `backend/data` had no run left with a judge summary, so to get a populated dashboard I ran
+  a real one through the API: the 6 private corpora x 8 Q x 2 arms (48 Q, 96 rows), run
+  `c075af23`, `completed`, summary present, ~41 min for $0.35 of generator spend plus the
+  judge. Headline of that run (NOT published as evidence — screenshots are illustrative, and
+  the ±5 pp floor in the root AGENTS.md applies to any comparison): correctness 97.9% both
+  arms, faithfulness 100% both, hit@4 88%, MRR@10 0.851, pairwise hybrid win rate 47.9%
+  (hybrid 1 / tie 44 / trad 3), p50 latency 16.0 s vs 16.5 s.
+- Chat questions were chosen to show the product rather than to flatter it: a multi-hop
+  NimbusDB lookup, then a Northwind-vs-Avalanche earnings question where the near-identical
+  distractor is the point. The captured frame happens to make the case in one line —
+  traditional reports "the exact total revenue figure is missing from the provided context"
+  while hybrid sums the segments to $142.8 million, which is what the document says.
+- FINDING, not fixed here (it is a code change, not a screenshot refresh): the
+  "Jev groundedness check" trace card renders its numeric `answer` bare — `DecisionAnswer`,
+  `trace-panel.tsx:40-42` prints a number with no label, so the published trace screenshot
+  shows a floating `0.822` above the true/false bars. One-line fix, needs its own change.
+- Docs touched: README screenshot alt text now names what the shots actually show (quality
+  badge alongside grounded, the five decision cards, 11 scenarios); `docs/AGENTS.md` and
+  `scripts/AGENTS.md` record the regeneration path and its two preconditions (production
+  build, a summarised completed run). `docs/usage.md` needed no edit — its alt text was
+  still accurate.
+
+---
 Task ID: layer2-full9-r2 (2026-10-04)
 Agent: OpenCode session (owner's Windows workstation + WSL2 Ubuntu-24.04)
 Task: re-take the complete 9-arm Layer-2 testbench with parallel workers and update the
