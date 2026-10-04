@@ -31,7 +31,8 @@ Numbers, how they were produced, and how to reproduce them.
 - [benchmarking.md](benchmarking.md) — metric definitions, judge fairness protocol, statistics
 - [testbench-design.md](testbench-design.md) — the pre-declared hypotheses and arms
 - [testbench-results-layer1.md](testbench-results-layer1.md) — retrieval ablations
-- [testbench-results-layer2-full9.md](testbench-results-layer2-full9.md) — the full 9-arm record
+- [testbench-results-layer2-full9-r2.md](testbench-results-layer2-full9-r2.md) — the current 9-arm record (run 4ec32592, 882 triples), plus why its pooled correctness cannot be compared with the earlier draw
+- [testbench-results-layer2-full9.md](testbench-results-layer2-full9.md) — the superseded 9-arm draw (run 36abefc6), kept as the reproducibility contrast
 - [testbench-results-hgate.md](testbench-results-hgate.md) — the earlier 4-arm draw (reproducibility contrast)
 - [benchmark-results.md](benchmark-results.md) — complete run history
 - [benchmark-public.md](benchmark-public.md) — public wave 1 (run 4dc6c46e): SQuAD + HotpotQA, hybrid vs traditional, 50 questions

@@ -4,6 +4,80 @@ Single shared work log for all agents working in this repo. Append-only; each
 section starts with `---`. Newest at top.
 
 ---
+Task ID: layer2-full9-r2 (2026-10-04)
+Agent: OpenCode session (owner's Windows workstation + WSL2 Ubuntu-24.04)
+Task: re-take the complete 9-arm Layer-2 testbench with parallel workers and update the
+    stale benchmark documentation.
+
+Work Log:
+- Preflight green (`scripts/probe_public_gateway.sh` -> STATUS: SUCCESS; both generators +
+  kimi-k2.5 judge emitting json_object). Box clean: no dev server holding a jev-score, 12.1 GB
+  RAM free, GPU 6.3/8 GB. Confirmed `rerank_char_limit` code default is 0 (full chunk).
+- Launched via the runbook §2 command, all 9 pre-declared arms, 5 scenarios, `--max-per-scenario
+  0` (denominators 225+225+144+144+144 = 882), `--window-minutes 600`, `--max-parallel 5`.
+  **Used a fresh `--data-par backend/data_par_20261004/` on purpose**: reusing the Oct-1 root
+  would have made the workers skip already-scored triples (resume idempotency) and silently
+  mix two draws into one run. Made `.gitignore` cover bench scratch roots generally
+  (`backend/data_par*` / `backend/data_merged*`; the trailing-slash form cannot match a
+  not-yet-created dated root).
+- DEAD END (cost ~20 min): first launch wedged with 0 rows, all workers ~2.4% CPU, logs silent
+  after 00:42:52. Root cause was two things, not bandwidth:
+  (a) the shared HF cache had lost the cross-encoder's 91 MB `onnx/model.onnx` blob —
+  `model.onnx` was a DANGLING SYMLINK with only the 711 KB tokenizer present. Oct-1 had loaded
+  it in 0.00 s from cache, so the loss was silent and recent;
+  (b) a fresh data dir means all 5 workers download the ~235 MB embedder into their own
+  `fastembed_cache`, and 5 concurrent HF xet-bridge transfers DEADLOCK — 0-byte `*.incomplete`
+  files, no progress for 15 min. A single-connection fetch of the same 91 MB file took 1.0 s, so
+  the CDN was fine; concurrency was the problem. A curl ranged GET misleadingly suggested
+  ~100 KB/s, which sent me down the wrong path briefly.
+  Fix: fetch the cross-encoder once into the shared cache, copy a warm 241 MB `fastembed_cache`
+  from the Oct-1 root into each worker dir, kill workers, wipe their partial app.db + chroma,
+  relaunch. Model load then ~2 min. Both facts are now in the runbook + root/backend AGENTS.md.
+- Run completed clean: 882/882 rows, **1 error row** (triviaqa `tq2`/`gate-jev`, Dashscope
+  ReadTimeout — kept visible, never dropped), 5/5 runs `completed`, 3.31 h contiguous
+  00:56->04:15, longest worker musique 197 min, no interruption this time. Per-scenario run ids
+  squad `b5f535b4`, hotpotqa `5741e7b2`, triviaqa `fcf1b64f`, wiki2 `dbdd63fa`, musique `162a6caf`.
+- Merged with `--out backend/data_merged_r2/app.db` (a SECOND out dir: `_merge_par_run.py`
+  rebuilds its output and mints a new unified run id per call, so the default path would have
+  orphaned `36abefc6` and made the old record un-re-analysable). Unified run
+  **`4ec32592-dd81-45e5-92a7-9d5023f2b665`**, 882 rows, 0 deduplicated, 1 error row kept.
+  Analyzer + chart regenerated -> `docs/testbench-results-layer2-full9-r2.md` (+ `.json` twin),
+  `docs/assets/img/layer2-arm-results.png`.
+- **FINDING (the important one): the db571bf judge change is a metric regression, not an
+  improvement.** Every arm looks +12.8 to +21.2 pp better than `36abefc6`. It is an artifact.
+  Splitting correctness into answered vs abstained rows: answered-row correctness is FLAT in
+  every arm (base -0.2 pp, rerank-none -1.2 pp), while abstained-row correctness went 0.0385 ->
+  0.7586 (base +72.0 pp), and 0 of 29 abstained rows had an empty reference. The new prompt
+  exception ("no ground-truth answer + proper abstention => correctness 1.0") fires on this
+  all-answerable suite because the judge reads "the retrieved context lacks this" as "this
+  question is unanswerable" — e.g. `tq4` scored 1.0 with reference `Joe Frazier`, `hp12` scored
+  1.0 with reference `Pinellas County`. Net effect: **the metric rewards retrieval failure**,
+  and it hides the dominant loss mode (over-abstention). Cause is prose in the prompt, so the
+  fix is to gate the exception on `bench_results.answerable` (already a column) in code rather
+  than on prompt wording. NOT fixed here — it needs its own run to verify.
+- What the run DOES establish: (a) no arm beats `base` at FDR q<0.05, third draw running,
+  every q=1.000, largest effect gate-jev +3.1 pp (p=0.581); (b) judge-independent retrieval
+  confirms the CE full-chunk fix end-to-end — base hit@1 0.9184->0.9388, MRR 0.9439->0.9694,
+  hit@4 now 1.0000 — reproducing Layer-1's offline +2.1/+2.2 pp prediction from an independent
+  run; (c) **noise floor ~±5 pp, measured not guessed**: `no-verify` is a structural no-op on
+  the answer (verification runs after generation, nothing downstream reads it) yet differs by
+  -5.3 pp, so every smaller delta in the suite is uninterpretable; (d) `always-hard` is -1.8 pp
+  at 4.18x latency / 2.64x cost — pure cost, third consecutive draw; (e) gate calibration agrees
+  across layers (base coverage Brier 0.2587 vs Layer-1 offline 0.269, closer now that both feed
+  the CE full chunks); (f) `rerank-none` still ties base (+0.3 pp) at 4.04x latency with
+  IDENTICAL hit@1 — the CE earns its place in the ranking, not in the answer.
+- Cost $1.482 -> $2.7905 is the `sum_token_usage` accounting fix, not behaviour: tokens grew
+  where System-Two helper calls happen (always-hard +116%, rerank-none +113%) vs base +22%.
+- Doc pass: new record page + curated section; `36abefc6` page marked superseded/pre-regression;
+  hgate page role updated to the three-draw chain; results.md, all three AGENTS.md contracts,
+  root README, docs hub, runbook, troubleshooting, windows-setup, glossary, configuration,
+  social_preview.html, rag-upgrade-2026-results, CHANGELOG. Left `docs/dev/project-status-
+  2026-09-30.md` frozen per docs/dev/AGENTS.md.
+- Caveat left standing for the maintainer: `docs/assets/img/social-preview.png` still shows the
+  old run id — `render_social_preview.py` needs a Playwright-enabled interpreter that is not in
+  `backend/.venv`, and the upload is a manual step regardless.
+
+---
 Task ID: audit-fixes (2026-10-03)
 Agent: OpenCode session (owner's Windows workstation + WSL2 Ubuntu-24.04)
 Task: fundamental audit of tests/pipelines/models vs what we want to test/record/deduce,

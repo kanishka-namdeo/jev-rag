@@ -1,5 +1,18 @@
 # Testbench report — 36abefc6-abd8-4769-a218-c73c0dacf4ff
 
+> **Superseded as the current Layer-2 record** by the 2026-10-04 re-take
+> [testbench-results-layer2-full9-r2.md](testbench-results-layer2-full9-r2.md)
+> (`4ec32592`, 882 triples, 1 error row, $2.7905, 3.31 h on 5 workers). That run is **not
+> directly comparable to this one**: the judge prompt changed and now over-scores
+> abstentions on this all-answerable suite, so absolute `correctness`, cost and latency
+> here and there cannot be differenced. Read that page's "Read this before quoting any
+> number" section before using either draw. This page stays as the record of the Oct-1
+> run, and as the pre-regression metric baseline.
+>
+> Note also that this run measured the cross-encoder on **400-char prefixes** — its
+> recorded `config["base"]` carries no `rerank_char_limit` key, so it inherited the Jev
+> latency knob. The 2026-10-04 run scores full chunks.
+
 label: Layer-2 full 9-arm (par x5, merged 2026-10-01)
 
 | arm | n | corr | 95% CI | abstain | escalate | p50 ms | cost | Δacc vs base | CI95 | McNemar p | FDR q |

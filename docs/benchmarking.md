@@ -166,6 +166,17 @@ These metrics diagnose **WHERE** retrieval failures occur — ranking quality vs
   references may list acceptable aliases separated by ` / ` (the public-benchmark builder
   joins them that way). Prompt changes move the judge: runs before/after 2026-10-03 are
   not directly comparable on abstention-heavy suites.
+  **Known defect (2026-10-03 prompt, measured 2026-10-04):** that exception is stated in
+  prose rather than gated on the ground truth, so the judge reads *"the retrieved context
+  does not contain this"* as *"this question is unanswerable"* and awards 1.0. On the
+  all-answerable public suite it fires wrongly and inflates pooled `correctness`: in run
+  `4ec32592`, `base` correctness on **answered** rows moved −0.2 pp across draws while
+  correctness on **abstained** rows went 0.0385 → 0.7586, and 0 of its 29 abstentions had
+  an empty reference. Absolute `correctness` is therefore not comparable across draws with
+  different judge prompts; paired within-draw deltas are. The fix is to pass `answerable`
+  (already a column on `bench_results`) into the judge call and apply the 1.0 only when it
+  is false. Until then, compare arms on the answered-row basis
+  ([testbench-results-layer2-full9-r2.md](testbench-results-layer2-full9-r2.md)).
 - **Judge self-test**: every run starts with 9 canary cases with known expected
   outcomes (perfect answer, wrong number, refusal-on-answerable, fabrication, proper
   abstention, partial, correct-with-unsupported-extra, wrong entity, proper-abstention
@@ -193,6 +204,14 @@ Known limitations (documented, by design of scope): single judge model (no human
 panel); one run per condition (no repetition/CI bands yet); pairwise win-rate on 48
 questions has wide confidence intervals — read it as indicative, lean on the
 per-metric absolutes and per-scenario breakdowns.
+
+**The measured noise floor.** Because a single run cannot be repeated, the floor is read
+off a structurally inert arm instead: `no-verify` disables citation verification, which runs
+*after* generation and which nothing downstream reads, so it cannot change the answer. In
+Layer-2 run `4ec32592` it still differs from `base` by **−5.3 pp**. That is LLM-sampling plus
+judge noise on the 98-question public suite, and it is **larger than every arm effect
+measured there except one**. Quote no single-delta comparison on the public suite as a
+finding unless it clears ~±5 pp, and prefer a direction that replicates across draws.
 
 ## Running a benchmark
 

@@ -110,8 +110,8 @@ A Jev primitive: rubric rating (e.g., 1–5). Used for pointwise reranking in v2
 
 **H-GATE**  
 A pre-declared hypothesis in the testbench: "the score-feature gate improves accuracy vs never-escalating." Tested with arms: base (features gate), gate-none (never escalate), always-hard (always escalate), oracle-gate (perfect retry decision). Full-power results: [testbench-results-hgate.md](testbench-results-hgate.md).  
-H-GATE is one family inside the Layer-2 suite: the complete run adds H-RERANK (`rerank-jev`, `rerank-none`), H-SELECT (`no-bestof`), H-VERIFY (`no-verify`) and the `gate-jev` arm for nine arms in total — see [testbench-results-layer2-full9.md](testbench-results-layer2-full9.md).  
-→ [testbench-design.md](testbench-design.md), [testbench-results-hgate.md](testbench-results-hgate.md), [testbench-results-layer2-full9.md](testbench-results-layer2-full9.md), [rag-upgrade-2026-results.md](rag-upgrade-2026-results.md)
+H-GATE is one family inside the Layer-2 suite: the complete run adds H-RERANK (`rerank-jev`, `rerank-none`), H-SELECT (`no-bestof`), H-VERIFY (`no-verify`) and the `gate-jev` arm for nine arms in total — see [testbench-results-layer2-full9-r2.md](testbench-results-layer2-full9-r2.md) (current record) and the earlier draw [testbench-results-layer2-full9.md](testbench-results-layer2-full9.md).  
+→ [testbench-design.md](testbench-design.md), [testbench-results-hgate.md](testbench-results-hgate.md), [testbench-results-layer2-full9.md](testbench-results-layer2-full9.md), [testbench-results-layer2-full9-r2.md](testbench-results-layer2-full9-r2.md), [rag-upgrade-2026-results.md](rag-upgrade-2026-results.md)
 
 ---
 

@@ -149,10 +149,25 @@ ONNX Runtime's CUDA provider does **not** work with WSL2's GPU virtualization la
   log, is the progress source of truth
 - **The complete Layer-2 suite is the 9 pre-declared arms** of
   [docs/testbench-design.md](../docs/testbench-design.md); its current record is merged run
-  `36abefc6` — 882 triples, 0 error rows, 5 workers
+  `4ec32592` — 882 triples, 1 error row, 5 workers
+  ([docs/testbench-results-layer2-full9-r2.md](../docs/testbench-results-layer2-full9-r2.md)),
+  with `36abefc6` kept as the pre-regression metric baseline
   ([docs/testbench-results-layer2-full9.md](../docs/testbench-results-layer2-full9.md)).
   `scripts/run_parallel_bench.sh --arms` defaults to only the 4-arm H-GATE family, so a full
-  run must pass all nine explicitly
+  run must pass all nine explicitly.
+- **Cross-draw comparability is a contract, not a nicety.** Absolute `correctness`, cost and
+  latency are valid only *within* one draw. Two harness changes since `36abefc6` break
+  differencing across draws: the judge prompt now contains an unanswerable-abstention exception
+  that is over-applied on the all-answerable public suite (abstained-row correctness 0.04→0.76,
+  answered-row correctness flat), and `sum_token_usage` now folds System-Two helper calls into
+  per-row cost. Publish paired within-draw deltas as the comparable quantity; when a new draw
+  lands, state both caveats on the new record page instead of differencing its absolutes against
+  the old one.
+- A fresh `data_par` root gives every worker an empty `fastembed_cache`, so all of them
+  re-download the ~235 MB embedder and the 91 MB cross-encoder concurrently; on this box five
+  simultaneous HF xet-bridge transfers deadlock (0-byte `.incomplete` files, no progress).
+  Fetch the cross-encoder once into the shared `~/.cache/huggingface` and copy a warm
+  `fastembed_cache` into each worker dir before launching.
 - Merged-DB analysis chain: `backend/scripts/analyze_testbench.py` (report + `.json` twin) →
   `backend/scripts/plot_testbench_arms.py` (chart reusing `analyze()`, so the PNG cannot drift
   from the report). Re-running the analyzer overwrites the report's generated tables, so the

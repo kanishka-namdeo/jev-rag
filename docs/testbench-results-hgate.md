@@ -1,10 +1,16 @@
 # Testbench report — 67a1dc06-a3bd-4bf1-8f25-092cd5db3eff
 
-> **Superseded as the current Layer-2 record** by the full 9-arm run
+> **Superseded as the current Layer-2 record**, twice over. The full 9-arm run
 > [testbench-results-layer2-full9.md](testbench-results-layer2-full9.md) (`36abefc6`,
-> 2026-10-01), which re-ran these same four arms and found the `oracle-gate` delta had
-> flipped sign — treat the arm deltas below as a single sample of a noisy comparison, not
-> as an established effect. This page stays as the record of the M11 run itself.
+> 2026-10-01) re-ran these same four arms one day later and found the `oracle-gate` delta had
+> flipped sign; the 2026-10-04 re-take
+> [testbench-results-layer2-full9-r2.md](testbench-results-layer2-full9-r2.md) (`4ec32592`)
+> re-ran them a third time and `oracle-gate` changed sign again (−0.036 → +0.025 → +0.011).
+> Treat the arm deltas below as one sample of a comparison whose noise floor is ~±5 pp, not as
+> an established effect. This page stays as the record of the M11 run itself, and as the
+> earliest of the three draws in the reproducibility comparison. Note that absolute
+> `correctness` is comparable only *within* a draw — the newest draw's judge over-scores
+> abstentions (see that page).
 
 label: H-GATE full power (par x5, merged 2026-09-30)
 

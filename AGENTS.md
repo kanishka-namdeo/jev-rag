@@ -159,9 +159,16 @@ instructions mention them. No child doc may weaken them.
   with one scenario) and record the delta vs `docs/benchmark-results.md` in the PR/commit message.
   Full runs re-export results via `backend/scripts/export_bench_results.py`. A full Layer-2
   testbench run means all **9** pre-declared arms (`docs/testbench-design.md`), now measured
-  (`docs/testbench-results-layer2-full9.md`) — the 4-arm H-GATE family is a subset, not the suite.
+  (`docs/testbench-results-layer2-full9-r2.md`) — the 4-arm H-GATE family is a subset, not the suite.
   Methodology is binding: `docs/benchmarking.md` (judge must stay model-family-independent
   from the generators).
+- **Benchmark numbers are comparable only within a single draw.** Absolute `correctness`, cost
+  and latency must not be differenced across draws: the 2026-10-03 judge change over-scores
+  abstentions on the all-answerable public suite, and `sum_token_usage` changed what per-row
+  cost includes. Publish paired within-draw deltas as the cross-run quantity, and when a new full
+  run lands, mark the previous record superseded and state both caveats on the new record page.
+  Every measured comparison in this repo also needs its noise floor: the current one is ~±5 pp,
+  measured by `no-verify`, an arm that is a structural no-op on the answer.
 - **Memory discipline.** The jev-score subprocess needs ~1.5GB RSS. This workstation has 15 GB
   RAM (12 cores), so during a local-model run avoid only what truly competes for memory —
   launching browsers, recompiling the frontend, or starting duplicate model processes. The
@@ -177,10 +184,17 @@ instructions mention them. No child doc may weaken them.
   (uniform `backend/data_par/<scenario>` dirs, `RUN_ID=` line, DB-as-progress-source,
   `parallel_run_meta.json`) live in [docs/parallel-bench-runbook.md](docs/parallel-bench-runbook.md)
   and must be updated with any change to those scripts. Proven: the complete Layer-2 suite on
-  5 workers — 9 arms × 98 questions × 5 public scenarios = 882 triples, ~3.6 h compute,
-  0 error rows ([docs/testbench-results-layer2-full9.md](docs/testbench-results-layer2-full9.md));
-  the earlier 4-arm M11 draw (392 triples, ~2 h) is the smaller precedent in
+  5 workers — 9 arms × 98 questions × 5 public scenarios = 882 triples, 3.31 h in one contiguous
+  window, 1 error row ([docs/testbench-results-layer2-full9-r2.md](docs/testbench-results-layer2-full9-r2.md));
+  the earlier 9-arm draw `36abefc6` (882 triples, ~3.6 h, 0 error rows) is in
+  [docs/testbench-results-layer2-full9.md](docs/testbench-results-layer2-full9.md), and the
+  earlier 4-arm M11 draw (392 triples, ~2 h) in
   [docs/testbench-results-hgate.md](docs/testbench-results-hgate.md).
+  Two operational facts learned the hard way: a fresh `data_par` root leaves every worker with
+  an empty `fastembed_cache`, and five simultaneous HF downloads deadlock — seed the caches
+  before launching; and merge into a **second** `--out` dir, because `_merge_par_run.py`
+  rebuilds its output and mints a new unified run id per call, which would orphan the record
+  the docs currently cite.
 - **Tests and lint stay green.** Backend pytest, `bun run lint` and the documentation Markdown
   validator (`python3 scripts/validate_docs.py`, CI job `docs`) must pass before every push.
 - **Commit and push at milestones.** Small, descriptive commits; push to `origin/main` after each

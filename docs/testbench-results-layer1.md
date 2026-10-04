@@ -131,6 +131,17 @@ On full-chunk scores the distribution spreads and the optimum lands at 0.63, i.e
 shipped 0.6 **is** the measured operating point (same accuracy 0.7245 as at θ*). It also
 lifts the gate above the trivial never-escalate baseline (0.724 vs 0.684) — on truncated
 scores the shipped point sat *below* it (0.673 vs 0.70). Still weak-but-usable (Brier
-0.269 ≈ Layer-2 coverage Brier 0.271 for `base` — the two layers now agree), and the
+0.269 ≈ Layer-2 coverage Brier **0.2587** for `base` in Layer-2 run `4ec32592`, 2026-10-04 —
+the two layers now agree, and agree more closely than against the earlier Layer-2 draw's
+0.271 because that draw fed the cross-encoder 400-char prefixes), and the
 escalation rate (~12%) is thinner than the 09-28 design intent (~17%); whether that costs
 end-to-end accuracy is a Layer-2 question for the next full run, not this table.
+
+**Cross-layer check, answered.** That "Layer-2 question" is now answered by the 2026-10-04
+Layer-2 re-take ([testbench-results-layer2-full9-r2.md](testbench-results-layer2-full9-r2.md),
+run `4ec32592`), and it confirms the prediction above end-to-end: `base` escalated 12.2 % —
+matching this table's ~12 % — and its retrieval-coverage Brier landed at 0.2587 against this
+layer's 0.269. The same run reproduced the full-chunk precision gain predicted here
+(hit@1 0.9184 → 0.9388, MRR 0.9439 → 0.9694) from an independent end-to-end run, and took
+hit@4 to 1.0000. But no arm beat `base` at FDR q < 0.05, and the suite's measured noise
+floor is ±5 pp, so the escalation rate being thin costs nothing measurable.

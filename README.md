@@ -72,7 +72,7 @@ Open http://localhost:3000 — allow ~15 min total on a 2-core/4 GB machine. **F
 
 Compare is not a third pipeline: the frontend runs the other two side by side (`src/lib/jevrag/store.ts`). The groundedness badge only ever appears on hybrid answers, because the traditional path does not run citation verification.
 
-What the hybrid adds is **mechanism, not a guaranteed win**: extra local decisions, recovery on the hard path, and citation verification — at ~2× latency on escalated questions and a lower per-suite cloud bill. On the 9-arm Layer-2 rerun none of those components beat the plain baseline at FDR q < 0.05 ([docs/testbench-results-layer2-full9.md](docs/testbench-results-layer2-full9.md)), so treat them as guardrails and instrumentation you can measure in your own Benchmark Lab.
+What the hybrid adds is **mechanism, not a guaranteed win**: extra local decisions, recovery on the hard path, and citation verification — at ~2× latency on escalated questions and a lower per-suite cloud bill. Across all three Layer-2 draws none of those components beat the plain baseline at FDR q < 0.05 ([current record `4ec32592`](docs/testbench-results-layer2-full9-r2.md) · [earlier draw `36abefc6`](docs/testbench-results-layer2-full9.md)), so treat them as guardrails and instrumentation you can measure in your own Benchmark Lab.
 
 ## How it works
 
@@ -99,19 +99,21 @@ flowchart LR
 
 ## Results
 
-| | v3 headline `16814bd5` | Layer-2 9-arm `36abefc6` |
+| | v3 headline `16814bd5` | Layer-2 9-arm `4ec32592` |
 | --- | --- | --- |
-| **Claim** | +5.1 pp pooled (CI [−0.5, +10.7], p = 0.065); **+9.8 pp single-hop, n = 41 (CI [+2.4, +19.5], p = 0.048)**; multi-hop +1.8 pp, n.s. | **0 / 9 arms beat `base` at FDR q < 0.05** |
-| **Gate** | hybrid abstains 10.2 pp less (25.5 % vs 35.7 %) | marginal value over never-escalating: +2.5 pp, p = 0.549 |
-| **Cost** | $0.148 vs $0.165 per suite | forced escalation is pure cost: 3.71× median latency, replicated in both draws |
+| **Claim** | +5.1 pp pooled (CI [−0.5, +10.7], p = 0.065); **+9.8 pp single-hop, n = 41 (CI [+2.4, +19.5], p = 0.048)**; multi-hop +1.8 pp, n.s. | **0 / 9 arms beat `base` at FDR q < 0.05** — third draw running |
+| **Gate** | hybrid abstains 10.2 pp less (25.5 % vs 35.7 %) | never-escalating ties `base` in the pooled metric (+0.0 pp — two cancelling movements, not a measured null); the best gate arm, `gate-jev`, is +3.1 pp, p = 0.581 |
+| **Cost** | $0.148 vs $0.165 per suite | forced escalation is pure cost: 4.18× median latency, replicated in all three draws |
 
-Conditions: 98 questions × 5 public scenarios; independent judge (`kimi-k2.5`, a different model family from the generators), position-swapped pairwise, 8/8 canary self-test; latency measured on a 2-core sandbox, not a workstation.
+Conditions: 98 questions × 5 public scenarios; independent judge (`kimi-k2.5`, a different model family from the generators), position-swapped pairwise, 8/8 canary self-test; latency measured on a 2-core sandbox, not a workstation. The Layer-2 draw is 9 arms × 98 questions × 5 public scenarios = 882 triples with 1 error row (a Dashscope `ReadTimeout`, kept visible).
 
-**A single Layer-2 draw is not a finding** — re-running the four M11 arms a day apart flipped `oracle-gate`'s delta from −3.6 pp to +2.5 pp. Quote both draws or neither.
+**A single Layer-2 draw is not a finding** — three draws of these arms, one day and one config apart, give `oracle-gate` deltas of −3.6 pp, +2.5 pp and +1.1 pp: two sign changes, none significant. Quote all three or none ([M11 `67a1dc06`](docs/testbench-results-hgate.md) · [`36abefc6`](docs/testbench-results-layer2-full9.md) · [`4ec32592`](docs/testbench-results-layer2-full9-r2.md)).
+
+**Absolute correctness, cost and latency do not carry between the two 9-arm draws.** Commit `db571bf` added a judge rule scoring an abstention as correct when the question looks unanswerable, and on this all-answerable suite it fires on ordinary retrieval misses: correctness on rows the system *answered* is flat across draws (`base` −0.2 pp) while correctness on *abstained* rows jumped from 0.04 to 0.76. The same commit's token-accounting fix is why the suite bill rose — measurement, not behaviour. Compare paired Δ-vs-`base` (a within-draw quantity that does carry) and the judge-independent retrieval metrics; read each draw's pooled correctness only inside its own run ([full analysis](docs/testbench-results-layer2-full9-r2.md)).
 
 Fabrication is only measured on the five unanswerable questions in the internal `outofscope` scenario, and the two 0/5 full runs bracket the bad draw rather than closing it: the first internal run, `9d894b6c` (hybrid v1), and the last full internal run that measured it, `bf05f585` (hybrid v2 with the passage battery off), both scored 0/5; the intervening `0314ac0a` (v2, battery on) measured 1/5 — the no-retrieval fast path answered one question from parametric knowledge. **No v3-era run has published this metric with enough scope or power to stand as a result** — the closest is the 8-question gate-default smoke `db23b949` (2026-10-01, θ = 0.6, the shipped threshold), where the hybrid abstained on all five out-of-scope questions and fabricated none, but at n = 8 that's a do-no-harm check with no statistical power, explicitly not a finding. The public benchmark suites contain no unanswerable questions, so no public run can produce this metric — see [docs/benchmarking.md](docs/benchmarking.md).
 
-**Full record:** [docs/results.md](docs/results.md) · **Methodology:** [docs/benchmarking.md](docs/benchmarking.md) · **9-arm suite:** [docs/testbench-results-layer2-full9.md](docs/testbench-results-layer2-full9.md)
+**Full record:** [docs/results.md](docs/results.md) · **Methodology:** [docs/benchmarking.md](docs/benchmarking.md) · **9-arm suite:** [docs/testbench-results-layer2-full9-r2.md](docs/testbench-results-layer2-full9-r2.md) (current record, run `4ec32592`) · [earlier draw `36abefc6`](docs/testbench-results-layer2-full9.md)
 
 ## Privacy: what stays local
 
@@ -137,7 +139,7 @@ The hub is [docs/README.md](docs/README.md), with three lanes:
 
 - **Use it** — [setup.md](docs/setup.md) · [usage.md](docs/usage.md) · [configuration.md](docs/configuration.md) · [troubleshooting.md](docs/troubleshooting.md), symptom-first: [it won't start](docs/troubleshooting.md#it-wont-start) · [uploads](docs/troubleshooting.md#uploads) · [answers](docs/troubleshooting.md#answers) · [answers are slow](docs/troubleshooting.md#answers-are-slow) · [cost shows —](docs/troubleshooting.md#cost-shows-) · [the backend died](docs/troubleshooting.md#the-backend-died) · [can't reach it from another device](docs/troubleshooting.md#cant-reach-it-from-another-device) · [collecting diagnostics](docs/troubleshooting.md#collecting-diagnostics)
 - **Understand it** — [glossary.md](docs/glossary.md) · [architecture.md](docs/architecture.md) · [hybrid-design.md](docs/hybrid-design.md) · [rag-upgrade-2026.md](docs/rag-upgrade-2026.md) · [api.md](docs/api.md) · [setup-gpu.md](docs/setup-gpu.md)
-- **Measure it** — [results.md](docs/results.md) (start here) · [benchmarking.md](docs/benchmarking.md) · [testbench-design.md](docs/testbench-design.md) · [testbench-results-layer1.md](docs/testbench-results-layer1.md) · [testbench-results-layer2-full9.md](docs/testbench-results-layer2-full9.md) · [benchmark-results.md](docs/benchmark-results.md)
+- **Measure it** — [results.md](docs/results.md) (start here) · [benchmarking.md](docs/benchmarking.md) · [testbench-design.md](docs/testbench-design.md) · [testbench-results-layer1.md](docs/testbench-results-layer1.md) · [testbench-results-layer2-full9-r2.md](docs/testbench-results-layer2-full9-r2.md) (current 9-arm record) · [testbench-results-layer2-full9.md](docs/testbench-results-layer2-full9.md) (earlier draw) · [benchmark-results.md](docs/benchmark-results.md)
 
 ## Contributing
 

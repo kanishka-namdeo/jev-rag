@@ -4,6 +4,65 @@ Milestone history for Jev-RAG. Each entry links to the commit that delivered it.
 Dates are YYYY-MM-DD (commit date). Format is loosely inspired by
 [Keep a Changelog](https://keepachangelog.com/), grouped by project phase.
 
+## 2026-10-04 — Layer-2 full-suite re-take: judge abstention defect found, ±5 pp noise floor measured
+
+The complete 9-arm Layer-2 suite was re-run end-to-end and is now the current record:
+[docs/testbench-results-layer2-full9-r2.md](docs/testbench-results-layer2-full9-r2.md)
+(+ `.json` twin), merged run **`4ec32592-dd81-45e5-92a7-9d5023f2b665`**, label
+`layer2-full9-r2 (merged)`. **882 triples** (9 arms × 98 questions × 5 public
+scenarios), **1 error row** kept visible (triviaqa `tq2`/`gate-jev`, Dashscope
+`ReadTimeout`), **$2.7905** of cloud spend, **3.31 h** of wall clock in one contiguous
+window (00:56→04:15 local) on 5 parallel workers, longest worker (musique) 197 min. Unlike
+the Oct-1 draw this one was not interrupted, so no worker needed a resume. Per-scenario run
+ids: squad `b5f535b4`, hotpotqa `5741e7b2`, triviaqa `fcf1b64f`, wiki2 `dbdd63fa`, musique
+`162a6caf`.
+
+- **Absolute `correctness`, cost and latency are not comparable with the Oct-1 draw
+  `36abefc6`, and this is not a regression.** The 2026-10-03 judge change (`db571bf`)
+  added an exception scoring a proper abstention as correctness 1.0 when a question is
+  "unanswerable" — and it is **over-applied** on this all-answerable suite: the judge reads
+  "the retrieved context lacks this" as "this question is unanswerable". Split by row type,
+  correctness on *answered* rows is flat across draws (`base` −0.2 pp) while correctness on
+  *abstained* rows went 0.04 → 0.76; 0 of the 29 `base` abstentions carried an empty
+  reference. The cost rise ($1.482 → $2.7905) is likewise a measurement fix — `db571bf`
+  added `sum_token_usage`, folding System-Two helper calls (decompose/rewrite/verify/best-of-2)
+  into per-row accounting the old draw omitted. **Paired Δ-vs-`base` values remain
+  comparable across draws**, and the record page carries the full audit.
+- **A ±5 pp noise floor, measured rather than assumed.** `no-verify` is a structural no-op on
+  the answer (citation verification runs *after* generation and nothing reads it), yet it
+  differs from `base` by **−5.3 pp** — a direct read of LLM-sampling plus judge noise, larger
+  than every arm effect except `gate-jev`. No arm delta smaller than that is interpretable on
+  this suite, and the floor is now stated as a repo-wide contract.
+- **The cross-encoder full-chunk fix is confirmed at the end-to-end layer.** Judge-independent
+  retrieval — the only cross-draw comparable metric family — shows `base` hit@1
+  0.9184 → **0.9388** and MRR 0.9439 → **0.9694**, with hit@4 now **1.0000**. That
+  independently reproduces the Layer-1 offline full-chunk prediction (+2.1/+2.2 pp) from a
+  real end-to-end run, two layers agreeing on the same fix.
+- **Still no arm beats `base`** at FDR q < 0.05 (every q = 1.000) — third draw running;
+  largest effect `gate-jev` +3.1 pp (p = 0.581). `always-hard` is once more pure cost:
+  −0.018 accuracy for **4.18×** median latency (73.9 s vs 17.7 s) and **2.64×** cost, the
+  third consecutive draw to show it. Gate coverage calibration: `base` acc 0.7347 /
+  Brier 0.2587 / ECE 0.2628 at the shipped θ = 0.6; `rerank-jev` best Brier 0.233;
+  `gate-jev` best ECE 0.2502. Over-abstention is still the dominant loss mode — `base`
+  declines 29/98 (29.6%), and 26/57 (45.6%) of multi-hop questions.
+- **Two operational facts recorded in
+  [docs/parallel-bench-runbook.md](docs/parallel-bench-runbook.md):** a *fresh* `data_par`
+  root leaves all five workers with an empty `fastembed_cache`, and five simultaneous HF
+  xet-bridge downloads of the ~235 MB embedder plus the 91 MB cross-encoder **deadlocked** on
+  this box (0-byte `.incomplete` files, no progress for 15 min, workers pinned at ~2 % CPU) —
+  fixed by fetching the cross-encoder once into the shared `~/.cache/huggingface` (its
+  `onnx/model.onnx` blob was missing, leaving a dangling symlink) and copying a warm 241 MB
+  cache into each worker dir. And a new full run must merge into a **second** `--out`
+  (`backend/data_merged_r2/app.db`): `_merge_par_run.py` rebuilds its output and mints a new
+  unified run id per call, which would have orphaned the already-published `36abefc6`.
+
+Why: the previous record's headline was a set of nulls, but nothing said how *large* a null
+is — and re-running the identical suite is what produced that number and exposed a judge
+defect that had been quietly inflating every abstention-heavy score since 2026-10-03. Both
+findings are now written down as contracts so the next draw starts from them: comparability
+is scoped to within-draw paired deltas, and every measured comparison needs its noise floor
+next to it.
+
 ## Unreleased — end-user docs layer, and defaults that match the privacy claim
 
 The docs were accurate but written for the person who built them. This branch put an end-user

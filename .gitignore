@@ -4,8 +4,8 @@ node_modules/
 # --- local state & secrets (Jev-RAG) ---
 backend/.env
 backend/data/
-backend/data_par/
-backend/data_merged/
+backend/data_par*
+backend/data_merged*
 models/
 vendor/
 logs/

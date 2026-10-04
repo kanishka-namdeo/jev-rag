@@ -78,16 +78,24 @@ ONNX embedder + cross-encoder (CPU — ONNX Runtime CUDA does not work under WSL
   and start as slots free rather than oversubscribing RAM.
 - Do not run this alongside the dev server, a browser, or a frontend rebuild.
 - The GPU is *not* the constraint (embedder and reranker are on CPU), so more workers do
-  scale wall-clock. Two full-power runs are measured on this box: the M11 4-arm run —
+  scale wall-clock. Three full-power runs are measured on this box: the M11 4-arm run —
   392 triples in ~2 h wall-clock across 5 workers versus ~5 h serial
-  ([testbench-results-hgate.md](testbench-results-hgate.md)) — and the complete Layer-2 9-arm
-  run — **882 triples** on the same 5 workers, ~3.6 h of compute, longest worker (musique)
-  212 min, 0 error rows, $1.482
-  ([testbench-results-layer2-full9.md](testbench-results-layer2-full9.md)). Its compute time
-  spans two windows because the box restarted WSL mid-run — that gap is §4's resume path
-  working, not a sizing limit.
-  Speedup is roughly 2.5–3× in practice, not 5× — the cloud LLM endpoint is the real
-  bottleneck, not the box.
+  ([testbench-results-hgate.md](testbench-results-hgate.md)) — and two complete Layer-2
+  9-arm runs, **882 triples each** on the same 5 workers:
+  - the Oct-1 draw, ~3.6 h of compute, longest worker (musique) 212 min, 0 error rows, $1.482
+    ([testbench-results-layer2-full9.md](testbench-results-layer2-full9.md)). Its compute
+    time spans two windows because the box restarted WSL mid-run — that gap is §4's resume
+    path working, not a sizing limit.
+  - the 2026-10-04 re-take, **one contiguous 3.31 h window** (00:56→04:15), longest worker
+    (musique) 197 min, 1 error row of 882, $2.7905
+    ([testbench-results-layer2-full9-r2.md](testbench-results-layer2-full9-r2.md)). That run
+    was not interrupted at all — no worker needed a resume — which is the sizing evidence
+    that the suite fits in a single `--window-minutes 600` launch when the box stays up.
+
+  Two consecutive draws of the identical suite therefore cost ~7 h of wall clock and ~$4.27
+  of cloud spend. Budget for that, and prefer a contiguous window over a resume: an
+  interrupted run costs the resume work on top of the same triples. Speedup is roughly
+  2.5–3× in practice, not 5× — the cloud LLM endpoint is the real bottleneck, not the box.
 
 ## Procedure
 
@@ -109,6 +117,21 @@ just produces error rows.
 Models must already be built (`scripts/setup_local_models.sh`). Stop the dev server so it
 does not hold a jev-score subprocess.
 
+**Warm the local-model caches before a fresh-root launch.** Each worker owns its own
+`fastembed_cache` (contract 1), so a *fresh* `--data-par` root means all five workers start
+cold and re-download the ~235 MB embedder **and** the 91 MB cross-encoder at the same time.
+On this box that deadlocked: five concurrent HF xet-bridge transfers sat at 0-byte
+`.incomplete` files with no progress for 15 min while the workers sat pinned at ~2 % CPU.
+Fix, in order:
+
+1. Make sure the cross-encoder exists once in the shared `~/.cache/huggingface`. A dangling
+   symlink there (blob missing) is what broke it — fetch it once, single-process, first.
+2. Copy one warm ~241 MB `fastembed_cache` into each worker's data dir.
+3. Then launch. Model load then takes ~2 min per worker instead of hanging.
+
+A `0/?` progress row in the first minutes is normal (§3) — but check for 0-byte
+`.incomplete` files before believing the run is merely slow.
+
 ### 2. Launch
 
 ```bash
@@ -122,8 +145,16 @@ bash scripts/run_parallel_bench.sh \
 bash scripts/run_parallel_bench.sh --driver testbench \
   --arms base,gate-jev,gate-none,always-hard,oracle-gate,rerank-jev,rerank-none,no-bestof,no-verify \
   --scenarios squad,hotpotqa,triviaqa,wiki2,musique \
-  --label layer2-full9 --max-per-scenario 0 --window-minutes 480 --max-parallel 5
+  --label layer2-full9-r2 --max-per-scenario 0 --window-minutes 600 --max-parallel 5 \
+  --data-par /mnt/d/test_jev/jev-rag/backend/data_par_20261004
 ```
+
+That is the exact command behind Layer-2 run `4ec32592`
+([testbench-results-layer2-full9-r2.md](testbench-results-layer2-full9-r2.md)):
+882 triples on 5 workers in one contiguous **3.31 h** window, so a
+`--window-minutes` of 600 leaves headroom over the ~3.3–3.6 h the 9-arm suite
+actually needs. Pass `--data-par` explicitly for any full-power run — a fresh
+root is what §1's cache-warming step has to run against.
 
 Flags: `--driver testbench|resume` (default `testbench`), `--arms`, `--scenarios`,
 `--label`, `--max-per-scenario N` (`0` = all), `--window-minutes N`, `--max-parallel N`
@@ -239,6 +270,22 @@ or analysis command is orphaned by re-running the merge — the analyzer answers
 `run <old-id> not found` and exits 1. Re-merge, then re-analyse with the id the merge just
 printed; never capture the id before a planned re-merge.
 
+**Merge a second full-power run into its own `--out` dir.** Because a merge rebuilds its
+output, pointing a new run's merge at the default `backend/data_merged/app.db` *destroys the
+previous draw's merged DB* and orphans its already-published run id `36abefc6`, making that
+record un-analysable. Give each full run its own output dir:
+
+```bash
+cd backend
+.venv/bin/python scripts/_merge_par_run.py --label "layer2-full9-r2 (merged)" \
+  --data-par /mnt/d/test_jev/jev-rag/backend/data_par_20261004 \
+  --out backend/data_merged_r2/app.db
+```
+
+then point §6's analyzer and plotter at that same dir. The 2026-10-04 re-take used exactly
+this (`backend/data_par_20261004` → `backend/data_merged_r2/app.db`), which is why
+`36abefc6` is still analysable in its own right.
+
 ### 6. Analyze and export
 
 ```bash
@@ -263,9 +310,10 @@ report needs it.
 
 ### 7. Cleanup
 
-`backend/data_par/` and `backend/data_merged/` are disposable — deleting them never
+`backend/data_par*/` and `backend/data_merged*/` are disposable — deleting them never
 touches `backend/data/`, which holds your documents and conversations. Keep
-`parallel_run_meta.json` until the merged run id is recorded in a results doc.
+`parallel_run_meta.json` until the merged run id is recorded in a results doc, and keep a
+published run's merged DB (§5) as long as its results page cites it.
 
 ## Failure modes worth knowing
 
@@ -279,6 +327,8 @@ touches `backend/data/`, which holds your documents and conversations. Keep
 | worker died but 3 of 5 scenarios say `completed` | the box slept or WSL restarted, not a harness fault — `uptime` inside WSL near 0 is the tell; resume only the `dead_incomplete` scenarios (§4) |
 | merge exits 0 but lists fewer scenarios than you ran | the last launch was a partial resume, so `workers[]` only names those scenarios (§4) — re-merge with explicit `--run-ids` for every scenario |
 | `analyze_testbench.py` says `run … not found` | the merged DB was rebuilt by a later `_merge_par_run.py` call, which mints a fresh unified run id each time — cite the id the **latest** merge printed |
+| a published run id stopped resolving right after a new merge | you merged the new run into the previous run's `--out` dir and overwrote it (§5) — each full run gets its own output dir; recover by re-merging the earlier run's worker DBs into a fresh dir |
+| all 5 workers sit at ~2 % CPU for 15 min with `0/?` and 0-byte `.incomplete` files | cold `fastembed_cache` in a fresh `--data-par` root — five concurrent HF xet-bridge downloads deadlocked (§1 warm-cache step) |
 
 ## Related
 

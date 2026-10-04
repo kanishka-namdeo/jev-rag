@@ -146,11 +146,12 @@ the local decisions — each Jev `decide()` call costs a second or two on CPU, a
 path stacks more of them (decompose, corrective retry, best-of-2 doubles the cloud
 generation). Numbers: traditional p50 ≈ 20 s, hybrid p50 ≈ 41 s on the 2-core sandbox
 ([hybrid-design.md — Latency profile](hybrid-design.md)); the `base` arm of Layer-2 run
-`36abefc6` on a 12-core workstation came in around 20 s p50
-([testbench-results-layer2-full9.md](testbench-results-layer2-full9.md)). The escalation
-gate keeps this machine-dependent: at the default threshold roughly 1-in-5 public-benchmark
-questions took the multi-step hard path in the published run — the other ~80% answered on
-the fast path. The embedder and cross-encoder are ONNX and run on **CPU** by default;
+`4ec32592` on a 12-core workstation came in at 17.7 s p50
+([testbench-results-layer2-full9-r2.md](testbench-results-layer2-full9-r2.md)). The escalation
+gate keeps this machine-dependent: at the default threshold 12% of public-benchmark
+questions took the multi-step hard path in that run (19% in the earlier draw
+`36abefc6`) — the rest answered on the fast path. The embedder and cross-encoder are ONNX and
+run on **CPU** by default;
 GPU acceleration is optional, and on WSL2 ONNX Runtime cannot use the GPU at all — it falls
 back to CPU silently
 ([setup-gpu.md — WSL2 GPU Limitation](setup-gpu.md#wsl2-gpu-limitation)).

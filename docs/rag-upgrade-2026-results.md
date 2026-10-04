@@ -120,7 +120,9 @@ acc 0.806 / Brier 0.148 / ECE 0.192 / FN-on-answerable 0.194.
 3. **The oracle gate undercuts base** (−3.4pp, n.s.) — inverting the
    pilot's "oracle ≥ base" expectation. **This verdict did not survive
    re-measurement:** the same arm in the full 9-arm suite `36abefc6` came in
-   at **+2.5pp**, a sign flip. Since neither draw is significant, the
+   at **+2.5pp**, a sign flip, and the 2026-10-04 re-take `4ec32592` at
+   **+1.1pp** — two sign changes across three draws of the same arm. Since no
+   draw is significant, the
    defensible statement is only that a perfect escalation decision is worth
    ~0 at n=98 — the MuSiQue rerank-regression interaction (see
    [testbench-results-layer1.md](testbench-results-layer1.md) §"Known
@@ -130,7 +132,114 @@ The pilot's conclusion is **superseded** by this full-power readout; the
 pilot remains visible here as the directional pre-declaration, with this
 section's verdict as the full-power correction.
 
-### Full Layer-2 suite (merged run `36abefc6`, 98Q × 9 arms = 882 triples, 2026-10-01)
+### Full Layer-2 suite — current record (merged run `4ec32592`, 98Q × 9 arms = 882 triples, 2026-10-04)
+
+The complete 9-arm suite re-run after the cross-encoder started scoring full
+chunks instead of 400-char prefixes (`rerank_char_limit=0`). Same 5 public
+scenarios, same generator/judge pair, 5 parallel workers, **one contiguous
+3.31 h window** (00:56→04:15 local, longest worker musique 197 min) — nothing
+was interrupted, so unlike the Oct-1 draw no worker needed a resume. 1 error
+row of 882 kept visible (triviaqa `tq2`/`gate-jev`, Dashscope `ReadTimeout`);
+$2.7905 of Dashscope API. Per-scenario run ids squad `b5f535b4`, hotpotqa
+`5741e7b2`, triviaqa `fcf1b64f`, wiki2 `dbdd63fa`, musique `162a6caf`; merged DB
+`backend/data_merged_r2/app.db` (a second output dir on purpose — the merge
+rebuilds its output and mints a new unified run id every call). Full readout
+with caveats and the three-draw reproducibility table:
+[testbench-results-layer2-full9-r2.md](testbench-results-layer2-full9-r2.md) +
+[.json](testbench-results-layer2-full9-r2.json) twin.
+
+**Read this before using any absolute number below.** The judge prompt changed
+in `db571bf`: it gained an exception scoring a proper abstention as correctness
+1.0 when the question is *unanswerable*, and the judge over-applies it on this
+all-answerable suite — it reads "the retrieved context lacks this" as "this
+question is unanswerable". Correctness **on questions the system answered** is
+flat across draws (`base` −0.2pp) while correctness **on abstained rows** went
+0.0385 → 0.7586 (`base` +72.0pp), and 0 of the 29 `base` abstentions carried an
+empty reference. So the pooled figures below are inflated by a harness defect,
+and **absolute `correctness`, absolute cost and absolute latency cannot be
+differenced against `36abefc6` or `67a1dc06`** — the cost is higher there only
+because `db571bf` also started folding System-Two helper calls into per-row
+accounting, which is a measurement fix, not a regression. Within-draw paired
+Δ vs `base` *is* comparable across draws. Full audit:
+[testbench-results-layer2-full9-r2.md](testbench-results-layer2-full9-r2.md)
+§"Read this before quoting any number on this page".
+
+| arm | corr | 95% CI | escalate | p50 ms | cost | Δacc vs base | CI95 | McNemar p | FDR q |
+|---|---|---|---|---|---|---|---|---|---|
+| gate-jev | **0.8737** | [0.79, 0.93] | 0.4388 | 31462.4 | 0.3276 | +0.031 | [−0.041, +0.103] | 0.581 | 1.000 |
+| oracle-gate | 0.8551 | [0.77, 0.91] | 0.3163 | 20746.0 | 0.2984 | +0.011 | [−0.061, +0.084] | 1.000 | 1.000 |
+| rerank-none | 0.8469 | [0.76, 0.91] | 1.0 | 71396.25 | 0.5641 | +0.003 | [−0.069, +0.071] | 1.000 | 1.000 |
+| **base** | **0.8444** | [0.76, 0.90] | 0.1224 | 17672.0 | 0.2162 | — | — | — | — |
+| gate-none | 0.8444 | [0.76, 0.90] | 0.0 | 17733.15 | 0.1635 | +0.000 | [−0.071, +0.071] | 1.000 | 1.000 |
+| always-hard | 0.8265 | [0.74, 0.89] | 1.0 | 73874.55 | 0.5701 | −0.018 | [−0.082, +0.043] | 1.000 | 1.000 |
+| no-bestof | 0.8163 | [0.73, 0.88] | 0.1224 | 18163.15 | 0.2085 | −0.028 | [−0.100, +0.043] | 0.791 | 1.000 |
+| rerank-jev | 0.8112 | [0.72, 0.88] | 0.2347 | 18612.3 | 0.2279 | −0.033 | [−0.112, +0.046] | 0.629 | 1.000 |
+| no-verify | 0.7918 | [0.70, 0.86] | 0.1224 | 17677.25 | 0.2143 | −0.053 | [−0.127, +0.020] | 0.332 | 1.000 |
+
+**Verdicts (negatives kept visible):**
+
+1. **Nothing is significant — for the third draw running.** Every q = 1.000 and
+   every paired CI crosses zero. Largest effect is `gate-jev` at +3.1pp.
+   **And the suite now has a measured noise floor of ±5pp**: `no-verify` runs
+   citation verification *after* generation with nothing downstream reading it,
+   so it is a structural no-op on the answer — its **−5.3pp** is a direct read of
+   LLM-sampling plus judge noise, and it is larger than every arm effect except
+   `gate-jev`. Nothing below ±5pp on this suite, in any draw, is interpretable.
+2. **H-VERIFY is the noise-floor instrument, not just a null.** H-SELECT remains
+   a plain null (`no-bestof` −2.8pp, inside the floor). Verification's real
+   finding is the floor itself: two structurally identical runs of `base`
+   differ by 5.3pp, which retrospectively demotes most single-delta readings in
+   this suite from "small effect" to "unmeasurable".
+3. **H-RERANK still contradicts the retrieval layer.** `rerank-none` ties `base`
+   (+0.3pp) at 4.04× median latency and 2.61× cost with *identical* retrieval
+   quality — hit@1 0.9388 both — and it escalates 100% of questions, so it is
+   really "RRF-only + always escalate". With the CE now on full chunks `base`
+   has the best hit@1 *and* best MRR of any arm and still gains nothing from
+   it end-to-end: the CE earns its place in the ranking, not in the answer.
+   This does not license removing it (it is the layer the v3 design is built on,
+   and it is what makes hit@4 = 1.0).
+4. **The gate's marginal value is +0.0pp — and the drift is the finding.** The
+   three-draw reproducibility table in
+   [testbench-results-layer2-full9-r2.md](testbench-results-layer2-full9-r2.md)
+   gives `oracle-gate` −3.6 / +2.5 / +1.1pp on identical arms and knobs: two
+   sign changes, never significant. Escalation itself fell (`base` escalates
+   12.2% here vs 19.4% on Oct-1), consistent with hit@4 reaching 1.0 and leaving
+   the gate less to fix. Do not quote an H-GATE arm delta from one run.
+5. **`gate-jev` is still the multi-hop specialist, at the same direction.**
+   +7.0pp over `base` on multi-hop (n=57) while losing 2.6pp on single-hop —
+   the Oct-1 draw read +10.5 / −4.9pp on the same split. The direction replicates
+   at roughly two thirds the magnitude, which puts it inside the ±5pp floor:
+   read it as a consistent direction, not an effect size. Its coverage
+   calibration is the suite's best ECE (0.2502), its answerability calibration
+   the worst (acc 0.66 at its own θ = 0.5).
+
+**Judge-independent evidence — the one thing this draw does confirm.** These
+metrics never pass through the LLM judge, so they *are* comparable across
+draws, and they confirm the full-chunk cross-encoder fix end-to-end: `base`
+hit@1 0.9184 → **0.9388**, MRR 0.9439 → **0.9694**, hit@4 now **1.0000** (all 98
+questions have a gold file in the final top-4). That independently reproduces
+the Layer-1 offline full-chunk prediction of +2.1/+2.2pp measured on 2026-10-03
+([testbench-results-layer1.md](testbench-results-layer1.md) §"Re-run
+2026-10-03"). Read `rerank-none`'s +5.1pp hit@1 as the retrieval-layer noise
+floor, not a gain: it runs no cross-encoder, so the fix cannot explain it.
+
+**Gate calibration and the loss mode.** On the retrieval-coverage basis
+`base` sits at acc 0.7347 / Brier 0.2587 / ECE 0.2628 at the shipped θ = 0.6 —
+closer to Layer-1's offline full-chunk calibration (acc 0.7245, Brier 0.269) than
+the Oct-1 draw's 0.271, as expected now that both layers feed the CE the same
+text. `rerank-jev` is the best-Brier gate (0.233); θ = 0.6 remains the right
+operating point. Over-abstention is still the dominant loss mode: `base` declines
+29/98 (29.6%) and 26/57 (45.6%) of multi-hop questions, all of them
+retrieval-coverage failures rather than gate errors.
+
+### Full Layer-2 suite — prior draw (merged run `36abefc6`, 98Q × 9 arms = 882 triples, 2026-10-01)
+
+The first complete suite, and the draw the 2026-10-04 re-take above supersedes.
+Kept as the record of the Oct-1 run and the pre-regression metric baseline —
+remember that its absolute `correctness`, cost and latency are **not**
+comparable with the re-take (different judge protocol). Its within-draw Δ vs
+`base` values remain valid, and finding 3 below is now the middle of a
+three-draw reproducibility series.
 
 The four M11 arms above are a subset. This run executed all nine pre-declared
 arms on the same 5 parallel-worker path, so H-RERANK, H-SELECT and H-VERIFY are
@@ -181,6 +290,15 @@ their original run ids — no scenario is split across runs.
    worst calibration in the suite (acc 0.633 / ECE 0.448 at its own θ = 0.5).
    The v2 regression and the v3 win condition live in the same arm; the split
    argues for a multi-hop-only gate, which is what v3 approximates with scores.
+
+**Status after the 2026-10-04 re-take:** finding 1 stands across three draws
+(all q = 1.000) and the suite now has a measured ±5pp noise floor; finding 2's
+H-VERIFY null became the instrument that measured it (`no-verify` at −5.3pp);
+finding 3 replicates at a tenth of the effect size (+0.3pp) and its "only CI
+excluding zero" caveat no longer applies now that the cross-encoder sees full
+chunks; finding 4's drift is now three draws with two sign changes on
+`oracle-gate`; finding 5 replicates in direction at two thirds the magnitude.
+None of the five was overturned, and none grew into an established effect.
 
 ## Cost of the whole M9 session
 
