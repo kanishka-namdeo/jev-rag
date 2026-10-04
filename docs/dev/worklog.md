@@ -4,6 +4,61 @@ Single shared work log for all agents working in this repo. Append-only; each
 section starts with `---`. Newest at top.
 
 ---
+Task ID: visual-refresh (2026-10-04)
+Agent: OpenCode session (owner's Windows workstation + WSL2 Ubuntu-24.04)
+Task: rebuild the repo's visual layer — banner, architecture diagrams, social card — and fix
+    the reference drift the diagram audit turned up.
+
+Work Log:
+- Fanned out three read-only audit subagents first (code-truth, diagram inventory,
+  narrative drift) rather than eyeballing. That is what caught the two things I would
+  otherwise have shipped: my own new topology diagram had the "only egress" label attached
+  to the **jev-score** edge instead of Dashscope, and my gate description repeated the
+  repo's own imprecision.
+- **Deleted the three matplotlib diagrams** (`v3-architecture-v2`, `escalation-gate-v2`,
+  `v3-results-chart` + `.svg`/`.mmd` siblings and `generate_diagrams.py`). They were
+  referenced by NOTHING user-facing — only the `docs/AGENTS.md` inventory — and commit
+  `aacbb90` had already decided "Mermaid in the README, not PNG diagrams". They were also
+  actively bad: an image-model artifact in **indigo/purple**, which the `src/AGENTS.md`
+  palette contract forbids outright (hybrid = emerald, traditional = sky/amber); overlapping
+  text (the Response card sat on top of the qwen box, legend swatches on top of cards); and
+  `generate_diagrams.py` baked in literals that match no published table (latency vectors
+  `850/720/600 ms` vs the real 30.5/58.3/40.9 s p50) plus a **false** "code default 0.5"
+  for a threshold that is 0.6. Their `.svg` siblings were worse — still v1 "Model Router"
+  and a 0.75 threshold, plus mojibake. ~1.1 MB of misleading weight gone.
+- **Banner rewritten** (`docs/assets/img/banner.svg`, hand-authored SVG, 6 KB). The old one
+  labelled the hybrid lane "Jev: rerank · gate" — v2 shape, since pointwise rerank moved to
+  the cross-encoder — and carried an empty `<text>` and a no-op `<rect>`. New one shows the
+  shared local index forking into both lanes and converging on ONE dashed cloud box, so the
+  local-first boundary is a picture rather than a sentence.
+- **All five `architecture.md` diagrams + the README one rewritten**, now on the repo palette
+  via `classDef`. Verified by RENDERING each one through mermaid 11 and looking at it, not by
+  assuming: caught a stray `)` parse error, the mislabelled egress edge, and an LR layout so
+  wide it would have shrunk to illegibility in GitHub's ~1012px column (README is now TD).
+  The ASCII "what runs where" box became Mermaid — box-drawing art does not reflow.
+- **Correctness fixes the audit forced on the diagrams:**
+  - gate decides on **top-1 only**; margin/mean/above-floor are trace-only. Both the diagram
+    and the prose said the gate "uses" all of them (`pipelines.py:711-713`).
+  - the corrective retry is **conditional** on a second gate reading, not an unconditional
+    hard-path step (`pipelines.py:508-509`); it is now an `opt` block.
+  - the component map no longer implies Jev sits in the rerank path (`CE --> JEV` was wrong).
+  - dropped `qwen3.6-plus` from the egress box: it is a price-table entry the pipeline never
+    calls.
+  - added the two hybrid **exit branches** the diagram never had — the `no_retrieval`
+    skip-retrieval fast path and the empty-retrieval early exit.
+- **Social card no longer leads with a superseded draw.** It advertised "+5.1pp correctness"
+  and "significant single-hop win" from run `16814bd5` while the current record `4ec32592`
+  says 0/9 arms beat baseline — and the root AGENTS.md bars differencing absolutes across
+  draws. Replaced with three durable facts (2 pipelines · 11 scenarios · the published
+  0/9 null). 421 KB, under GitHub's 1 MB cap.
+- Fixed the two references my deletion would have left dangling
+  (`scripts/AGENTS.md`, `backend/scripts/plot_testbench_arms.py`) and a DOX count that said
+  "four in architecture.md" when there are five.
+- Verified: all 7 mermaid blocks render (mermaid 11, via a throwaway /tmp harness — nothing
+  third-party written into the repo, so the app's no-external-URL contract holds),
+  `validate_docs.py` exit 0, `bun run lint` clean, 173 backend tests pass.
+
+---
 Task ID: readme-screenshots (2026-10-04)
 Agent: OpenCode session (owner's Windows workstation + WSL2 Ubuntu-24.04)
 Task: refresh the four live-browser UI screenshots the README and docs/usage.md embed.

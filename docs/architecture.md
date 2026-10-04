@@ -1,43 +1,37 @@
 # Architecture
 
-> **TL;DR**: Jev-RAG runs two RAG pipelines side by side: a traditional embedding-retrieval path and a hybrid path where a local decision model ([Jev](glossary.md)) reranks passages, gates context sufficiency, and routes between cloud models. Everything except the cloud LLM endpoint runs on-device.
+> **TL;DR**: Jev-RAG runs two RAG pipelines side by side over one shared retrieval stack:
+> a **traditional** path (BM25 + dense → RRF → cross-encoder rerank → one cloud call) and a
+> **hybrid** path that adds a local 0.8B decision model for three relative judgments — effort
+> routing, best-of-2 selection, citation verification — plus a score-feature
+> [escalation gate](glossary.md) that decides *after* retrieval whether a question needs the
+> expensive path. Everything except the cloud LLM endpoint runs on-device.
 
 Jev-RAG is a local-first hybrid [RAG](glossary.md) system: everything except the cloud LLM endpoint runs
-on-device.
+on-device. It is currently the **v3** pipeline; the v1 and v2 pipeline shapes are kept as
+history in [hybrid-design.md](hybrid-design.md), not described here.
 
 ```mermaid
 flowchart LR
-  subgraph Browser
-    UI[Next.js 16 UI<br/>chat · trace · documents]
-  end
-  subgraph NextServer[Next.js server :3000]
-    RW[/backend-api rewrite/]
-    ENS[ensure-backend route<br/>self-healing launcher]
-  end
-  subgraph FastAPI[FastAPI :8000]
-    CHAT[chat pipelines]
-    ING[ingestion]
-    DB[(SQLite<br/>docs · conversations · traces)]
-    VS[(ChromaDB<br/>embedded vectors)]
-    EMB[fastembed ONNX<br/>sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2]
-    BM25[BM25 lexical index<br/>rebuilt from Chroma]
-    CE[cross-encoder rerank<br/>Xenova/ms-marco-MiniLM-L-6-v2 ONNX CPU]
-    JEVL[jev-style 0.8B GGUF<br/>+ jev-score / llama.cpp]
-    LLM[Dashscope endpoint<br/>qwen3.7-plus · qwen3.6-plus]
-  end
+  UI["Next.js 16 UI<br/>chat · trace · documents · lab"] --> RW["/backend-api/*<br/>rewrite"] --> API["FastAPI :8000<br/><b>traditional</b> | <b>hybrid</b> pipelines"]
+  ING["ingestion<br/>markitdown · chunk · embed"] --> RET
+  API --> RET["retrieval<br/>BM25 ‖ dense → RRF k=60<br/>cross-encoder rerank → top-4"]
+  API --> JEV["jev-score · llama.cpp<br/>Jev-style 0.8B GGUF Q4_K_M"]
+  API --> DB[("ChromaDB vectors<br/>SQLite docs · traces")]
+  API -->|"the only call that leaves"| LLM["Dashscope<br/>qwen3.7-plus"]
 
-  UI --> RW --> CHAT
-  UI --> ENS
-  ENS -.spawns.-> FastAPI
-  CHAT --> EMB --> VS
-  CHAT --> BM25
-  CHAT --> CE
-  CHAT --> JEVL
-  CHAT --> LLM
-  ING --> EMB --> VS
-  ING --> DB
-  CHAT --> DB
+  classDef local fill:#0b1310,stroke:#10b981,color:#e4e4e7
+  classDef edge fill:#0c1218,stroke:#0ea5e9,color:#e4e4e7
+  classDef store fill:#111114,stroke:#3f3f46,color:#e4e4e7
+  classDef cloud fill:#0f1115,stroke:#a1a1aa,color:#e4e4e7
+  class UI,RW,API,ING,RET,JEV local
+  class DB store
+  class LLM cloud
 ```
+
+If the backend is down, the Next.js `/api/ensure-backend` route re-spawns it detached
+([`src/app/api/ensure-backend/route.ts`](../src/app/api/ensure-backend/route.ts)) —
+that self-healing hop is left out of the diagram to keep the request path readable.
 
 ## Components
 
@@ -71,7 +65,7 @@ sequenceDiagram
     participant Dense
     participant RRF
     participant CrossEncoder
-    
+
     User->>FastAPI: Query
     par Parallel retrieval
         FastAPI->>BM25: BM25 top-N
@@ -79,8 +73,8 @@ sequenceDiagram
     end
     BM25-->>RRF: Candidates
     Dense-->>RRF: Candidates
-    RRF->>CrossEncoder: Fused candidates
-    CrossEncoder-->>FastAPI: Reranked top_k_use
+    RRF->>CrossEncoder: Fused candidates (k=60)
+    CrossEncoder-->>FastAPI: Reranked top_k_use (4)
 ```
 
 **Indexing pipeline:** markitdown → structure-aware split (headings, ~900/140 preserved) → contextual prefix ("doc title — section") into chunk text → [dense embed](glossary.md) (fastembed) into Chroma (cosine) → [BM25](glossary.md) index over the same chunks (rebuilt lazily from Chroma contents).
@@ -95,14 +89,14 @@ sequenceDiagram
     participant FastAPI
     participant Retrieval
     participant CloudLLM
-    
+
     User->>FastAPI: Query
     FastAPI->>Retrieval: RRF retrieval
     Retrieval-->>FastAPI: Candidates
     FastAPI->>FastAPI: Cross-encoder rerank → top-4
     FastAPI->>CloudLLM: One call with context
     CloudLLM-->>FastAPI: Answer with citations
-    FastAPI-->>User: Response
+    FastAPI-->>User: Response (no local model, no gate)
 ```
 
 RRF retrieval → cross-encoder rerank → top-4 → **one** cloud call → answer with citations.
@@ -114,44 +108,50 @@ No local LLM anywhere.
 sequenceDiagram
     participant User
     participant FastAPI
-    participant Jev
+    participant Jev as Jev 0.8B (local)
     participant Retrieval
     participant Gate
     participant CloudLLM
-    
+
     User->>FastAPI: Query
-    par Concurrent
-        FastAPI->>Jev: Effort routing (chat vs doc)
-        FastAPI->>Retrieval: RRF retrieval
+    par Concurrent, not sequential
+        FastAPI->>Jev: Effort routing — chat vs doc
+        FastAPI->>Retrieval: RRF retrieval (BM25 ‖ dense)
     end
     Retrieval-->>FastAPI: Candidates
-    FastAPI->>FastAPI: Cross-encoder rerank
-    FastAPI->>Gate: Score-feature gate (top-1 ≥ θ?)
-    
-    alt Easy path (score ≥ θ)
-        Gate-->>FastAPI: Pass
-        FastAPI->>CloudLLM: One call
-        CloudLLM-->>FastAPI: Answer
-        FastAPI->>Jev: Citation verification
-        Jev-->>FastAPI: Verified
-    else Hard path (score < θ)
-        Gate-->>FastAPI: Fail
-        FastAPI->>CloudLLM: Decompose query
+    FastAPI->>FastAPI: Cross-encoder rerank → top-4
+    FastAPI->>Gate: Top-1 rerank score vs θ (0.6)
+
+    alt Easy path — top-1 ≥ θ
+        Gate-->>FastAPI: pass
+        FastAPI->>CloudLLM: One call with top-4
+        CloudLLM-->>FastAPI: Answer with [n] citations
+        FastAPI->>Jev: Citation verification per [n]
+        Jev-->>FastAPI: supports / contradicts / says-nothing
+    else Hard path — top-1 < θ
+        Gate-->>FastAPI: escalate
+        FastAPI->>CloudLLM: Decompose into sub-queries
         CloudLLM-->>FastAPI: Sub-queries
         FastAPI->>Retrieval: Per-sub-query RRF
         Retrieval-->>FastAPI: Candidates
         FastAPI->>FastAPI: Rerank
-        Note over FastAPI: Optional battery (OFF by default)
-        FastAPI->>CloudLLM: CRAG corrective retry
-        CloudLLM-->>FastAPI: Retry answer
-        FastAPI->>CloudLLM: Best-of-2 candidates (concurrent)
-        CloudLLM-->>FastAPI: 2 candidates
+        Note over FastAPI,Jev: Passage battery — OFF by default
+        FastAPI->>Gate: Second reading
+        opt Second reading also fails
+            FastAPI->>CloudLLM: Corrective retry — rewrite query, re-retrieve
+            CloudLLM-->>FastAPI: Retry answer
+        end
+        par Concurrent
+            FastAPI->>CloudLLM: Candidate A (thinking off)
+            FastAPI->>CloudLLM: Candidate B (thinking on)
+        end
         FastAPI->>Jev: Best-of-2 selection
         Jev-->>FastAPI: Selected candidate
-        FastAPI->>Jev: Citation verification
-        Jev-->>FastAPI: Verified
+        FastAPI->>Jev: Citation verification per [n]
+        Jev-->>FastAPI: supports / contradicts / says-nothing
     end
-    FastAPI-->>User: Response + composite quality
+    FastAPI->>FastAPI: Composite quality 0.4·asked + 0.4·supported + 0.2¬contradicts
+    FastAPI-->>User: Streamed answer + citations + full trace
 ```
 
 **Effort routing** ([Jev](glossary.md), concurrent with retrieval): decides chat vs doc, P≥0.9 fast path, validated 0.76–0.96 vs ≤0.17 separation.
@@ -161,12 +161,15 @@ sequenceDiagram
 **Hard path** (gate fails: score < θ): cloud decompose → per-sub-query RRF retrieval → rerank → optional passage battery (OFF by default) → CRAG corrective retry (1) → best-of-2 (Jev selects — relative judgment) → one cloud call → Jev citation verification → composite quality.
 
 **Score-feature escalation gate.** The gate decides whether a question needs the
-expensive hard path *after* cheap retrieval, not before. It uses calibrated signals
-available after retrieval: top-1 cross-encoder score (primary), top1−top2 margin,
-top-k mean, count-above-floor. Threshold θ is calibrated on labeled eval data
-(gold-in-top-4) using Youden J. This replaces the v2 absolute sufficiency gate
-which asked the 0.8B model for a yes/no judgment — a task the calibration literature
-and our own measurements showed it could not do reliably.
+expensive hard path *after* cheap retrieval, not before. It reads the calibrated signals
+available after retrieval and **escalates iff the top-1 cross-encoder score is below θ**
+(shipped default 0.6, `app/config.py` `gate_score_threshold`). Four further features —
+top1−top2 margin, top-k mean, count-above-floor, and the top-2 score itself — are
+computed and shipped in the trace for inspection, but they do **not** enter the verdict.
+θ is calibrated offline on labeled eval data (gold-in-top-4); that calibration is a
+`backend/scripts/eval_retrieval.py` path, not a runtime one. This replaces the v2 absolute
+sufficiency gate which asked the 0.8B model for a yes/no judgment — a task the calibration
+literature and our own measurements showed it could not do reliably.
 
 **Jev re-placement (evidence-driven).** v3 limits Jev to three relative judgments
 where small models perform well: effort routing (chat vs doc), best-of-2 selection
@@ -177,26 +180,29 @@ to cross-encoder and score-features respectively.
 **Composite quality score** in code: 0.4·answers_request + 0.4·citations_supported +
 0.2·¬contradicts_context; message + full trace persisted, every decision in the UI trace panel.
 
+**Two hybrid branches the diagram above leaves out, because they are exits rather than
+stages.** (1) Effort routing can return `no_retrieval` with P ≥ 0.9 — a chat-style question
+that needs no passage at all — in which case the pipeline answers from one cloud call with
+an explicit "no passages" context and returns, skipping rerank, gate and verification.
+(2) If retrieval returns nothing, it answers the same way and returns. Both are in
+`backend/app/rag/pipelines.py`; the trace panel shows them as a `routing` event with
+`direct: true`.
+
 ## What runs where?
 
 Jev-RAG is designed to run entirely on your local machine, with only the cloud LLM endpoint external. Here's the topology:
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│  Your browser (localhost:3000)                              │
-│    ↓ HTTP/SSE                                               │
-│  Next.js dev server (:3000)                                 │
-│    ↓ /backend-api/* rewrite                                 │
-│  FastAPI backend (:8000)                                    │
-│    ├─→ ChromaDB (embedded vectors, local SQLite)            │
-│    ├─→ fastembed (ONNX CPU, embeddings)                     │
-│    ├─→ BM25 index (in-memory, rebuilt from Chroma)          │
-│    ├─→ cross-encoder (ONNX CPU, reranking)                  │
-│    ├─→ jev-score subprocess (llama.cpp, 0.8B GGUF)          │
-│    └─→ Dashscope endpoint (cloud LLM: qwen3.7-plus)  ←──┐  │
-└───────────────────────────────────────────────────────────┼──┘
-                                                            │
-                              External network (HTTPS) ←─────┘
+```mermaid
+flowchart LR
+  BR["your browser"] -->|"HTTP + SSE"| N["Next.js :3000<br/>/backend-api/* rewrite"]
+  N --> F["FastAPI :8000"]
+  F --> L["<b>on your machine</b><br/>ChromaDB · SQLite<br/>embedder · BM25 · cross-encoder<br/>jev-score (llama.cpp)"]
+  F -->|"HTTPS — the only egress"| D["<b>off your machine</b><br/>Dashscope<br/>qwen3.7-plus"]
+
+  classDef local fill:#0b1310,stroke:#10b981,color:#e4e4e7
+  classDef cloud fill:#0f1115,stroke:#a1a1aa,color:#e4e4e7
+  class BR,N,F,L local
+  class D cloud
 ```
 
 **On this system (Windows + WSL2):**

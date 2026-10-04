@@ -118,12 +118,24 @@
 - `benchmark-public.md` + `benchmark-public-wave2.md` — the two public-benchmark run
   reports (SQuAD/HotpotQA wave 1; TriviaQA/2Wiki/MuSiQue wave 2) with statistics and
   loss taxonomy; regenerated curated sections after each public run
-- `assets/img/` — README banner + UI screenshots + architecture/benchmark visualizations.
-  Inventory: `banner.svg`, the four live-browser UI shots (`bench-lab.png`,
-  `bench-charts.png`, `chat-compare.png`, `trace-panel.png`), the three
-  `generate_diagrams.py` PNGs (`v3-architecture-v2.png`, `escalation-gate-v2.png`,
-  `v3-results-chart.png`) and their `.mmd`/`.svg` siblings, `layer2-arm-results.png`,
-  and `social-preview.png` (rendered by `scripts/render_social_preview.py`).
+- `assets/img/` — README banner + UI screenshots + the one measured results chart.
+  Inventory: `banner.svg` (hand-authored SVG, the README hero — its own source, edit it
+  directly), the four live-browser UI shots (`bench-lab.png`, `bench-charts.png`,
+  `chat-compare.png`, `trace-panel.png`), `layer2-arm-results.png`, and
+  `social-preview.png` (rendered by `scripts/render_social_preview.py`).
+  **Architecture and pipeline diagrams are Mermaid blocks in the Markdown, not images here**
+  — `README.md` "How it works", and five in `architecture.md` (component map, shared
+  retrieval stack, traditional arm, hybrid arm, local-vs-cloud topology). That is deliberate: GitHub
+  renders Mermaid natively, so a diagram is diffable text that cannot silently drift from
+  the prose next to it, and it costs no binary weight. Commit `aacbb90` made that switch;
+  the last three matplotlib PNGs (`v3-architecture-v2`, `escalation-gate-v2`,
+  `v3-results-chart`, plus `.mmd`/`.svg` siblings and their `generate_diagrams.py`
+  producer) were unreferenced leftovers and were removed 2026-10-04. Do not reintroduce
+  generated diagram images; put the diagram in Mermaid next to the prose that owns it.
+  Keep Mermaid diagrams inside the repo palette (`src/AGENTS.md`: emerald = hybrid,
+  sky/amber = traditional, zinc = neutrals, no indigo) and keep them free of benchmark
+  numbers — a number in a diagram needs a run id beside it or it will outlive its draw.
+  `banner.svg` carries no numbers for the same reason.
   UI shots are regenerable only from the live app (live-browser capture, not mocks);
   refresh them after any UI change that alters what the README shows. The regeneration
   path is `scripts/capture_ui_screenshots.py` (Playwright against a running stack —
@@ -133,19 +145,12 @@
   `summary` — so `bench-charts.png` needs one in the data dir the backend serves. Capture
   from a production build (`bun run build && bun run start`): `next dev` paints its
   dev-tools badge into every shot.
-  Diagram PNGs (`v3-architecture-v2.png`, `escalation-gate-v2.png`, `v3-results-chart.png`)
-  are produced by `assets/img/generate_diagrams.py` — a reproducible matplotlib script
-  (run it **from** `docs/assets/img/`, its output filenames are CWD-relative), not an
-  image-model artifact. Its numbers are **illustrative literals**, not measured results,
-  so do not cite the PNG as evidence.
-  `layer2-arm-results.png` is the exception: `backend/scripts/plot_testbench_arms.py`
-  renders it from a merged testbench run's DB, so every number on it is measured — unlike the
-  three `generate_diagrams.py` PNGs above, whose literals are illustrative. It illustrates
-  Layer-2 run `4ec32592`; regenerate it from the run the page documents, never hand-edit it,
-  and re-render it whenever the record page changes run.
-  The sibling `.mmd`/`.svg` files are documentation-only — nothing in the repo renders
-  them (no `mmdc`/graphviz on this box), so treat the PNG as the source of truth and keep
-  the `.mmd` text consistent with `generate_diagrams.py` by hand when either changes.
+  `layer2-arm-results.png` is the one **measured** image: `backend/scripts/plot_testbench_arms.py`
+  renders it from a merged testbench run's DB, so every number on it is measured. It
+  illustrates Layer-2 run `4ec32592`; regenerate it from the run the page documents, never
+  hand-edit it, and re-render it whenever the record page changes run. Its absolutes are
+  valid only inside that one draw — the ±5 pp noise floor and the no-cross-draw rule in the
+  root `AGENTS.md` apply to it like any other published figure.
 - `dev/` — append-only engineering diaries (the per-task `worklog.md`, dated status
   snapshots); own DOX in `dev/AGENTS.md`. Not durable docs and not end-user docs. The
   repo-root `worklog.md` was deliberately relocated here — it is intentionally absent from

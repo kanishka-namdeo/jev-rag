@@ -54,9 +54,10 @@
 - `backend/scripts/plot_testbench_arms.py` — renders the Layer-2 arm chart **from a merged
   run's DB** by reusing `analyze_testbench.analyze()`, so the PNG cannot drift from the
   report it illustrates (correctness + Wilson CI + Δ/q, p50 latency, escalation rate, cost).
-  Needs `matplotlib` (declared in `backend/requirements.txt`). Unlike
-  `docs/assets/img/generate_diagrams.py`, which carries illustrative hardcoded numbers,
-  every figure here is measured.
+  Needs `matplotlib` (declared in `backend/requirements.txt`). It is the **only** generated
+  chart in the repo and every figure on it is measured — architecture and pipeline diagrams
+  are Mermaid in the Markdown instead, so there is no illustrative-number image left to
+  mistake for a result.
   Usage: `JEVRAG_DATA_DIR=data_merged_r2 .venv/bin/python scripts/plot_testbench_arms.py RUN_ID --out ../docs/assets/img/layer2-arm-results.png`
   (point `JEVRAG_DATA_DIR`/`--base` at the merged DB of the run the record page documents —
   currently `backend/data_merged_r2` for run `4ec32592`; re-render whenever that run changes)

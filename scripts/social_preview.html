@@ -59,15 +59,15 @@
   <div class="wrap">
     <div class="eyebrow">Local-first · Open Source (Apache-2.0)</div>
     <h1>Jev<span class="accent">-RAG</span></h1>
-    <div class="tagline"><b>Two RAG pipelines</b>, one app — and a benchmark lab that measures
-      exactly what the <b>hybrid</b> adds.</div>
+    <div class="tagline"><b>Two RAG pipelines</b> over your own documents — and a benchmark lab
+      that measures exactly what the <b>hybrid</b> adds.</div>
 
     <div class="stats">
-      <div class="stat"><div class="n">+5.1pp</div><div class="l">correctness vs traditional RAG, pooled on 98 public questions — not significant (p = 0.065)</div></div>
-      <div class="stat"><div class="n">+9.8pp</div><div class="l">significant single-hop win (n = 41, p = 0.048) · multi-hop +1.8pp, n.s.</div></div>
-      <div class="stat sky"><div class="n">0 / 9</div><div class="l">Layer-2 arms beat base at FDR q &lt; 0.05 · 882-triple null, published (3 draws)</div></div>
+      <div class="stat sky"><div class="n">2</div><div class="l">pipelines over one local index — run either, or run both side by side</div></div>
+      <div class="stat"><div class="n">11</div><div class="l">shipped benchmark scenarios · 9-arm Layer-2 suite, 882 triples per draw</div></div>
+      <div class="stat sky"><div class="n">0 / 9</div><div class="l">Layer-2 arms beat the baseline at FDR q &lt; 0.05 — the null is published too</div></div>
     </div>
-    <div class="footnote">Runs 16814bd5 &amp; 4ec32592 · the hybrid also abstains less (25.5% vs 35.7%) and costs less ($0.148 vs $0.165 / suite) · full record: docs/results.md</div>
+    <div class="footnote">What the hybrid adds is mechanism, not a guaranteed win — extra local decisions, recovery on the hard path, citation verification. Current record 4ec32592 · noise floor ±5 pp · full record: docs/results.md</div>
 
     <div class="footer">
       <span class="dot" style="background:#38bdf8"></span><span>Traditional</span>

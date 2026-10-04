@@ -80,16 +80,25 @@ What the hybrid adds is **mechanism, not a guaranteed win**: extra local decisio
 ## How it works
 
 ```mermaid
-flowchart LR
-    D[Documents] --> P[parse + chunk + embed]
-    P --> V[(ChromaDB<br/>dense + BM25)]
-    Q[Question] --> R[retrieve + cross-encoder rerank]
+flowchart TD
+    D["Documents"] --> P["parse · chunk · embed"]
+    P --> V[("ChromaDB<br/>dense + BM25")]
+    Q["Question"] --> R["retrieve · cross-encoder rerank"]
     V --> R
-    R --> F{escalation gate<br/>score features}
-    F -->|easy| T[cloud LLM]
-    F -->|hard ~1-in-5| H[decompose -> retry -> best-of-2 -> citation check] --> T
-    T --> S[stream + citations + trace]
-    F -.decisions.-> J[local 0.8B model]
+    R --> F{"escalation gate<br/>decides on top-1 score"}
+    F -->|"easy — one call"| L["cloud LLM<br/>qwen3.7-plus"]
+    F -->|"hard — ~1 in 5"| H["decompose · retry · best-of-2"]
+    H --> L
+    L --> S["streamed answer + [n] citations + trace"]
+    J["local 0.8B Jev model<br/>effort · select · verify"] -.-> F
+    J -.-> H
+
+    classDef local fill:#0b1310,stroke:#10b981,color:#e4e4e7
+    classDef neutral fill:#111114,stroke:#3f3f46,color:#e4e4e7
+    classDef cloud fill:#0f1115,stroke:#a1a1aa,color:#e4e4e7
+    class D,P,V,Q,R,F,H,J local
+    class S neutral
+    class L cloud
 ```
 
 *Both pipelines share the retrieval stack; the hybrid gates on calibrated retrieval scores and only spends the heavy path where it might pay.*

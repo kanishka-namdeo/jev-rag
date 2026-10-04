@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Render the Layer-2 arm chart straight from a merged testbench run.
 
-The static docs/assets/img/generate_diagrams.py numbers are illustrative; this script
-takes its figures from analyze_testbench.analyze(), so the PNG can never drift from
-the Markdown report generated in the same pass (docs/parallel-bench-runbook.md §6).
+This script takes its figures from analyze_testbench.analyze(), so the PNG can never
+drift from the Markdown report generated in the same pass
+(docs/parallel-bench-runbook.md §6). It is the only generated chart in the repo —
+architecture and pipeline diagrams are Mermaid in the Markdown.
 
 Usage (from backend/, merged DB as the data dir):
   JEVRAG_DATA_DIR=data_merged .venv/bin/python scripts/plot_testbench_arms.py RUN_ID \

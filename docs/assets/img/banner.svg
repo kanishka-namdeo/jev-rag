@@ -1,57 +1,90 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="320" viewBox="0 0 1280 320" role="img" aria-label="Jev-RAG: local-first hybrid RAG">
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="320" viewBox="0 0 1280 320" role="img" aria-label="Jev-RAG: local-first hybrid RAG over your own documents">
+  <title>Jev-RAG — local-first hybrid RAG</title>
+  <desc>Two RAG pipelines over one local index: a traditional retrieval path and a hybrid path that adds a local 0.8B decision model. Both end in one cloud LLM call; everything else runs on your machine.</desc>
+
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#0b1220"/>
-      <stop offset="1" stop-color="#101a2e"/>
+      <stop offset="0" stop-color="#09090b"/>
+      <stop offset="0.55" stop-color="#0c0d11"/>
+      <stop offset="1" stop-color="#0a0f14"/>
     </linearGradient>
-    <linearGradient id="hyb" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0" stop-color="#10b981"/>
-      <stop offset="1" stop-color="#34d399"/>
+    <linearGradient id="emerald" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#059669"/>
+      <stop offset="1" stop-color="#10b981"/>
+    </linearGradient>
+    <linearGradient id="sky" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#0284c7"/>
+      <stop offset="1" stop-color="#0ea5e9"/>
     </linearGradient>
   </defs>
 
-  <rect width="1280" height="320" rx="18" fill="url(#bg)" stroke="#1e293b" stroke-width="2"/>
+  <rect width="1280" height="320" rx="18" fill="url(#bg)" stroke="#27272a" stroke-width="1.5"/>
 
-  <!-- left: wordmark -->
-  <text x="64" y="132" font-family="ui-sans-serif,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif" font-size="58" font-weight="700" fill="#f8fafc">Jev-RAG</text>
-  <text x="66" y="172" font-family="ui-sans-serif,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif" font-size="22" fill="#94a3b8">local-first hybrid RAG</text>
-  <text x="66" y="202" font-family="ui-sans-serif,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif" font-size="18" fill="#64748b">two pipelines · one interface · fully benchmarked</text>
+  <!-- ── left: identity ─────────────────────────────────────────── -->
+  <text x="64" y="74" font-family="ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif"
+        font-size="14" font-weight="600" letter-spacing="2.6" fill="#10b981">LOCAL-FIRST HYBRID RAG</text>
 
-  <!-- legend -->
-  <circle cx="76" cy="252" r="7" fill="#38bdf8"/>
-  <text x="92" y="258" font-family="ui-sans-serif,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif" font-size="16" fill="#cbd5e1">Traditional</text>
-  <circle cx="206" cy="252" r="7" fill="url(#hyb)"/>
-  <text x="222" y="258" font-family="ui-sans-serif,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif" font-size="16" fill="#cbd5e1">Hybrid · Jev-style</text>
+  <text x="62" y="150" font-family="ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif"
+        font-size="64" font-weight="700" letter-spacing="-1.6" fill="#fafafa">Jev-RAG</text>
 
-  <!-- right: pipeline motif -->
-  <!-- shared ingestion column -->
-  <rect x="640" y="120" width="120" height="80" rx="10" fill="#111a2e" stroke="#334155" stroke-width="1.5"/>
-  <text x="700" y="153" text-anchor="middle" font-family="ui-monospace,'SF Mono',Menlo,Consolas,monospace" font-size="14" fill="#e2e8f0">your docs</text>
-  <text x="700" y="174" text-anchor="middle" font-family="ui-monospace,'SF Mono',Menlo,Consolas,monospace" font-size="12" fill="#64748b">embed · ChromaDB</text>
+  <text x="64" y="192" font-family="ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif"
+        font-size="20" fill="#a1a1aa">Two RAG pipelines, one interface —</text>
+  <text x="64" y="220" font-family="ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif"
+        font-size="20" fill="#e4e4e7">and a lab that measures what the hybrid adds.</text>
 
-  <!-- fork lines -->
-  <path d="M760 160 C 790 160, 790 84, 820 84" fill="none" stroke="#38bdf8" stroke-width="2.5"/>
-  <path d="M760 160 C 790 160, 790 236, 820 236" fill="none" stroke="#10b981" stroke-width="2.5"/>
+  <!-- pills -->
+  <g>
+    <rect x="64" y="248" width="196" height="30" rx="15" fill="#111114" stroke="#27272a" stroke-width="1.2"/>
+    <circle cx="82" cy="263" r="4.5" fill="#10b981"/>
+    <text x="96" y="268" font-family="ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif"
+          font-size="13.5" fill="#d4d4d8">Local 0.8B decisions</text>
 
-  <!-- traditional lane -->
-  <rect x="822" y="56" width="150" height="56" rx="9" fill="#0c1626" stroke="#38bdf8" stroke-width="1.6"/>
-  <text x="897" y="80" text-anchor="middle" font-family="ui-monospace,'SF Mono',Menlo,Consolas,monospace" font-size="13" fill="#7dd3fc">top-4 → cloud LLM</text>
-  <text x="897" y="98" text-anchor="middle" font-family="ui-monospace,'SF Mono',Menlo,Consolas,monospace" font-size="11" fill="#64748b">qwen3.7-plus</text>
-  <line x1="972" y1="84" x2="1010" y2="84" stroke="#38bdf8" stroke-width="2.5"/>
-  <rect x="1012" y="56" width="118" height="56" rx="9" fill="#38bdf8"/>
-  <text x="1071" y="88" text-anchor="middle" font-family="ui-monospace,'SF Mono',Menlo,Consolas,monospace" font-size="13" font-weight="600" fill="#082032">cited answer</text>
+    <rect x="272" y="248" width="200" height="30" rx="15" fill="#111114" stroke="#27272a" stroke-width="1.2"/>
+    <circle cx="290" cy="263" r="4.5" fill="#0ea5e9"/>
+    <text x="304" y="268" font-family="ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif"
+          font-size="13.5" fill="#d4d4d8">One cloud LLM call</text>
+  </g>
 
-  <!-- hybrid lane -->
-  <rect x="822" y="208" width="150" height="56" rx="9" fill="#0c1626" stroke="#10b981" stroke-width="1.6"/>
-  <text x="897" y="232" text-anchor="middle" font-family="ui-monospace,'SF Mono',Menlo,Consolas,monospace" font-size="13" fill="#6ee7b7">Jev: rerank · gate</text>
-  <text x="897" y="250" text-anchor="middle" font-family="ui-monospace,'SF Mono',Menlo,Consolas,monospace" font-size="11" fill="#64748b">route · verify (local)</text>
-  <line x1="972" y1="236" x2="1010" y2="236" stroke="#10b981" stroke-width="2.5"/>
-  <rect x="1012" y="208" width="118" height="56" rx="9" fill="url(#hyb)"/>
-  <text x="1071" y="232" text-anchor="middle" font-family="ui-monospace,'SF Mono',Menlo,Consolas,monospace" font-size="12.5" font-weight="600" fill="#052e21">verified answer</text>
-  <text x="1071" y="250" text-anchor="middle" font-family="ui-monospace,'SF Mono',Menlo,Consolas,monospace" font-size="10.5" fill="#064e3b">groundedness badge</text>
+  <!-- ── right: the two pipelines ───────────────────────────────── -->
+  <g font-family="ui-monospace,SFMono-Regular,'SF Mono',Menlo,Consolas,'Liberation Mono',monospace">
 
-  <!-- cloud / local bracket -->
-  <text x="1152" y="76" font-family="ui-monospace,'SF Mono',Menlo,Consolas,monospace" font-size="10" fill="#475569" transform="rotate(90 1152 76)"></text>
-  <rect x="822" y="136" width="308" height="2" fill="none"/>
-  <text x="976" y="160" text-anchor="middle" font-family="ui-sans-serif,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif" font-size="11" fill="#475569">everything except the cloud LLM runs locally</text>
+    <!-- shared local index -->
+    <rect x="608" y="128" width="136" height="84" rx="10" fill="#0f1115" stroke="#3f3f46" stroke-width="1.4"/>
+    <text x="676" y="158" text-anchor="middle" font-size="13" fill="#e4e4e7">your documents</text>
+    <text x="676" y="178" text-anchor="middle" font-size="11" fill="#71717a">embed &#8594; ChromaDB</text>
+    <text x="676" y="195" text-anchor="middle" font-size="11" fill="#71717a">+ BM25</text>
+
+    <!-- fork -->
+    <path d="M744 170 C 776 170, 776 104, 808 104" fill="none" stroke="url(#sky)" stroke-width="2.4"/>
+    <path d="M744 170 C 776 170, 776 236, 808 236" fill="none" stroke="url(#emerald)" stroke-width="2.4"/>
+    <circle cx="776" cy="170" r="3.5" fill="#52525b"/>
+
+    <!-- traditional lane -->
+    <rect x="808" y="72" width="180" height="64" rx="9" fill="#0c1218" stroke="#0ea5e9" stroke-width="1.5"/>
+    <text x="898" y="97" text-anchor="middle" font-size="13" fill="#7dd3fc">Traditional</text>
+    <text x="898" y="117" text-anchor="middle" font-size="11" fill="#71717a">retrieve &#183; rerank &#183; top-4</text>
+
+    <!-- hybrid lane -->
+    <rect x="808" y="204" width="180" height="64" rx="9" fill="#0b1310" stroke="#10b981" stroke-width="1.5"/>
+    <text x="898" y="229" text-anchor="middle" font-size="13" fill="#6ee7b7">Hybrid &#183; Jev</text>
+    <text x="898" y="249" text-anchor="middle" font-size="11" fill="#71717a">gate &#183; route &#183; verify</text>
+
+    <!-- converge on the one cloud call -->
+    <path d="M988 104 C 1014 104, 1014 158, 1036 158" fill="none" stroke="#0ea5e9" stroke-width="2.4"/>
+    <path d="M988 236 C 1014 236, 1014 202, 1036 202" fill="none" stroke="#10b981" stroke-width="2.4"/>
+
+    <rect x="1036" y="124" width="192" height="112" rx="10" fill="#0f1115" stroke="#a1a1aa" stroke-width="1.4" stroke-dasharray="5 4"/>
+    <text x="1132" y="152" text-anchor="middle" font-size="12.5" fill="#e4e4e7">qwen3.7-plus</text>
+    <text x="1132" y="172" text-anchor="middle" font-size="11" fill="#a1a1aa">the only call</text>
+    <text x="1132" y="189" text-anchor="middle" font-size="11" fill="#a1a1aa">that leaves</text>
+    <line x1="1056" y1="203" x2="1208" y2="203" stroke="#27272a" stroke-width="1"/>
+    <text x="1132" y="223" text-anchor="middle" font-size="11" fill="#71717a">&#8594; cited answer + trace</text>
+  </g>
+
+  <!-- local/cloud boundary caption -->
+  <line x1="608" y1="272" x2="1024" y2="272" stroke="#3f3f46" stroke-width="1.2"/>
+  <line x1="608" y1="266" x2="608" y2="278" stroke="#3f3f46" stroke-width="1.2"/>
+  <line x1="1024" y1="266" x2="1024" y2="278" stroke="#3f3f46" stroke-width="1.2"/>
+  <text x="816" y="294" text-anchor="middle" font-family="ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif"
+        font-size="12.5" fill="#71717a">runs on your machine</text>
 </svg>
